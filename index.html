@@ -160,7 +160,8 @@ tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style
       <div class="form-group"><label>Date</label><input id="f-date" placeholder="e.g. 15 Jan 2026"></div>
       <div class="form-group"><label>Status *</label><select id="f-status"><option value="PO">PO Confirmed</option><option value="Quotation">Quotation</option><option value="Lose">Lost Quote</option></select></div>
       <div class="form-group form-full"><label>Project name</label><input id="f-project" placeholder="e.g. Changi Airport T3"></div>
-      <div class="form-group form-full"><label>Model *</label><input id="f-model" placeholder="e.g. TK180 Plastic" list="model-list"><datalist id="model-list"></datalist></div>
+      <div class="form-group form-full"><label>Project group <span style="font-size:10px;color:#aaa;font-weight:400">(optional — links related entries with a toggle)</span></label><input id="f-project-group" placeholder="e.g. Bohol Airport" list="project-group-list"><datalist id="project-group-list"></datalist></div>
+      <div class="form-group form-full"><label style="display:flex;justify-content:space-between;align-items:center">Model * <button type="button" onclick="openManageModels()" style="font-size:10px;color:#1a3a4a;background:#e8f0f4;border:1px solid #c8d8e0;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:Montserrat,sans-serif;font-weight:500">+ Manage list</button></label><select id="f-model" onchange="autoFillPN()" style="font-family:'Montserrat',sans-serif;font-size:13px;padding:9px 11px;border:1px solid #e0e0e0;border-radius:8px;color:#222;background:#fff;width:100%"><option value="">-- Select model --</option></select></div>
       <div class="form-group form-full"><label>Part number</label><input id="f-pn" placeholder="e.g. 911HL020600733" style="font-family:'DM Mono',monospace"></div>
       <div class="form-group"><label>Quantity</label><input id="f-qty" placeholder="e.g. 50 units"></div>
       <div class="form-group"><label>Unit price *</label><input id="f-price" type="number" placeholder="e.g. 1080"></div>
@@ -181,6 +182,7 @@ tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style
       <div class="form-group form-full"><label>Part number</label><input id="b-pn" placeholder="e.g. 911HL011200733" style="font-family:'DM Mono',monospace"></div>
       <div class="form-group"><label>Price *</label><input id="b-price" type="number" placeholder="e.g. 369"></div>
       <div class="form-group"><label>Currency</label><select id="b-currency"><option value="USD">USD</option><option value="SGD">SGD</option><option value="EUR">EUR</option></select></div>
+      <div class="form-group form-full"><label>Group / category <span style="font-size:10px;color:#aaa;font-weight:400">(optional — groups items under a collapsible toggle)</span></label><input id="b-group" placeholder="e.g. TK180 Spare Parts" list="b-group-list"><datalist id="b-group-list"></datalist></div>
     </div>
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-buying')">Cancel</button><button class="btn-save" onclick="sbSaveBuying()">Save entry</button></div>
   </div>
@@ -228,7 +230,7 @@ let BUYING=[
   {model:"Cutter Ejector Module KPM180H CN",pn:"976AH010000003",price:94.53,currency:"USD",group:"KPM180 Spare Parts"},
   {model:"PCBA CPU KPM180 E12 R2 ST101_DP007 VN UL",pn:"8120000000000961",price:70.08,currency:"USD",group:"KPM180 Spare Parts"},
   {model:"Autocutter KPM180H 85MM Kyoujin",pn:"9B2GR020000011",price:33.60,currency:"USD",group:"KPM180 Spare Parts"},
-  {model:"KPM180 TPH (Thermal Print Head)",pn:"43000000045700",price:23.88,currency:"USD"},
+  {model:"KPM180 TPH",pn:"43000000045700",price:23.88,currency:"USD"},
   {model:"K80",pn:"915LC010137300",price:58.25,currency:"USD"},
   {model:"TG2480HIII",pn:"915CH030100300",price:112.00,currency:"USD"},
   {model:"VKP80III Rear Connector",pn:"915DX011700300",price:149.00,currency:"USD",specialPrice:135.60,specialCustomer:"Nanshan"},
@@ -324,8 +326,19 @@ function refreshFilterOptions(){
   [...new Set(TX.map(t=>t.model))].sort().forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=m;if(m===fmV)o.selected=true;fm.appendChild(o);});
   const cl=document.getElementById("customer-list"),ml=document.getElementById("model-list"),cntl=document.getElementById("country-list");
   if(cl)cl.innerHTML=[...new Set(TX.map(t=>t.customer))].sort().map(c=>`<option value="${c}">`).join("");
-  if(ml)ml.innerHTML=[...new Set(TX.map(t=>t.model))].sort().map(m=>`<option value="${m}">`).join("");
+  if(ml){
+    var stdModels=getModelList();
+    var txModels=[...new Set(TX.map(t=>t.model))].filter(function(m){return !m.includes("+");});
+    var allModels=[...new Set([...stdModels,...txModels])].sort();
+    var curVal=ml.tagName==="SELECT"?ml.value:"";
+    if(ml.tagName==="SELECT"){
+      ml.innerHTML="<option value=''>-- Select model --</option>"+allModels.map(function(m){return "<option value='"+m+"'"+(m===curVal?" selected":"")+">"+m+"</option>";}).join("");
+    } else {
+      ml.innerHTML=allModels.map(function(m){return "<option value='"+m+"'>";}).join("");
+    }
+  }
   if(cntl)cntl.innerHTML=[...new Set(TX.map(t=>t.country))].sort().map(c=>`<option value="${c}">`).join("");
+  var pgl=document.getElementById("project-group-list");if(pgl)pgl.innerHTML=[...new Set(TX.map(t=>t.projectGroup).filter(Boolean))].sort().map(p=>`<option value="${p}">`).join("");
 }
 function renderStats(){
   const pos=TX.filter(t=>t.status==="PO").length,qt=TX.filter(t=>t.status==="Quotation").length,ls=TX.filter(t=>t.status==="Lose").length;
@@ -520,6 +533,8 @@ function renderBuying(){
     if(isExp){groups[grp].forEach(function(b){rows+=makeRow(b);});}
   });
 
+  var bgl=document.getElementById("b-group-list");
+  if(bgl){var grps=[...new Set(BUYING.map(function(b){return b.group;}).filter(Boolean))].sort();bgl.innerHTML=grps.map(function(g){return "<option value='"+g+"'>";}).join("");}
   var tbody=document.getElementById("buy-tbody");
   var countEl=document.getElementById("buy-count");
   if(tbody){tbody.innerHTML=rows||"<tr><td colspan='4' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>";if(countEl)countEl.textContent=sorted.length+" / "+BUYING.length+" items";return;}
@@ -603,10 +618,44 @@ function renderContent(){
   else if(currentTab==="spares")renderSpares();
   else renderOthers();
 }
+var SPARE_PARTS=["Autocutter KPM180H 85MM Kyoujin","Cutter Ejector Module KPM180H CN","PCBA CPU KPM180 E12 R2 ST101_DP007 VN UL","New Metal Roll Holder for Bag Tag and GPP Paper (TK180 Plastic)","Roll Holder Kit for TK180 Metal","KPM180 TPH (Thermal Print Head)","TK180 TPH","Roll Holder","Ticket Tray Metal","1.8M USB Cable","USA Plug Power Cable","Paper Roll","On-site installation","Annual maintenance + consumables","Vertical Tray TK302 Metal Case","VKP80II Paper Roll Holder"];
+
+function populateModelSelect(){
+  var sel=document.getElementById("f-model");
+  if(!sel||sel.tagName!=="SELECT")return;
+  var printerModels=BUYING.filter(function(b){
+    return b.model&&!SPARE_PARTS.some(function(sp){return b.model.toLowerCase().includes(sp.toLowerCase());});
+  }).map(function(b){return b.model;});
+  var extraModels=getModelList().filter(function(m){return !printerModels.includes(m)&&!SPARE_PARTS.some(function(sp){return m.toLowerCase().includes(sp.toLowerCase());});});
+  var allModels=[...new Set([...printerModels,...extraModels])].sort();
+  sel.innerHTML="<option value=''>-- Select model --</option>"+allModels.map(function(m){
+    return "<option value='"+m+"'>"+m+"</option>";
+  }).join("");
+}
 function openModal(){
-  if(currentTab==="customers"){refreshFilterOptions();document.getElementById("modal-tx").classList.add("open");}
-  else if(currentTab==="buying")document.getElementById("modal-buying").classList.add("open");
-  else if(currentTab==="others")document.getElementById("modal-others").classList.add("open");
+  if(currentTab==="customers"){
+    refreshFilterOptions();
+    populateModelSelect();
+    // Clear all fields before opening for new entry
+    document.getElementById("modal-tx").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
+    document.getElementById("f-status").value="PO";
+    document.getElementById("f-currency").value="USD";
+    document.getElementById("f-terms").value="";
+    document.getElementById("f-warranty").value="";
+    document.getElementById("modal-tx").querySelector(".modal-title").textContent="Add transaction entry";
+    document.getElementById("modal-tx").removeAttribute("data-edit-id");
+    document.querySelector("#modal-tx .btn-save").textContent="Save entry";
+    document.querySelector("#modal-tx .btn-save").onclick=sbSaveTx;
+    document.getElementById("modal-tx").classList.add("open");
+  }
+  else if(currentTab==="buying"){
+    document.getElementById("modal-buying").querySelectorAll("input").forEach(function(el){el.value="";});
+    document.getElementById("modal-buying").classList.add("open");
+  }
+  else if(currentTab==="others"){
+    document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
+    document.getElementById("modal-others").classList.add("open");
+  }
 }
 function closeModal(id){document.getElementById(id).classList.remove("open");}
 document.querySelectorAll(".modal-overlay").forEach(el=>{el.addEventListener("click",e=>{if(e.target===el)el.classList.remove("open");});});
@@ -639,13 +688,49 @@ async function loadFromDB(){
   }catch(e){console.error(e);alert("Could not connect to database. Using local data.");}
   hideLoad();refreshFilterOptions();renderStats();renderCustomers();
 }
+
+var CUSTOM_MODELS=JSON.parse(localStorage.getItem("cpd_models")||"null");
+function getModelList(){
+  if(CUSTOM_MODELS)return CUSTOM_MODELS;
+  return ["TK180 Plastic","TK180 Plastic AEA","TK180 Metal Cutter","TK180 Metal Cutter AEA","TK180 Metal Cutter NON AEA","TK180 Metal Cutter ARINC","TK180 Metal Non Cutter","TK180 Metal Non Cutter ARINC","TK180 TPH","TK302 Metal Triple Feeder","KPM180 Cutter NON AEA","KPM180 with AEA","KPM180H-LL","KPM180 NON AEA","KPM180 TPH","TK202 Plastic","TK202 with AEA","TG2460HIII","TG2480HIII","VKP80II","VKP80II-RX","VKP80III","VKP80III Rear Connector","K80","KX80S"];
+}
+function openManageModels(){
+  document.getElementById("model-list-editor").value=getModelList().join("\n");
+  document.getElementById("modal-models").classList.add("open");
+}
+function saveModelList(){
+  var lines=document.getElementById("model-list-editor").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  CUSTOM_MODELS=lines;
+  localStorage.setItem("cpd_models",JSON.stringify(lines));
+  var ml=document.getElementById("model-list");
+  if(ml)ml.innerHTML=lines.map(function(m){return "<option value=\""+m+"\">";}).join("");
+  closeModal("modal-models");
+  alert("Model list saved! Changes are stored in your browser.");
+}
+
+
+function autoFillPN(){
+  var modelVal=document.getElementById("f-model").value.trim();
+  if(!modelVal)return;
+  var match=BUYING.find(function(b){return b.model.toLowerCase()===modelVal.toLowerCase();});
+  var pnField=document.getElementById("f-pn");
+  var bpField=document.getElementById("f-bp");
+  if(match){
+    if(pnField)pnField.value=match.pn?match.pn:"";
+    if(bpField&&match.currency==="USD")bpField.value=match.price;
+  } else {
+    if(pnField)pnField.value="";
+    if(bpField)bpField.value="";
+  }
+}
+
 async function sbSaveTx(){
   var customer=document.getElementById("f-customer").value.trim(),country=document.getElementById("f-country").value.trim(),price=parseFloat(document.getElementById("f-price").value),model=document.getElementById("f-model").value.trim();
   if(!customer||!country||!model||isNaN(price)){alert("Please fill in Customer, Country, Model and Price.");return;}
   var termsVal=document.getElementById("f-terms").value,notesRaw=document.getElementById("f-notes").value.trim();
   var notes=notesRaw?notesRaw.split("\n").map(function(n){return n.trim();}).filter(Boolean):[];
   var bpVal=document.getElementById("f-bp").value;
-  var nt={customer:customer,country:country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"—",pn:document.getElementById("f-pn").value.trim(),model:model,qty:document.getElementById("f-qty").value.trim()||"—",price:price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes:notes};
+  var pgv=document.getElementById("f-project-group")?document.getElementById("f-project-group").value.trim():"";var nt={customer:customer,country:country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"—",pn:document.getElementById("f-pn").value.trim(),model:model,qty:document.getElementById("f-qty").value.trim()||"—",price:price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes:notes,projectGroup:pgv};
   showLoad("Saving...");
   var r=await sbInsert("transactions",txToDb(nt));if(r&&r[0])nt._id=r[0].id;
   TX.push(nt);hideLoad();closeModal("modal-tx");
@@ -655,7 +740,7 @@ async function sbSaveTx(){
 async function sbSaveBuying(){
   var model=document.getElementById("b-model").value.trim(),price=parseFloat(document.getElementById("b-price").value);
   if(!model||isNaN(price)){alert("Please fill in Model and Price.");return;}
-  var nb={model:model,pn:document.getElementById("b-pn").value.trim(),price:price,currency:document.getElementById("b-currency").value};
+  var grpVal=document.getElementById("b-group")?document.getElementById("b-group").value.trim():"";var nb={model:model,pn:document.getElementById("b-pn").value.trim(),price:price,currency:document.getElementById("b-currency").value,group:grpVal||null};
   showLoad("Saving...");var r=await sbInsert("buying_prices",bToDb(nb));if(r&&r[0])nb._id=r[0].id;
   BUYING.push(nb);hideLoad();closeModal("modal-buying");
   document.getElementById("modal-buying").querySelectorAll("input").forEach(function(el){el.value="";});renderContent();
@@ -797,6 +882,20 @@ refreshFilterOptions();renderStats();renderCustomers();
   <span style="color:#fff;font-size:14px;font-weight:500;font-family:Montserrat,sans-serif">Loading...</span>
 </div>
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+<div class="modal-overlay" id="modal-models">
+  <div class="modal">
+    <div class="modal-title">Manage model list</div>
+    <p style="font-size:12px;color:#888;margin-bottom:12px">One model per line. Add or remove as needed.</p>
+    <div class="form-group form-full">
+      <textarea id="model-list-editor" style="font-family:Montserrat,sans-serif;font-size:13px;min-height:320px;line-height:1.8;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;width:100%;resize:vertical"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-models')">Cancel</button>
+      <button class="btn-save" onclick="saveModelList()">Save</button>
+    </div>
+  </div>
+</div>
 <div id="ld" style="display:none;position:fixed;inset:0;background:rgba(26,58,74,.75);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
   <div style="width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div>
   <span style="color:#fff;font-size:14px;font-weight:500;font-family:Montserrat,sans-serif">Loading...</span>
