@@ -293,6 +293,11 @@ let TX=[
   {customer:"WZ",country:"China",date:"",status:"Quotation",project:"WZ Standard Pricing",pn:"",model:"TK202 with AEA",qty:"TBD",price:5800,currency:"RMB",terms:[],warranty:"1Y",bp:null,notes:[]},
 ];
 
+// Seed snapshots — used by reseedDB()
+var TX_SEED=TX.map(function(t){return Object.assign({},t);});
+var BUYING_SEED=BUYING.map(function(b){return Object.assign({},b);});
+var OTHERS_SEED=OTHERS.map(function(o){return Object.assign({},o);});
+
 function parseDV(d){if(!d)return 0;const p=Date.parse(d);return isNaN(p)?0:p;}
 function dDisplay(tx){return tx.displayDate||tx.date||"";}
 function bStatus(s){
@@ -675,14 +680,95 @@ async function loadFromDB(){
   try{
     var res=await Promise.all([sbGet("transactions"),sbGet("buying_prices"),sbGet("others")]);
     var txRows=res[0],buyRows=res[1],othRows=res[2];
-    if(txRows&&txRows.length>0){TX.length=0;txRows.forEach(function(r){TX.push(dbToTx(r));});}
-    else{showLoad("First run — seeding database...");for(var i=0;i<TX.length;i++){var r=await sbInsert("transactions",txToDb(TX[i]));if(r&&r[0])TX[i]._id=r[0].id;}}
-    if(buyRows&&buyRows.length>0){BUYING.length=0;buyRows.forEach(function(r){BUYING.push(dbToB(r));});}
-    else{for(var j=0;j<BUYING.length;j++){var rb=await sbInsert("buying_prices",bToDb(BUYING[j]));if(rb&&rb[0])BUYING[j]._id=rb[0].id;}}
-    if(othRows&&othRows.length>0){OTHERS.length=0;othRows.forEach(function(r){OTHERS.push(dbToO(r));});}
-    else{for(var k=0;k<OTHERS.length;k++){var ro=await sbInsert("others",oToDb(OTHERS[k]));if(ro&&ro[0])OTHERS[k]._id=ro[0].id;}}
+
+    // Only trust DB if it has a reasonable number of rows (>= hardcoded count)
+    // Otherwise treat as incomplete seed and re-seed from code
+    var TX_CODE_COUNT=TX_SEED.length;
+    var BUYING_CODE_COUNT=BUYING_SEED.length;
+    var OTHERS_CODE_COUNT=OTHERS_SEED.length;
+
+    if(txRows&&txRows.length>=TX_CODE_COUNT){
+      TX.length=0;txRows.forEach(function(r){TX.push(dbToTx(r));});
+    } else {
+      // Incomplete or empty — wipe and re-seed
+      showLoad("Seeding transactions ("+TX_CODE_COUNT+" entries)...");
+      await fetch(SB_URL+"/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
+      TX.length=0;
+      for(var i=0;i<TX_SEED.length;i++){
+        var t=Object.assign({},TX_SEED[i]);delete t._id;
+        var r=await sbInsert("transactions",txToDb(t));
+        if(r&&r[0])t._id=r[0].id;
+        TX.push(t);
+      }
+    }
+
+    if(buyRows&&buyRows.length>=BUYING_CODE_COUNT){
+      BUYING.length=0;buyRows.forEach(function(r){BUYING.push(dbToB(r));});
+    } else {
+      showLoad("Seeding buying prices ("+BUYING_CODE_COUNT+" entries)...");
+      await fetch(SB_URL+"/rest/v1/buying_prices?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
+      BUYING.length=0;
+      for(var j=0;j<BUYING_SEED.length;j++){
+        var b=Object.assign({},BUYING_SEED[j]);delete b._id;
+        var rb=await sbInsert("buying_prices",bToDb(b));
+        if(rb&&rb[0])b._id=rb[0].id;
+        BUYING.push(b);
+      }
+    }
+
+    if(othRows&&othRows.length>=OTHERS_CODE_COUNT){
+      OTHERS.length=0;othRows.forEach(function(r){OTHERS.push(dbToO(r));});
+    } else {
+      showLoad("Seeding notes ("+OTHERS_CODE_COUNT+" entries)...");
+      await fetch(SB_URL+"/rest/v1/others?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
+      OTHERS.length=0;
+      for(var k=0;k<OTHERS_SEED.length;k++){
+        var o=Object.assign({},OTHERS_SEED[k]);delete o._id;
+        var ro=await sbInsert("others",oToDb(o));
+        if(ro&&ro[0])o._id=ro[0].id;
+        OTHERS.push(o);
+      }
+    }
+
   }catch(e){console.error(e);alert("Could not connect to database. Using local data.");}
   hideLoad();refreshFilterOptions();renderStats();renderCustomers();
+}
+
+async function reseedDB(){
+  if(!confirm("This will DELETE all data in the database and re-insert the hardcoded entries from the code.\n\nAny entries you added manually will be lost.\n\nContinue?"))return;
+  showLoad("Clearing database...");
+  try{
+    // Delete all rows from each table
+    await fetch(SB_URL+"/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
+    await fetch(SB_URL+"/rest/v1/buying_prices?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
+    await fetch(SB_URL+"/rest/v1/others?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
+    showLoad("Seeding transactions...");
+    var freshTX=TX_SEED.map(function(t){return Object.assign({},t);});
+    TX.length=0;
+    for(var i=0;i<freshTX.length;i++){
+      var r=await sbInsert("transactions",txToDb(freshTX[i]));
+      if(r&&r[0])freshTX[i]._id=r[0].id;
+      TX.push(freshTX[i]);
+    }
+    showLoad("Seeding buying prices...");
+    var freshB=BUYING_SEED.map(function(b){return Object.assign({},b);});
+    BUYING.length=0;
+    for(var j=0;j<freshB.length;j++){
+      var rb=await sbInsert("buying_prices",bToDb(freshB[j]));
+      if(rb&&rb[0])freshB[j]._id=rb[0].id;
+      BUYING.push(freshB[j]);
+    }
+    showLoad("Seeding notes...");
+    var freshO=OTHERS_SEED.map(function(o){return Object.assign({},o);});
+    OTHERS.length=0;
+    for(var k=0;k<freshO.length;k++){
+      var ro=await sbInsert("others",oToDb(freshO[k]));
+      if(ro&&ro[0])freshO[k]._id=ro[0].id;
+      OTHERS.push(freshO[k]);
+    }
+    alert("Re-seed complete! "+TX.length+" transactions, "+BUYING.length+" buying prices, "+OTHERS.length+" notes loaded.");
+  }catch(err){console.error(err);alert("Re-seed failed: "+err.message);}
+  hideLoad();refreshFilterOptions();renderStats();renderContent();
 }
 
 var CUSTOM_MODELS=JSON.parse(localStorage.getItem("cpd_models")||"null");
