@@ -798,34 +798,9 @@ async function sbDeleteOther(i){
   OTHERS.splice(i,1);renderContent();
 }
 
-function saveTx(){
-  const customer=document.getElementById("f-customer").value.trim(),country=document.getElementById("f-country").value.trim();
-  const price=parseFloat(document.getElementById("f-price").value),model=document.getElementById("f-model").value.trim();
-  if(!customer||!country||!model||isNaN(price)){alert("Please fill in Customer, Country, Model and Price.");return;}
-  const termsVal=document.getElementById("f-terms").value,notesRaw=document.getElementById("f-notes").value.trim();
-  const notes=notesRaw?notesRaw.split("\n").map(n=>n.trim()).filter(Boolean):[];
-  const bpVal=document.getElementById("f-bp").value;
-  TX.push({customer,country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"\u2014",pn:document.getElementById("f-pn").value.trim(),model,qty:document.getElementById("f-qty").value.trim()||"\u2014",price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes});
-  closeModal("modal-tx");
-  document.getElementById("modal-tx").querySelectorAll("input,textarea").forEach(el=>el.value="");
-  refreshFilterOptions();renderStats();renderContent();
-}
-function saveBuying(){
-  const model=document.getElementById("b-model").value.trim(),price=parseFloat(document.getElementById("b-price").value);
-  if(!model||isNaN(price)){alert("Please fill in Model and Price.");return;}
-  BUYING.push({model,pn:document.getElementById("b-pn").value.trim(),price,currency:document.getElementById("b-currency").value});
-  closeModal("modal-buying");document.getElementById("modal-buying").querySelectorAll("input").forEach(el=>el.value="");renderContent();
-}
-function saveOther(){
-  const desc=document.getElementById("o-desc").value.trim(),value=document.getElementById("o-value").value.trim();
-  if(!desc||!value){alert("Please fill in Description and Value.");return;}
-  OTHERS.push({date:document.getElementById("o-date").value.trim(),desc,value,sub:document.getElementById("o-sub").value.trim()});
-  closeModal("modal-others");document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(el=>el.value="");renderContent();
-}
-
 function editTx(i, e){
   if(e) e.stopPropagation();
-  const tx=TX[i];
+  var tx=TX[i];
   document.getElementById("modal-tx").setAttribute("data-edit-idx", i);
   var delBtn=document.getElementById("btn-delete-tx");
   var saveBtn=document.getElementById("btn-save-tx");
@@ -833,11 +808,13 @@ function editTx(i, e){
   if(saveBtn){saveBtn.textContent="Update entry";saveBtn.onclick=function(){sbUpdateTx(i);};}
   document.getElementById("modal-tx").querySelector(".modal-title").textContent="Edit transaction entry";
   refreshFilterOptions();
+  populateModelSelect();
   document.getElementById("f-customer").value=tx.customer;
   document.getElementById("f-country").value=tx.country;
   document.getElementById("f-date").value=tx.date||"";
   document.getElementById("f-status").value=tx.status;
   document.getElementById("f-project").value=tx.project==="—"?"":tx.project;
+  var pgField=document.getElementById("f-project-group");if(pgField)pgField.value=tx.projectGroup||"";
   document.getElementById("f-model").value=tx.model;
   document.getElementById("f-pn").value=tx.pn||"";
   document.getElementById("f-qty").value=tx.qty==="—"?"":tx.qty;
@@ -847,75 +824,61 @@ function editTx(i, e){
   document.getElementById("f-terms").value=tx.terms[0]||"";
   document.getElementById("f-warranty").value=tx.warranty||"";
   document.getElementById("f-notes").value=tx.notes.join("\n");
-  const saveBtn=document.querySelector("#modal-tx .btn-save");
-  saveBtn.textContent="Update entry";
-  saveBtn.onclick=function(){
-    const customer=document.getElementById("f-customer").value.trim();
-    const country=document.getElementById("f-country").value.trim();
-    const price=parseFloat(document.getElementById("f-price").value);
-    const model=document.getElementById("f-model").value.trim();
-    if(!customer||!country||!model||isNaN(price)){alert("Please fill in Customer, Country, Model and Price.");return;}
-    const termsVal=document.getElementById("f-terms").value;
-    const notesRaw=document.getElementById("f-notes").value.trim();
-    const notes=notesRaw?notesRaw.split("\n").map(n=>n.trim()).filter(Boolean):[];
-    const bpVal=document.getElementById("f-bp").value;
-    TX[i]={customer,country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"—",pn:document.getElementById("f-pn").value.trim(),model,qty:document.getElementById("f-qty").value.trim()||"—",price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes};
-    closeModal("modal-tx");
-    document.getElementById("modal-tx").querySelectorAll("input,textarea").forEach(el=>el.value="");
-    saveBtn.textContent="Save entry";
-    saveBtn.onclick=saveTx;
-    refreshFilterOptions();renderStats();renderContent();
-  };
   document.getElementById("modal-tx").classList.add("open");
 }
 
 function editBuying(i){
-  const b=BUYING[i];
+  var b=BUYING[i];
   document.getElementById("b-model").value=b.model;
   document.getElementById("b-pn").value=b.pn||"";
   document.getElementById("b-price").value=b.price;
   document.getElementById("b-currency").value=b.currency;
-  // Change save button to update
-  const saveBtn=document.querySelector("#modal-buying .btn-save");
-  saveBtn.textContent="Update entry";
-  saveBtn.onclick=function(){
-    const model=document.getElementById("b-model").value.trim();
-    const price=parseFloat(document.getElementById("b-price").value);
+  var saveBtnB=document.querySelector("#modal-buying .btn-save");
+  saveBtnB.textContent="Update entry";
+  saveBtnB.onclick=function(){
+    var model=document.getElementById("b-model").value.trim();
+    var price=parseFloat(document.getElementById("b-price").value);
     if(!model||isNaN(price)){alert("Please fill in Model and Price.");return;}
-    BUYING[i]={model,pn:document.getElementById("b-pn").value.trim(),price,currency:document.getElementById("b-currency").value};
+    BUYING[i]={model:model,pn:document.getElementById("b-pn").value.trim(),price:price,currency:document.getElementById("b-currency").value,_id:b._id};
+    if(b._id){
+      fetch(SB_URL+"/rest/v1/buying_prices?id=eq."+b._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(bToDb(BUYING[i]))});
+    }
     closeModal("modal-buying");
-    document.getElementById("modal-buying").querySelectorAll("input").forEach(el=>el.value="");
-    saveBtn.textContent="Save entry";
-    saveBtn.onclick=saveBuying;
+    document.getElementById("modal-buying").querySelectorAll("input").forEach(function(el){el.value="";});
+    saveBtnB.textContent="Save entry";
+    saveBtnB.onclick=sbSaveBuying;
     renderContent();
   };
   document.getElementById("modal-buying").classList.add("open");
 }
 
 function editOther(i){
-  const o=OTHERS[i];
+  var o=OTHERS[i];
   document.getElementById("o-date").value=o.date||"";
   document.getElementById("o-value").value=o.value||"";
   document.getElementById("o-desc").value=o.desc||"";
   document.getElementById("o-sub").value=o.sub||"";
-  const saveBtn=document.querySelector("#modal-others .btn-save");
-  saveBtn.textContent="Update entry";
-  saveBtn.onclick=function(){
-    const desc=document.getElementById("o-desc").value.trim();
-    const value=document.getElementById("o-value").value.trim();
+  var saveBtnO=document.querySelector("#modal-others .btn-save");
+  saveBtnO.textContent="Update entry";
+  saveBtnO.onclick=function(){
+    var desc=document.getElementById("o-desc").value.trim();
+    var value=document.getElementById("o-value").value.trim();
     if(!desc||!value){alert("Please fill in Description and Value.");return;}
-    OTHERS[i]={date:document.getElementById("o-date").value.trim(),desc,value,sub:document.getElementById("o-sub").value.trim()};
+    OTHERS[i]={date:document.getElementById("o-date").value.trim(),desc:desc,value:value,sub:document.getElementById("o-sub").value.trim(),_id:o._id};
+    if(o._id){
+      fetch(SB_URL+"/rest/v1/others?id=eq."+o._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(oToDb(OTHERS[i]))});
+    }
     closeModal("modal-others");
-    document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(el=>el.value="");
-    saveBtn.textContent="Save entry";
-    saveBtn.onclick=saveOther;
+    document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
+    saveBtnO.textContent="Save entry";
+    saveBtnO.onclick=sbSaveOther;
     renderContent();
   };
   document.getElementById("modal-others").classList.add("open");
 }
-function deleteBuying(i){if(!confirm("Remove this buying price entry?"))return;BUYING.splice(i,1);renderContent();}
-function deleteOther(i){if(!confirm("Remove this note?"))return;OTHERS.splice(i,1);renderContent();}
-refreshFilterOptions();renderStats();renderCustomers();
+function deleteBuying(i){if(!confirm("Remove this buying price entry?"))return;var item=BUYING[i];if(item&&item._id){fetch(SB_URL+"/rest/v1/buying_prices?id=eq."+item._id,{method:"DELETE",headers:sbH()});}BUYING.splice(i,1);renderContent();}
+function deleteOther(i){if(!confirm("Remove this note?"))return;var item=OTHERS[i];if(item&&item._id){fetch(SB_URL+"/rest/v1/others?id=eq."+item._id,{method:"DELETE",headers:sbH()});}OTHERS.splice(i,1);renderContent();}
+loadFromDB();
 </script>
 <div id="load-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,58,74,.7);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
   <div style="width:40px;height:40px;border:4px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>
