@@ -170,7 +170,7 @@ tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style
       <div class="form-group"><label>Warranty</label><select id="f-warranty"><option value="">Unknown / N/A</option><option value="1Y">1 Year</option><option value="2Y">2 Years</option><option value="3Y">3 Years</option><option value="5Y">5 Years</option></select></div>
       <div class="form-group form-full"><label>Notes</label><textarea id="f-notes" placeholder="One note per line."></textarea><span class="form-hint">Press Enter for multiple notes</span></div>
     </div>
-    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-tx')">Cancel</button><button class="btn-save" onclick="saveTx()">Save entry</button></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-tx')">Cancel</button><button class="btn-save" onclick="sbSaveTx()">Save entry</button></div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-buying">
@@ -182,7 +182,7 @@ tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style
       <div class="form-group"><label>Price *</label><input id="b-price" type="number" placeholder="e.g. 369"></div>
       <div class="form-group"><label>Currency</label><select id="b-currency"><option value="USD">USD</option><option value="SGD">SGD</option><option value="EUR">EUR</option></select></div>
     </div>
-    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-buying')">Cancel</button><button class="btn-save" onclick="saveBuying()">Save entry</button></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-buying')">Cancel</button><button class="btn-save" onclick="sbSaveBuying()">Save entry</button></div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-others">
@@ -194,7 +194,7 @@ tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style
       <div class="form-group form-full"><label>Description *</label><input id="o-desc" placeholder="e.g. Service for Vietnam"></div>
       <div class="form-group form-full"><label>Sub-note / detail</label><textarea id="o-sub" placeholder="Any additional context or breakdown"></textarea></div>
     </div>
-    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-others')">Cancel</button><button class="btn-save" onclick="saveOther()">Save entry</button></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-others')">Cancel</button><button class="btn-save" onclick="sbSaveOther()">Save entry</button></div>
   </div>
 </div>
 <script>
@@ -505,7 +505,7 @@ function renderBuying(){
 
   function makeRow(b){
     var sp=b.specialPrice?"<span style='font-size:10px;color:#856404;background:#fff3cd;padding:1px 6px;border-radius:4px;font-weight:500;margin-left:6px'>"+(b.specialCustomer||"Special")+": $"+b.specialPrice.toFixed(2)+"</span>":"";
-    return "<tr><td style='font-weight:500'>"+b.model+"</td><td style='font-size:11px;color:#5a7a8a;font-family:monospace'>"+(b.pn||"—")+"</td><td style='text-align:right;font-weight:600;color:#1a3a4a'>$"+b.price.toFixed(2)+" "+b.currency+sp+"</td><td style='text-align:right'><button class='delete-btn' onclick='deleteBuying("+b._i+")'>Remove</button></td></tr>";
+    return "<tr><td style='font-weight:500'>"+b.model+"</td><td style='font-size:11px;color:#5a7a8a;font-family:monospace'>"+(b.pn||"—")+"</td><td style='text-align:right;font-weight:600;color:#1a3a4a'>$"+b.price.toFixed(2)+" "+b.currency+sp+"</td><td style='text-align:right'><button class='delete-btn' onclick='sbDeleteBuying("+b._i+")'>Remove</button></td></tr>";
   }
 
   var rows="";
@@ -610,6 +610,75 @@ function openModal(){
 }
 function closeModal(id){document.getElementById(id).classList.remove("open");}
 document.querySelectorAll(".modal-overlay").forEach(el=>{el.addEventListener("click",e=>{if(e.target===el)el.classList.remove("open");});});
+
+const SB_URL="https://mtuteycxdhlqpdupqolb.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10dXRleWN4ZGhscXBkdXBxb2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NDY4NDAsImV4cCI6MjA5MjMyMjg0MH0.LTP6V7jECT3ArHiiUPIi1yf_38Rpdl0JhFAatHte22M";
+function sbH(){return{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json","Prefer":"return=representation"};}
+async function sbGet(t){var r=await fetch(SB_URL+"/rest/v1/"+t+"?select=*&order=created_at.asc",{headers:sbH()});return r.ok?r.json():null;}
+async function sbInsert(t,row){var r=await fetch(SB_URL+"/rest/v1/"+t,{method:"POST",headers:sbH(),body:JSON.stringify(row)});return r.ok?r.json():null;}
+async function sbDelete(t,id){return (await fetch(SB_URL+"/rest/v1/"+t+"?id=eq."+id,{method:"DELETE",headers:sbH()})).ok;}
+function dbToTx(r){return{_id:r.id,customer:r.customer||"",country:r.country||"",date:r.date||"",status:r.status||"PO",project:r.project||"",pn:r.pn||"",model:r.model||"",qty:r.qty||"",price:Number(r.price)||0,dualPrice:r.dual_price?Number(r.dual_price):undefined,currency:r.currency||"USD",terms:r.terms||[],warranty:r.warranty||"",bp:r.bp?Number(r.bp):null,totalOverride:r.total_override?Number(r.total_override):undefined,printerTotalOverride:r.printer_total_override?Number(r.printer_total_override):undefined,noPrinterTotal:r.no_printer_total||false,projectGroup:r.project_group||"",displayModel:r.display_model||"",notes:r.notes||[]};}
+function txToDb(t){return{customer:t.customer,country:t.country,date:t.date,status:t.status,project:t.project,pn:t.pn,model:t.model,qty:t.qty,price:t.price,dual_price:t.dualPrice||null,currency:t.currency,terms:t.terms,warranty:t.warranty,bp:t.bp||null,total_override:t.totalOverride||null,printer_total_override:t.printerTotalOverride||null,no_printer_total:t.noPrinterTotal||false,project_group:t.projectGroup||null,display_model:t.displayModel||null,notes:t.notes};}
+function dbToB(r){return{_id:r.id,model:r.model,pn:r.pn||"",price:Number(r.price),currency:r.currency,specialPrice:r.special_price?Number(r.special_price):undefined,specialCustomer:r.special_customer||"",group:r.grp||""};}
+function bToDb(b){return{model:b.model,pn:b.pn||"",price:b.price,currency:b.currency,special_price:b.specialPrice||null,special_customer:b.specialCustomer||null,grp:b.group||null};}
+function dbToO(r){return{_id:r.id,date:r.date||"",desc:r.description||"",value:r.value||"",sub:r.sub||""};}
+function oToDb(o){return{date:o.date||"",description:o.desc,value:o.value,sub:o.sub||""};}
+function showLoad(m){var e=document.getElementById("ld");if(e){e.style.display="flex";e.querySelector("span").textContent=m||"Loading...";}}
+function hideLoad(){var e=document.getElementById("ld");if(e)e.style.display="none";}
+async function loadFromDB(){
+  showLoad("Connecting to database...");
+  try{
+    var res=await Promise.all([sbGet("transactions"),sbGet("buying_prices"),sbGet("others")]);
+    var txRows=res[0],buyRows=res[1],othRows=res[2];
+    if(txRows&&txRows.length>0){TX.length=0;txRows.forEach(function(r){TX.push(dbToTx(r));});}
+    else{showLoad("First run — seeding database...");for(var i=0;i<TX.length;i++){var r=await sbInsert("transactions",txToDb(TX[i]));if(r&&r[0])TX[i]._id=r[0].id;}}
+    if(buyRows&&buyRows.length>0){BUYING.length=0;buyRows.forEach(function(r){BUYING.push(dbToB(r));});}
+    else{for(var j=0;j<BUYING.length;j++){var rb=await sbInsert("buying_prices",bToDb(BUYING[j]));if(rb&&rb[0])BUYING[j]._id=rb[0].id;}}
+    if(othRows&&othRows.length>0){OTHERS.length=0;othRows.forEach(function(r){OTHERS.push(dbToO(r));});}
+    else{for(var k=0;k<OTHERS.length;k++){var ro=await sbInsert("others",oToDb(OTHERS[k]));if(ro&&ro[0])OTHERS[k]._id=ro[0].id;}}
+  }catch(e){console.error(e);alert("Could not connect to database. Using local data.");}
+  hideLoad();refreshFilterOptions();renderStats();renderCustomers();
+}
+async function sbSaveTx(){
+  var customer=document.getElementById("f-customer").value.trim(),country=document.getElementById("f-country").value.trim(),price=parseFloat(document.getElementById("f-price").value),model=document.getElementById("f-model").value.trim();
+  if(!customer||!country||!model||isNaN(price)){alert("Please fill in Customer, Country, Model and Price.");return;}
+  var termsVal=document.getElementById("f-terms").value,notesRaw=document.getElementById("f-notes").value.trim();
+  var notes=notesRaw?notesRaw.split("\n").map(function(n){return n.trim();}).filter(Boolean):[];
+  var bpVal=document.getElementById("f-bp").value;
+  var nt={customer:customer,country:country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"—",pn:document.getElementById("f-pn").value.trim(),model:model,qty:document.getElementById("f-qty").value.trim()||"—",price:price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes:notes};
+  showLoad("Saving...");
+  var r=await sbInsert("transactions",txToDb(nt));if(r&&r[0])nt._id=r[0].id;
+  TX.push(nt);hideLoad();closeModal("modal-tx");
+  document.getElementById("modal-tx").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
+  refreshFilterOptions();renderStats();renderContent();
+}
+async function sbSaveBuying(){
+  var model=document.getElementById("b-model").value.trim(),price=parseFloat(document.getElementById("b-price").value);
+  if(!model||isNaN(price)){alert("Please fill in Model and Price.");return;}
+  var nb={model:model,pn:document.getElementById("b-pn").value.trim(),price:price,currency:document.getElementById("b-currency").value};
+  showLoad("Saving...");var r=await sbInsert("buying_prices",bToDb(nb));if(r&&r[0])nb._id=r[0].id;
+  BUYING.push(nb);hideLoad();closeModal("modal-buying");
+  document.getElementById("modal-buying").querySelectorAll("input").forEach(function(el){el.value="";});renderContent();
+}
+async function sbSaveOther(){
+  var desc=document.getElementById("o-desc").value.trim(),value=document.getElementById("o-value").value.trim();
+  if(!desc||!value){alert("Please fill in Description and Value.");return;}
+  var no={date:document.getElementById("o-date").value.trim(),desc:desc,value:value,sub:document.getElementById("o-sub").value.trim()};
+  showLoad("Saving...");var r=await sbInsert("others",oToDb(no));if(r&&r[0])no._id=r[0].id;
+  OTHERS.push(no);hideLoad();closeModal("modal-others");
+  document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(function(el){el.value="";});renderContent();
+}
+async function sbDeleteBuying(i){
+  if(!confirm("Remove this buying price entry?"))return;
+  var item=BUYING[i];if(item&&item._id)await sbDelete("buying_prices",item._id);
+  BUYING.splice(i,1);renderContent();
+}
+async function sbDeleteOther(i){
+  if(!confirm("Remove this note?"))return;
+  var item=OTHERS[i];if(item&&item._id)await sbDelete("others",item._id);
+  OTHERS.splice(i,1);renderContent();
+}
+
 function saveTx(){
   const customer=document.getElementById("f-customer").value.trim(),country=document.getElementById("f-country").value.trim();
   const price=parseFloat(document.getElementById("f-price").value),model=document.getElementById("f-model").value.trim();
@@ -723,5 +792,15 @@ function deleteBuying(i){if(!confirm("Remove this buying price entry?"))return;B
 function deleteOther(i){if(!confirm("Remove this note?"))return;OTHERS.splice(i,1);renderContent();}
 refreshFilterOptions();renderStats();renderCustomers();
 </script>
+<div id="load-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,58,74,.7);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="width:40px;height:40px;border:4px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+  <span style="color:#fff;font-size:14px;font-weight:500;font-family:Montserrat,sans-serif">Loading...</span>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+<div id="ld" style="display:none;position:fixed;inset:0;background:rgba(26,58,74,.75);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div>
+  <span style="color:#fff;font-size:14px;font-weight:500;font-family:Montserrat,sans-serif">Loading...</span>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </body>
 </html>
