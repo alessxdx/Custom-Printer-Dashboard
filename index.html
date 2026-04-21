@@ -194,14 +194,18 @@ tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style
 </div>
 <div class="modal-overlay" id="modal-others">
   <div class="modal">
-    <div class="modal-title">Add note / record</div>
+    <div class="modal-title" id="others-modal-title">Add note / record</div>
     <div class="form-grid">
       <div class="form-group"><label>Date</label><input id="o-date" placeholder="e.g. 18 Nov 2025"></div>
       <div class="form-group"><label>Value / amount *</label><input id="o-value" placeholder="e.g. $12,000 USD"></div>
       <div class="form-group form-full"><label>Description *</label><input id="o-desc" placeholder="e.g. Service for Vietnam"></div>
       <div class="form-group form-full"><label>Sub-note / detail</label><textarea id="o-sub" placeholder="Any additional context or breakdown"></textarea></div>
     </div>
-    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-others')">Cancel</button><button class="btn-save" onclick="sbSaveOther()">Save entry</button></div>
+    <div class="modal-actions">
+      <button id="btn-delete-other" class="delete-btn" style="margin-right:auto;font-size:13px;padding:9px 14px;display:none" onclick="deleteOtherFromModal()">Delete entry</button>
+      <button class="btn-cancel" onclick="closeOtherModal()">Cancel</button>
+      <button class="btn-save" id="btn-save-other" onclick="sbSaveOther()">Save entry</button>
+    </div>
   </div>
 </div>
 <script>
@@ -541,7 +545,7 @@ function renderBuying(){
     var isExp=!!expandedGroups[grp];
     var grpId=grp.replace(/[^a-zA-Z0-9]/g,"-");
     rows+="<tr style='background:#e8f0f4;cursor:pointer' onclick='toggleBuyGroup(event,this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
-      "<td colspan='4' style='font-size:11px;font-weight:600;color:#1a3a4a;padding:8px 12px'>"+
+      "<td colspan='5' style='font-size:11px;font-weight:600;color:#1a3a4a;padding:8px 12px'>"+
         "<span id='buy-grp-icon-"+grpId+"'>"+(isExp?"▲":"▼")+"</span> "+grp+" ("+groups[grp].length+" items)"+
       "</td></tr>";
     if(isExp){groups[grp].forEach(function(b){rows+=makeRow(b);});}
@@ -551,7 +555,7 @@ function renderBuying(){
   if(bgl){var grps=[...new Set(BUYING.map(function(b){return b.group;}).filter(Boolean))].sort();bgl.innerHTML=grps.map(function(g){return "<option value='"+g+"'>";}).join("");}
   var tbody=document.getElementById("buy-tbody");
   var countEl=document.getElementById("buy-count");
-  if(tbody){tbody.innerHTML=rows||"<tr><td colspan='4' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>";if(countEl)countEl.textContent=sorted.length+" / "+BUYING.length+" items";return;}
+  if(tbody){tbody.innerHTML=rows||"<tr><td colspan='5' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>";if(countEl)countEl.textContent=sorted.length+" / "+BUYING.length+" items";return;}
 
   document.getElementById("content").innerHTML=
     "<div class='buying-card'>"+
@@ -566,7 +570,7 @@ function renderBuying(){
       "<span id='buy-count' style='font-size:11px;color:#5a7a8a'>"+sorted.length+" / "+BUYING.length+" items</span>"+
     "</div>"+
     "<table><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th style='text-align:right'>Special price</th><th></th></tr></thead>"+
-    "<tbody id='buy-tbody'>"+(rows||"<tr><td colspan='4' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+"</tbody></table>"+
+    "<tbody id='buy-tbody'>"+(rows||"<tr><td colspan='5' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+"</tbody></table>"+
     "</div>";
   var inp=document.getElementById("buy-search");
   if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
@@ -778,7 +782,7 @@ function openModal(){
     document.getElementById("modal-spares").classList.add("open");
   }
   else if(currentTab==="others"){
-    document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
+    closeOtherModal();
     document.getElementById("modal-others").classList.add("open");
   }
 }
@@ -840,7 +844,7 @@ async function loadFromDB(){
       }
     }
 
-    if(othRows&&othRows.length>=OTHERS_CODE_COUNT){
+    if(othRows&&othRows.length>0){
       OTHERS.length=0;othRows.forEach(function(r){OTHERS.push(dbToO(r));});
     } else {
       showLoad("Seeding notes ("+OTHERS_CODE_COUNT+" entries)...");
@@ -993,8 +997,7 @@ async function sbSaveOther(){
   if(!desc||!value){alert("Please fill in Description and Value.");return;}
   var no={date:document.getElementById("o-date").value.trim(),desc:desc,value:value,sub:document.getElementById("o-sub").value.trim()};
   showLoad("Saving...");var r=await sbInsert("others",oToDb(no));if(r&&r[0])no._id=r[0].id;
-  OTHERS.push(no);hideLoad();closeModal("modal-others");
-  document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(function(el){el.value="";});renderContent();
+  OTHERS.push(no);hideLoad();closeOtherModal();renderContent();
 }
 async function sbDeleteBuying(i){
   if(!confirm("Remove this buying price entry?"))return;
@@ -1096,27 +1099,53 @@ async function sbDeleteBuyingFromModal(){
 
 function editOther(i){
   var o=OTHERS[i];
+  document.getElementById("modal-others").setAttribute("data-edit-idx",i);
+  document.getElementById("others-modal-title").textContent="Edit note / record";
   document.getElementById("o-date").value=o.date||"";
   document.getElementById("o-value").value=o.value||"";
   document.getElementById("o-desc").value=o.desc||"";
   document.getElementById("o-sub").value=o.sub||"";
-  var saveBtnO=document.querySelector("#modal-others .btn-save");
+  var delBtn=document.getElementById("btn-delete-other");if(delBtn)delBtn.style.display="inline-flex";
+  var saveBtnO=document.getElementById("btn-save-other");
   saveBtnO.textContent="Update entry";
-  saveBtnO.onclick=function(){
+  saveBtnO.onclick=async function(){
     var desc=document.getElementById("o-desc").value.trim();
     var value=document.getElementById("o-value").value.trim();
     if(!desc||!value){alert("Please fill in Description and Value.");return;}
-    OTHERS[i]={date:document.getElementById("o-date").value.trim(),desc:desc,value:value,sub:document.getElementById("o-sub").value.trim(),_id:o._id};
+    var updated={date:document.getElementById("o-date").value.trim(),desc:desc,value:value,sub:document.getElementById("o-sub").value.trim(),_id:o._id};
+    showLoad("Updating...");
     if(o._id){
-      fetch(SB_URL+"/rest/v1/others?id=eq."+o._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(oToDb(OTHERS[i]))});
+      await fetch(SB_URL+"/rest/v1/others?id=eq."+o._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(oToDb(updated))});
     }
-    closeModal("modal-others");
-    document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
-    saveBtnO.textContent="Save entry";
-    saveBtnO.onclick=sbSaveOther;
+    OTHERS[i]=updated;
+    hideLoad();
+    closeOtherModal();
     renderContent();
   };
   document.getElementById("modal-others").classList.add("open");
+}
+
+function closeOtherModal(){
+  document.getElementById("modal-others").removeAttribute("data-edit-idx");
+  document.getElementById("others-modal-title").textContent="Add note / record";
+  var delBtn=document.getElementById("btn-delete-other");if(delBtn)delBtn.style.display="none";
+  var saveBtnO=document.getElementById("btn-save-other");
+  if(saveBtnO){saveBtnO.textContent="Save entry";saveBtnO.onclick=sbSaveOther;}
+  document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
+  closeModal("modal-others");
+}
+
+async function deleteOtherFromModal(){
+  var i=parseInt(document.getElementById("modal-others").getAttribute("data-edit-idx"));
+  if(isNaN(i))return;
+  if(!confirm("Delete this note permanently?"))return;
+  var item=OTHERS[i];
+  showLoad("Deleting...");
+  if(item&&item._id)await sbDelete("others",item._id);
+  OTHERS.splice(i,1);
+  hideLoad();
+  closeOtherModal();
+  renderContent();
 }
 function deleteBuying(i){if(!confirm("Remove this buying price entry?"))return;var item=BUYING[i];if(item&&item._id){fetch(SB_URL+"/rest/v1/buying_prices?id=eq."+item._id,{method:"DELETE",headers:sbH()});}BUYING.splice(i,1);renderContent();}
 function deleteOther(i){if(!confirm("Remove this note?"))return;var item=OTHERS[i];if(item&&item._id){fetch(SB_URL+"/rest/v1/others?id=eq."+item._id,{method:"DELETE",headers:sbH()});}OTHERS.splice(i,1);renderContent();}
