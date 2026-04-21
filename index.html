@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CUSTOM Printer Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Montserrat',sans-serif;background:#eef2f5;color:#1a1a1a;min-height:100vh;padding:32px 20px}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-size:24px;font-weight:600;color:#1a3a4a;letter-spacing:-.3px}
+.subtitle{display:none}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;margin-top:0}
+.stat{background:#fff;border:1px solid #c8d8e0;border-left:4px solid #1a3a4a;border-radius:12px;padding:16px 18px}
+.stat-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.stat-value{font-size:26px;font-weight:600;color:#1a3a4a}
+.stat-sub{font-size:11px;color:#bbb;margin-top:3px}
+.tab-row{display:flex;border-bottom:2px solid #c8d8e0;margin-bottom:20px}
+.tab{padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:#999;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:'Montserrat',sans-serif;transition:color .15s}
+.tab:hover{color:#444}
+.tab.active{color:#111;border-bottom:2px solid #1a3a4a}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.filters select{font-size:12px;padding:7px 10px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#333;font-family:'Montserrat',sans-serif;cursor:pointer}
+.btn-add{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:8px 14px;border-radius:8px;border:none;background:#1a3a4a;color:#fff;cursor:pointer;font-family:'Montserrat',sans-serif;white-space:nowrap}
+.btn-add:hover{background:#2c5568}
+.badge{display:inline-flex;align-items:center;font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500;margin:1px 2px;white-space:nowrap}
+.b-po{background:#dcfce7;color:#15803d}
+.b-qt{background:#dbeafe;color:#1d4ed8}
+.b-ls{background:#fee2e2;color:#b91c1c}
+.b-ddp{background:#dbeafe;color:#1e40af}
+.b-dap{background:#ede9fe;color:#6d28d9}
+.b-exw{background:#fef3c7;color:#92400e}
+.b-5y{background:#dcfce7;color:#166534}
+.b-3y{background:#d1fae5;color:#065f46}
+.b-2y{background:#ede9fe;color:#6d28d9}
+.b-1y{background:#f3f4f6;color:#374151}
+.card{background:#fff;border:1.5px solid #c8d8e0;border-radius:14px;margin-bottom:10px;overflow:hidden;transition:box-shadow .15s}
+.card:hover{box-shadow:0 4px 16px rgba(26,58,74,.12)}
+.card-header{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;background:#f0f6f8}
+.flag-icon{flex-shrink:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cname{font-size:14px;font-weight:600;color:#1a3a4a}
+.cmeta{font-size:12px;color:#5a7a8a;margin-top:2px}
+.chevron{margin-left:auto;font-size:13px;color:#ccc;transition:transform .2s}
+.chevron.open{transform:rotate(180deg)}
+.card-body{border-top:2px solid #c8d8e0;display:none}
+.card-body.open{display:block}
+.tx{padding:18px 18px 14px 18px;border-bottom:3px solid #c8d8e0;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;background:#fff}
+.tx:last-child{border-bottom:none}
+.tx:hover{background:#f0f6f8}
+.tx-date{font-size:11px;color:#444;margin-bottom:4px}
+.tx-model{font-size:13px;font-weight:600;color:#1a3a4a}
+.tx-proj{font-size:12px;color:#444;margin-top:3px}
+.tx-pn{font-size:10px;color:#444;font-family:'DM Mono',monospace;margin-top:3px}
+.tx-badges{margin-top:6px;display:flex;flex-wrap:wrap;gap:2px}
+.tx-notes{margin-top:6px}
+.tx-note{font-size:12.5px;color:#444;font-style:normal;line-height:1.7}
+.tx-price{font-size:14px;font-weight:600;color:#1a3a4a;text-align:right;white-space:nowrap}
+.tx-margin{font-size:11px;color:#aaa;text-align:right;margin-top:3px}
+.cmp-wrap{background:#fff;border:1px solid #ebebeb;border-radius:14px;overflow:hidden}
+.cmp-head{padding:14px 18px;border-bottom:1px solid #c8d8e0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#e8f0f4}
+.cmp-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#aaa}
+.cmp-head select{font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#333;font-family:'Montserrat',sans-serif;font-weight:500}
+.cmp-hint{font-size:11px;color:#bbb}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 16px;text-align:left;background:#e8f0f4;border-bottom:1px solid #c8d8e0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#1a3a4a}
+td{padding:11px 16px;border-bottom:1px solid #f5f5f5;color:#333;font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td{background:#fafafa}
+tr.exp-detail{display:none;background:#fafafa}
+tr.exp-detail.open{display:table-row}
+tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style:italic;border-top:none}
+.buying-card,.others-card{background:#fff;border:1.5px solid #c8d8e0;border-radius:14px;overflow:hidden}
+.others-row{padding:14px 18px;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:start;gap:16px}
+.others-row:last-child{border-bottom:none}
+.others-row:hover{background:#f0f6f8}
+.others-date{font-size:11px;color:#bbb;margin-bottom:3px}
+.others-desc{font-size:13px;font-weight:500;color:#1a3a4a}
+.others-sub{font-size:12px;color:#444;font-style:normal;margin-top:4px;line-height:1.6;max-width:600px}
+.others-val{font-size:13px;font-weight:600;color:#1a3a4a;white-space:nowrap;text-align:right;flex-shrink:0}
+.empty{padding:32px;text-align:center;font-size:13px;color:#bbb}
+.country-group-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#1a3a4a;padding:18px 4px 8px;display:flex;align-items:center;gap:10px}
+.country-group-label::after{content:"";flex:1;height:2px;background:linear-gradient(90deg,#1a3a4a 0%,#c8d8e0 100%);border-radius:2px}
+.country-count{font-size:10px;color:#5a8a9a;font-weight:500;text-transform:none;letter-spacing:0}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:28px;width:92%;max-width:560px;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:17px;font-weight:600;color:#111;margin-bottom:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-full{grid-column:1/-1}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em}
+.form-group input,.form-group select,.form-group textarea{font-family:'Montserrat',sans-serif;font-size:13px;padding:9px 11px;border:1px solid #e0e0e0;border-radius:8px;color:#222;background:#fff;outline:none;transition:border .15s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#999}
+.form-group textarea{resize:vertical;min-height:72px;line-height:1.5}
+.form-hint{font-size:11px;color:#bbb;margin-top:2px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+.btn-cancel{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:500;padding:9px 18px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#555;cursor:pointer}
+.btn-cancel:hover{background:#f5f5f5}
+.btn-save{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;padding:9px 18px;border-radius:8px;border:none;background:#1a3a4a;color:#fff;cursor:pointer}
+.btn-save:hover{background:#2c5568}
+.delete-btn{font-size:11px;color:#e57373;cursor:pointer;margin-left:8px;background:none;border:none;font-family:'Montserrat',sans-serif;padding:0}.delete-btn:hover{color:#c62828}
+.proj-group-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:#fff3cd;color:#856404;border:1px solid #ffc107;margin-bottom:4px}
+.proj-group-tag svg{width:10px;height:10px}
+.expand-btn{font-size:11px;color:#1a3a4a;background:#e8f0f4;border:1px solid #c8d8e0;border-radius:6px;padding:3px 10px;cursor:pointer;margin-top:4px;font-family:"Montserrat",sans-serif;font-weight:500}.edit-btn{font-size:11px;color:#1a3a4a;cursor:pointer;margin-left:8px;background:none;border:none;font-family:'Montserrat',sans-serif;padding:0}.edit-btn:hover{color:#2c5568}
+.delete-btn:hover{color:#c62828}
+.proj-group-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:#fff3cd;color:#856404;border:1px solid #ffc107;margin-bottom:4px}
+.proj-group-tag svg{width:10px;height:10px}
+.expand-btn{font-size:11px;color:#1a3a4a;background:#e8f0f4;border:1px solid #c8d8e0;border-radius:6px;padding:3px 10px;cursor:pointer;margin-top:4px;font-family:"Montserrat",sans-serif;font-weight:500}
+@media(max-width:600px){.stat-grid{grid-template-columns:repeat(2,1fr)}.tab{padding:8px 12px;font-size:12px}.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px">
+    <h1>CUSTOM Printer Dashboard</h1>
+    <img src="data:image/png;base64,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" alt="CUSTOM logo" style="height:48px;object-fit:contain">
+  </div>
+  <div class="stat-grid" id="stats"></div>
+  <div class="tab-row">
+    <button class="tab active" data-tab="customers" onclick="setTab(this)">By Customer</button>
+    <button class="tab" data-tab="model" onclick="setTab(this)">Model Comparison</button>
+    <button class="tab" data-tab="buying" onclick="setTab(this)">Buying Prices</button>
+    <button class="tab" data-tab="spares" onclick="setTab(this)">Spare Parts / Accessories</button>
+    <button class="tab" data-tab="others" onclick="setTab(this)">Notes</button>
+  </div>
+  <div class="toolbar" id="toolbar">
+    <div class="filters" id="filter-bar">
+      <select id="fc" onchange="renderCustomers()"><option value="">All countries</option></select>
+      <select id="fm" onchange="renderCustomers()"><option value="">All models</option></select>
+      <select id="fs" onchange="renderCustomers()">
+        <option value="">All status</option>
+        <option value="PO">PO confirmed</option>
+        <option value="Quotation">Quotation (open)</option>
+        <option value="Lose">Lost quote</option>
+      </select>
+      <select id="fsort" onchange="renderCustomers()">
+        <option value="name">Sort: A–Z</option>
+        <option value="name-desc">Sort: Z–A</option>
+        <option value="po-desc">Sort: Most POs</option>
+        <option value="recent">Sort: Most recent</option>
+      </select>
+
+    </div>
+    <button class="btn-add" onclick="openModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add entry
+    </button>
+  </div>
+  <div id="content"></div>
+</div>
+<div class="modal-overlay" id="modal-tx">
+  <div class="modal">
+    <div class="modal-title">Add transaction entry</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Customer *</label><input id="f-customer" placeholder="e.g. Singapore Airlines" list="customer-list"><datalist id="customer-list"></datalist></div>
+      <div class="form-group"><label>Country *</label><input id="f-country" placeholder="e.g. Singapore" list="country-list"><datalist id="country-list"></datalist></div>
+      <div class="form-group"><label>Date</label><input id="f-date" placeholder="e.g. 15 Jan 2026"></div>
+      <div class="form-group"><label>Status *</label><select id="f-status"><option value="PO">PO Confirmed</option><option value="Quotation">Quotation</option><option value="Lose">Lost Quote</option></select></div>
+      <div class="form-group form-full"><label>Project name</label><input id="f-project" placeholder="e.g. Changi Airport T3"></div>
+      <div class="form-group form-full"><label>Model *</label><input id="f-model" placeholder="e.g. TK180 Plastic" list="model-list"><datalist id="model-list"></datalist></div>
+      <div class="form-group form-full"><label>Part number</label><input id="f-pn" placeholder="e.g. 911HL020600733" style="font-family:'DM Mono',monospace"></div>
+      <div class="form-group"><label>Quantity</label><input id="f-qty" placeholder="e.g. 50 units"></div>
+      <div class="form-group"><label>Unit price *</label><input id="f-price" type="number" placeholder="e.g. 1080"></div>
+      <div class="form-group"><label>Currency *</label><select id="f-currency"><option value="USD">USD</option><option value="SGD">SGD</option><option value="RMB">RMB</option><option value="IDR">IDR</option><option value="EUR">EUR</option></select></div>
+      <div class="form-group"><label>Buying price (USD)</label><input id="f-bp" type="number" placeholder="e.g. 287.59"><span class="form-hint">For margin calculation</span></div>
+      <div class="form-group"><label>Shipping terms</label><select id="f-terms"><option value="">None</option><option value="DDP">DDP</option><option value="DAP">DAP</option><option value="EXW">EXW</option><option value="CIF">CIF</option><option value="FOB">FOB</option><option value="CIP">CIP</option><option value="CPT">CPT</option></select></div>
+      <div class="form-group"><label>Warranty</label><select id="f-warranty"><option value="">Unknown / N/A</option><option value="1Y">1 Year</option><option value="2Y">2 Years</option><option value="3Y">3 Years</option><option value="5Y">5 Years</option></select></div>
+      <div class="form-group form-full"><label>Notes</label><textarea id="f-notes" placeholder="One note per line."></textarea><span class="form-hint">Press Enter for multiple notes</span></div>
+    </div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-tx')">Cancel</button><button class="btn-save" onclick="saveTx()">Save entry</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-buying">
+  <div class="modal">
+    <div class="modal-title">Add buying price</div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Model name *</label><input id="b-model" placeholder="e.g. TK180 Metal Cutter AEA"></div>
+      <div class="form-group form-full"><label>Part number</label><input id="b-pn" placeholder="e.g. 911HL011200733" style="font-family:'DM Mono',monospace"></div>
+      <div class="form-group"><label>Price *</label><input id="b-price" type="number" placeholder="e.g. 369"></div>
+      <div class="form-group"><label>Currency</label><select id="b-currency"><option value="USD">USD</option><option value="SGD">SGD</option><option value="EUR">EUR</option></select></div>
+    </div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-buying')">Cancel</button><button class="btn-save" onclick="saveBuying()">Save entry</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-others">
+  <div class="modal">
+    <div class="modal-title">Add note / record</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input id="o-date" placeholder="e.g. 18 Nov 2025"></div>
+      <div class="form-group"><label>Value / amount *</label><input id="o-value" placeholder="e.g. $12,000 USD"></div>
+      <div class="form-group form-full"><label>Description *</label><input id="o-desc" placeholder="e.g. Service for Vietnam"></div>
+      <div class="form-group form-full"><label>Sub-note / detail</label><textarea id="o-sub" placeholder="Any additional context or breakdown"></textarea></div>
+    </div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-others')">Cancel</button><button class="btn-save" onclick="saveOther()">Save entry</button></div>
+  </div>
+</div>
+<script>
+const FLAGS={
+  "Philippines":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-ph"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-ph)"><rect width="36" height="18" fill="#0038A8"/><rect y="18" width="36" height="18" fill="#CE1126"/><polygon points="0,0 18,18 0,36" fill="#FFFFFF"/><g transform="translate(6,18)" fill="#FCD116"><circle r="4.5"/><g id="rays"><line x1="0" y1="-6" x2="0" y2="-4.5" stroke="#FCD116" stroke-width="1.2"/></g><use href="#rays" transform="rotate(45)"/><use href="#rays" transform="rotate(90)"/><use href="#rays" transform="rotate(135)"/><use href="#rays" transform="rotate(180)"/><use href="#rays" transform="rotate(225)"/><use href="#rays" transform="rotate(270)"/><use href="#rays" transform="rotate(315)"/><circle r="2" fill="#0038A8"/><polygon points="0,-2.5 0.6,-0.8 2.4,-0.8 1,-0.3 1.5,1.4 0,0.4 -1.5,1.4 -1,-0.3 -2.4,-0.8 -0.6,-0.8" transform="translate(0,-11) scale(0.55)"/><polygon points="0,-2.5 0.6,-0.8 2.4,-0.8 1,-0.3 1.5,1.4 0,0.4 -1.5,1.4 -1,-0.3 -2.4,-0.8 -0.6,-0.8" transform="translate(-9.5,5.5) scale(0.55)"/><polygon points="0,-2.5 0.6,-0.8 2.4,-0.8 1,-0.3 1.5,1.4 0,0.4 -1.5,1.4 -1,-0.3 -2.4,-0.8 -0.6,-0.8" transform="translate(9.5,5.5) scale(0.55)"/></g></g></svg>`,
+  "Singapore":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-sg"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-sg)"><rect width="36" height="18" fill="#EF3340"/><rect y="18" width="36" height="18" fill="#fff"/><circle cx="8.5" cy="9" r="5.5" fill="#fff"/><circle cx="11" cy="7.5" r="4.3" fill="#EF3340"/><polygon points="21.00,3.20 21.38,4.28 22.52,4.31 21.61,5.00 21.94,6.09 21.00,5.44 20.06,6.09 20.39,5.00 19.48,4.31 20.62,4.28" fill="#fff"/><polygon points="24.99,6.10 25.37,7.18 26.52,7.21 25.60,7.90 25.93,9.00 24.99,8.34 24.05,9.00 24.39,7.90 23.47,7.21 24.62,7.18" fill="#fff"/><polygon points="23.47,10.80 23.84,11.88 24.99,11.90 24.08,12.60 24.41,13.69 23.47,13.04 22.53,13.69 22.86,12.60 21.95,11.90 23.09,11.88" fill="#fff"/><polygon points="18.53,10.80 18.91,11.88 20.05,11.90 19.14,12.60 19.47,13.69 18.53,13.04 17.59,13.69 17.92,12.60 17.01,11.90 18.16,11.88" fill="#fff"/><polygon points="17.01,6.10 17.38,7.18 18.53,7.21 17.61,7.90 17.95,9.00 17.01,8.34 16.07,9.00 16.40,7.90 15.48,7.21 16.63,7.18" fill="#fff"/></g></svg>`,
+  "China":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-cn"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-cn)"><rect width="36" height="36" fill="#DE2910"/><polygon points="7,5 8.2,8.6 12,8.6 9,10.8 10.2,14.4 7,12.2 3.8,14.4 5,10.8 2,8.6 5.8,8.6" fill="#FFDE00"/><polygon points="14,3 14.6,4.8 16.4,4.8 15,5.8 15.6,7.6 14,6.5 12.4,7.6 13,5.8 11.6,4.8 13.4,4.8" fill="#FFDE00" transform="scale(0.55) translate(11,0)"/><polygon points="14,3 14.6,4.8 16.4,4.8 15,5.8 15.6,7.6 14,6.5 12.4,7.6 13,5.8 11.6,4.8 13.4,4.8" fill="#FFDE00" transform="scale(0.55) translate(16,5)"/><polygon points="14,3 14.6,4.8 16.4,4.8 15,5.8 15.6,7.6 14,6.5 12.4,7.6 13,5.8 11.6,4.8 13.4,4.8" fill="#FFDE00" transform="scale(0.55) translate(15,12)"/><polygon points="14,3 14.6,4.8 16.4,4.8 15,5.8 15.6,7.6 14,6.5 12.4,7.6 13,5.8 11.6,4.8 13.4,4.8" fill="#FFDE00" transform="scale(0.55) translate(10,16)"/></g></svg>`,
+  "Australia":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-au"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-au)"><rect width="36" height="36" fill="#00008B"/><rect width="18" height="9" fill="#00008B"/><line x1="0" y1="0" x2="18" y2="9" stroke="#fff" stroke-width="3"/><line x1="18" y1="0" x2="0" y2="9" stroke="#fff" stroke-width="3"/><line x1="0" y1="0" x2="18" y2="9" stroke="#CC142B" stroke-width="1.5"/><line x1="18" y1="0" x2="0" y2="9" stroke="#CC142B" stroke-width="1.5"/><rect x="7" y="0" width="4" height="9" fill="#fff"/><rect x="0" y="3" width="18" height="3" fill="#fff"/><rect x="8" y="0" width="2" height="9" fill="#CC142B"/><rect x="0" y="4" width="18" height="1" fill="#CC142B"/><circle cx="24" cy="24" r="2.5" fill="#fff"/><circle cx="28" cy="20" r="1.5" fill="#fff"/><circle cx="30" cy="26" r="1.5" fill="#fff"/><circle cx="26" cy="29" r="1.5" fill="#fff"/><circle cx="21" cy="29" r="1.5" fill="#fff"/></g></svg>`,
+  "Indonesia":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-id"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-id)"><rect width="36" height="18" fill="#CE1126"/><rect y="18" width="36" height="18" fill="#fff"/></g></svg>`,
+  "Malaysia":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-my"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-my)"><rect width="36" height="36" fill="#fff"/><rect y="0" width="36" height="5.14" fill="#CC0001"/><rect y="10.28" width="36" height="5.14" fill="#CC0001"/><rect y="20.57" width="36" height="5.14" fill="#CC0001"/><rect y="30.85" width="36" height="5.14" fill="#CC0001"/><rect width="18" height="18" fill="#010066"/><circle cx="10" cy="9" r="5" fill="#FC0"/><circle cx="11.5" cy="9" r="4" fill="#010066"/><polygon points="13,9 13.5,10.5 15,10.5 13.8,11.4 14.3,12.9 13,12 11.7,12.9 12.2,11.4 11,10.5 12.5,10.5" fill="#FC0" transform="scale(0.6) translate(8,-1)"/></g></svg>`,
+  "Thailand":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-th"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-th)"><rect width="36" height="36" fill="#A51931"/><rect y="6" width="36" height="6" fill="#fff"/><rect y="12" width="36" height="12" fill="#2D2A4A"/><rect y="24" width="36" height="6" fill="#fff"/></g></svg>`,
+  "Vietnam":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-vn"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-vn)"><rect width="36" height="36" fill="#DA251D"/><polygon points="18,8 20,14 26,14 21,18 23,24 18,20 13,24 15,18 10,14 16,14" fill="#FFFF00"/></g></svg>`,
+  "India":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-in"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-in)"><rect width="36" height="12" fill="#FF9933"/><rect y="12" width="36" height="12" fill="#fff"/><rect y="24" width="36" height="12" fill="#138808"/><circle cx="18" cy="18" r="4" fill="none" stroke="#000080" stroke-width="1"/><circle cx="18" cy="18" r="1" fill="#000080"/></g></svg>`,
+  "Japan":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-jp"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-jp)"><rect width="36" height="36" fill="#fff"/><circle cx="18" cy="18" r="9" fill="#BC002D"/></g></svg>`,
+  "South Korea":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-kr"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-kr)"><rect width="36" height="36" fill="#fff"/><circle cx="18" cy="18" r="8" fill="#CD2E3A"/><path d="M18,10 A8,8 0 0,1 18,26" fill="#003478"/><circle cx="18" cy="18" r="4" fill="#CD2E3A"/></g></svg>`,
+  "USA":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-us"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-us)"><rect width="36" height="36" fill="#fff"/><rect y="0" width="36" height="2.77" fill="#B22234"/><rect y="5.54" width="36" height="2.77" fill="#B22234"/><rect y="11.08" width="36" height="2.77" fill="#B22234"/><rect y="16.62" width="36" height="2.77" fill="#B22234"/><rect y="22.15" width="36" height="2.77" fill="#B22234"/><rect y="27.69" width="36" height="2.77" fill="#B22234"/><rect y="33.23" width="36" height="2.77" fill="#B22234"/><rect width="15" height="15" fill="#3C3B6E"/></g></svg>`,
+  "UK":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-gb"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-gb)"><rect width="36" height="36" fill="#012169"/><line x1="0" y1="0" x2="36" y2="36" stroke="#fff" stroke-width="5"/><line x1="36" y1="0" x2="0" y2="36" stroke="#fff" stroke-width="5"/><line x1="0" y1="0" x2="36" y2="36" stroke="#C8102E" stroke-width="3"/><line x1="36" y1="0" x2="0" y2="36" stroke="#C8102E" stroke-width="3"/><rect x="14" y="0" width="8" height="36" fill="#fff"/><rect x="0" y="14" width="36" height="8" fill="#fff"/><rect x="15.5" y="0" width="5" height="36" fill="#C8102E"/><rect x="0" y="15.5" width="36" height="5" fill="#C8102E"/></g></svg>`,
+  "Germany":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-de"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-de)"><rect width="36" height="12" fill="#000"/><rect y="12" width="36" height="12" fill="#DD0000"/><rect y="24" width="36" height="12" fill="#FFCE00"/></g></svg>`,
+  "France":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-fr"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-fr)"><rect width="12" height="36" fill="#002395"/><rect x="12" width="12" height="36" fill="#fff"/><rect x="24" width="12" height="36" fill="#ED2939"/></g></svg>`,
+  "UAE":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-ae"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-ae)"><rect width="36" height="12" fill="#00732F"/><rect y="12" width="36" height="12" fill="#fff"/><rect y="24" width="36" height="12" fill="#000"/><rect width="9" height="36" fill="#FF0000"/></g></svg>`,
+  "New Zealand":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-nz"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-nz)"><rect width="36" height="36" fill="#00247D"/><line x1="0" y1="0" x2="18" y2="9" stroke="#fff" stroke-width="3"/><line x1="18" y1="0" x2="0" y2="9" stroke="#fff" stroke-width="3"/><line x1="0" y1="0" x2="18" y2="9" stroke="#CC142B" stroke-width="1.5"/><line x1="18" y1="0" x2="0" y2="9" stroke="#CC142B" stroke-width="1.5"/><rect x="7" y="0" width="4" height="9" fill="#fff"/><rect x="0" y="3" width="18" height="3" fill="#fff"/><rect x="8" y="0" width="2" height="9" fill="#CC142B"/><rect x="0" y="4" width="18" height="1" fill="#CC142B"/><circle cx="26" cy="8" r="2" fill="#CC142B" stroke="#fff" stroke-width="0.5"/><circle cx="30" cy="14" r="2" fill="#CC142B" stroke="#fff" stroke-width="0.5"/><circle cx="24" cy="18" r="2" fill="#CC142B" stroke="#fff" stroke-width="0.5"/><circle cx="29" cy="22" r="2" fill="#CC142B" stroke="#fff" stroke-width="0.5"/></g></svg>`,
+};
+function flagImg(country, size){
+  const svg = FLAGS[country];
+  if(!svg) return '<div style="width:'+(size||28)+'px;height:'+(size||28)+'px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999">?</div>';
+  const s = size||28;
+  return `<div style="width:${s}px;height:${s}px;border-radius:50%;overflow:hidden;flex-shrink:0">${svg.replace(/width="36"/g,`width="${s}"`).replace(/height="36"/g,`height="${s}"`)}</div>`;
+}
+
+let BUYING=[
+  {model:"Cutter Ejector Module KPM180H CN",pn:"976AH010000003",price:94.53,currency:"USD",group:"KPM180 Spare Parts"},
+  {model:"PCBA CPU KPM180 E12 R2 ST101_DP007 VN UL",pn:"8120000000000961",price:70.08,currency:"USD",group:"KPM180 Spare Parts"},
+  {model:"Autocutter KPM180H 85MM Kyoujin",pn:"9B2GR020000011",price:33.60,currency:"USD",group:"KPM180 Spare Parts"},
+  {model:"KPM180 TPH (Thermal Print Head)",pn:"43000000045700",price:23.88,currency:"USD"},
+  {model:"K80",pn:"915LC010137300",price:58.25,currency:"USD"},
+  {model:"TG2480HIII",pn:"915CH030100300",price:112.00,currency:"USD"},
+  {model:"VKP80III Rear Connector",pn:"915DX011700300",price:149.00,currency:"USD",specialPrice:135.60,specialCustomer:"Nanshan"},
+  {model:"KX80S ETH USB RS232",pn:"915PF020100700",price:81.00,currency:"USD"},
+  {model:"TG2460HIII Standard Version",pn:"915CG040200300 or 915CG060100300",price:119.00,currency:"USD"},
+  {model:"VKP80II-RX",pn:"915DW011200300",price:189.00,currency:"USD"},
+  {model:"VKP80II Paper Roll Holder",pn:"974DW010000001",price:10.00,currency:"USD"},
+  {model:"Roll Holder Kit for TK180 Metal",pn:"974HL010000009",price:46.35,currency:"USD"},
+  {model:"New Metal Roll Holder for Bag Tag and GPP Paper (TK180 Plastic)",pn:"974HL020000004",price:46.80,currency:"USD"},
+  {model:"TK180 Plastic AEA",pn:"911HL020900733",price:287.59,currency:"USD"},
+  {model:"TK180 Metal Cutter NON AEA",pn:"911HL011200733",price:369,currency:"USD"},
+  {model:"TK180 Metal Cutter AEA",pn:"911HL011300733",price:394,currency:"USD"},
+  {model:"KPM180 NON AEA (China)",pn:"915AH020300700",price:260,currency:"USD"},
+  {model:"KPM180 NON AEA (Outside China)",pn:"915AH020300700",price:275,currency:"USD"},
+  {model:"KPM180H-LL",pn:"915AH030100700",price:360,currency:"USD"},
+  {model:"TK202 Plastic",pn:"911BD050300313",price:445,currency:"USD"},
+];
+let OTHERS=[
+  {date:"Sep\u2013Oct 2025",desc:"Service for Philippines",value:"$126,391.32 USD",sub:"360 printers \xb7 Breakdown: $51,378.60 (2 Sep 2025) + $75,012.72 (15 Oct 2025)"},
+  {date:"18 Nov 2025",desc:"Service for Vietnam",value:"$15,364.92 USD",sub:""},
+  {date:"",desc:"Arinc \u2014 Std TK180 TPH",value:"$108.80 USD EXW",sub:""},
+  {date:"",desc:"Aboitiz Bohol \u2014 order summary",value:"$88,314.40 USD",sub:"EXW total $88,074.40 \u2192 Goodwill discount \u22123,000 \u2192 After discount $85,074.40 \u2192 DAP Bohol +$3,240 \u2192 Final $88,314.40"},
+  {date:"",desc:"DAP \u2014 Delivered At Place",value:"Shipping term",sub:"Seller delivers to named destination. Buyer pays import duties & taxes. Aboitiz Bohol: transit via Manila/Cebu \u2014 Aboitiz InfraCapital clears customs and pays all duties & taxes."},
+  {date:"",desc:"DDP \u2014 Delivered Duty Paid",value:"Shipping term",sub:"Seller bears all costs to destination including duties & customs clearance. Maximum obligation for seller."},
+  {date:"",desc:"EXW \u2014 Ex Works",value:"Shipping term",sub:"Seller makes goods available at their premises. Buyer bears all transport costs, export & import clearance. Minimum obligation for seller."},
+  {date:"",desc:"CIF \u2014 Cost, Insurance & Freight",value:"Shipping term",sub:"Seller pays freight & insurance to destination port. Risk transfers to buyer once goods are loaded on vessel."},
+  {date:"",desc:"FOB \u2014 Free On Board",value:"Shipping term",sub:"Seller delivers on board vessel at origin port. Risk & cost transfer to buyer from that point."},
+  {date:"",desc:"CIP \u2014 Carriage & Insurance Paid To",value:"Shipping term",sub:"Seller pays freight & insurance to named destination. Risk transfers when goods handed to first carrier."},
+  {date:"",desc:"CPT \u2014 Carriage Paid To",value:"Shipping term",sub:"Seller pays freight only (no insurance) to named destination. Risk transfers at first carrier handover."},
+];
+let TX=[
+  {customer:"Philippines Airlines",country:"Philippines",date:"6 May 2024",status:"PO",project:"Worldwide Philippines",pn:"911HL011200733",model:"TK180 Metal Cutter",qty:"234 units",price:988,currency:"USD",terms:["DDP"],warranty:"5Y",bp:369,notes:[]},
+  {customer:"SITA",country:"Philippines",date:"13 Apr 2026",status:"Quotation",project:"Philippines T4 & T5",pn:"911HL020600733",model:"TK180 Plastic",qty:"23 (T4) + 74 (T5) units",price:838,currency:"USD",terms:["DDP"],warranty:"5Y",bp:287.59,notes:["T4: 23 units, T5: 74 units \u2014 same pricing structure"]},
+  {customer:"SITA",country:"Philippines",date:"4 Sep 2024",status:"Lose",project:"Philippines San Miguel T1,2,3",pn:"911HL020600733",model:"TK180 Plastic",qty:"640 units",price:768,currency:"USD",terms:["DDP"],warranty:"5Y",bp:287.59,notes:["Lost quotation"]},
+  {customer:"SITA",country:"Philippines",date:"10 Jan 2022",status:"PO",project:"Philippines T1",pn:"911HL020600733",model:"TK180 Plastic",qty:"103 units",price:688,currency:"USD",terms:[],warranty:"",bp:287.59,notes:["Warranty conditions unclear"]},
+  {customer:"SITA",country:"Philippines",date:"24 Jul 2019",status:"PO",project:"Philippines Airport",pn:"911HL020600733",model:"TK180 Plastic",qty:"451 units",price:468.19,currency:"USD",terms:[],warranty:"3Y",bp:287.59,notes:["Manual DDP calc = $551.80/unit","Total DDP $37,680"]},
+  {customer:"Singapore Airlines",country:"Singapore",date:"31 Jul 2025",status:"PO",project:"Changi Airport",pn:"911HL020900733",model:"TK180 Plastic",qty:"120 units",price:1090,currency:"SGD",terms:[],warranty:"5Y",bp:null,totalOverride:228396,notes:["$808 printer+1Y, +$282 top-up to 5Y","Roll holder (974HL020000004): $108 SGD × 57 units = $6,156","On-site install $42/unit × 120 = $5,040","Maintenance + consumables $240/unit/yr × 120 × 3 yrs = $86,400"]},
+  {customer:"Singapore Airlines",country:"Singapore",date:"17 Oct 2025",status:"PO",project:"Changi Airport",pn:"911BB100400733",model:"TK302 Metal Triple Feeder",qty:"15 units",price:4256,currency:"SGD",terms:[],warranty:"5Y",bp:null,totalOverride:76440,notes:["$3,128 printer+1Y, +$1,128 top-up to 5Y","Vertical Tray TK302 Metal Case (974BB060000003): $78/unit × 15 = $1,170","On-site install $42/unit × 15 = $630","Maintenance + consumables $240/unit/yr × 15 × 3 yrs = $10,800"]},
+  {customer:"Singapore Cruise Center",country:"Singapore",date:"31 Mar 2026",status:"PO",project:"Harborfront Cruise",pn:"911HL011200733",model:"TK180 Metal Cutter",qty:"6 units",price:2318,currency:"SGD",terms:[],warranty:"5Y",bp:null,totalOverride:15188,notes:["Roll Holder (974HL010000009): $128 SGD × 10 = $1,280"]},
+  {customer:"Daifuku",country:"Australia",date:"2025-01-01",displayDate:"2025\u20132026",status:"Quotation",project:"Gold Coast",pn:"",model:"TK180 Plastic",qty:"TBD",price:608,currency:"USD",terms:[],warranty:"1Y",bp:287.59,notes:["Tiered warranty pricing:","$608 \u2014 1Y","$658 \u2014 2Y","$698 \u2014 3Y","$768 \u2014 4Y","$828 \u2014 5Y","Roll holder $78 USD"]},
+  {customer:"Daifuku",country:"Australia",date:"2024-01-01",displayDate:"Recurring",status:"PO",project:"Multiple orders (ongoing)",pn:"",model:"KPM180 Cutter NON AEA",qty:"Multiple",price:568,currency:"USD",terms:[],warranty:"1Y",bp:275,notes:["Recurring PO customer \u2014 multiple purchases over time"]},
+  {customer:"Aboitiz",country:"Philippines",date:"18 Feb 2026",status:"PO",project:"Cebu",pn:"911HL010400733",model:"TK180 Metal Non Cutter",qty:"42 units",price:980,currency:"USD",terms:["EXW"],warranty:"3Y",bp:null,totalOverride:43218,notes:["Roll Holder (974HL010000009): $98 × 21 units = $2,058"]},
+  {customer:"Aboitiz",country:"Philippines",date:"Apr 2026",status:"Quotation",project:"Bohol Airport",projectGroup:"Bohol Airport",pn:"Cutter (911HL011400733 + ARTFITT415) | Non Cutter (911HL010300733 + ARTFITT415)",model:"TK180 Metal Cutter ARINC (ATB) + TK180 Metal Non Cutter ARINC (BTP)",displayModel:"TK180 Metal Cutter ARINC",qty:"30 units (ATB) + 24 units (BTP)",price:1680,dualPrice:1280,currency:"USD",terms:["DAP"],warranty:"5Y",bp:null,printerTotalOverride:81120,totalOverride:88314.40,notes:["Ticket Tray Metal (976HL010000007): $98 × 30 = $2,940","Roll Holder (974HL010000003): $98 × 24 = $2,352","1.8M USB Cable (2650000000003566): $10.80 × 54 = $583.20","USA Plug Power Cable (2610000000031): $17.80 × 54 = $961.20","TK180 TPH (43000000045700): $118 × 1 = $118","Goodwill discount: −$3,000 | DAP: +$3,240","EXW $88,074.40 → after discount $85,074.40 → Total DAP $88,314.40"]},
+  {customer:"Aboitiz",country:"Philippines",date:"Apr 2026",status:"Quotation",project:"Bohol Airport — ATB",pn:"911HL011400733 + ARTFITT415",model:"TK180 Metal Cutter ARINC",qty:"30 units",price:1680,currency:"USD",terms:["DAP"],warranty:"5Y",bp:null,projectGroup:"Bohol Airport",notes:["See Bohol Airport combined entry for full project details"]},
+  {customer:"Aboitiz",country:"Philippines",date:"Apr 2026",status:"Quotation",project:"Bohol Airport — BTP",pn:"911HL010300733 + ARTFITT415",model:"TK180 Metal Non Cutter ARINC",qty:"24 units",price:1280,currency:"USD",terms:["DAP"],warranty:"5Y",bp:null,projectGroup:"Bohol Airport",notes:["See Bohol Airport combined entry for full project details"]},
+  {customer:"Aboitiz",country:"Philippines",date:"Apr 2026",status:"Quotation",project:"Laguindingan Airport — ATB",pn:"911HL011400733 + ARTFITT415",model:"TK180 Metal Cutter ARINC",qty:"21 units",price:1680,currency:"USD",terms:["DAP"],warranty:"5Y",bp:null,projectGroup:"Laguindingan Airport",notes:["See Laguindingan Airport combined entry for full project details"]},
+  {customer:"Aboitiz",country:"Philippines",date:"Apr 2026",status:"Quotation",project:"Laguindingan Airport — BTP",pn:"911HL010300733 + ARTFITT415",model:"TK180 Metal Non Cutter ARINC",qty:"18 units",price:1280,currency:"USD",terms:["DAP"],warranty:"5Y",bp:null,projectGroup:"Laguindingan Airport",notes:["See Laguindingan Airport combined entry for full project details"]},
+  {customer:"Aboitiz",country:"Philippines",date:"Apr 2026",status:"Quotation",project:"Laguindingan Airport",projectGroup:"Laguindingan Airport",pn:"Cutter (911HL011400733 + ARTFITT415) | Non Cutter (911HL010300733 + ARTFITT415)",model:"TK180 Metal Cutter ARINC (ATB) + TK180 Metal Non Cutter ARINC (BTP)",displayModel:"TK180 Metal Cutter ARINC",qty:"21 units (ATB) + 18 units (BTP)",price:1680,dualPrice:1280,currency:"USD",terms:["DAP"],warranty:"5Y",bp:null,printerTotalOverride:58320,totalOverride:63481.40,notes:["Ticket Tray Metal (976HL010000007): $98 × 21 = $2,058","Roll Holder (974HL010000003): $98 × 18 = $1,764","1.8M USB Cable (2650000000003566): $10.80 × 39 = $421.20","USA Plug Power Cable (2610000000031): $17.80 × 39 = $694.20","TK180 TPH (43000000045700): $118 × 1 = $118","Goodwill discount: −$2,000 | DAP: +$2,106","EXW $63,375.40 → after discount $61,375.40 → Total DAP $63,481.40"]},
+  {customer:"SITA",country:"Indonesia",date:"17 Apr 2026",status:"PO",project:"DPS (Bali)",pn:"911HL020600733",model:"TK180 Plastic",qty:"22 units",price:9000000,currency:"IDR",terms:["DDP"],warranty:"5Y",bp:null,totalOverride:204380000,notes:["11 ATB, 11 BTP (with paper roll)","Paper roll (580,000 IDR × 11 units) = 6,380,000 IDR","USD/IDR rate: USD 1.00 = IDR 16,750.00 +/- 2%. If actual rate moves outside +/-2% band, price to be adjusted accordingly."]},
+  {customer:"SITA",country:"Indonesia",date:"17 Apr 2026",status:"PO",project:"SUB (Surabaya)",pn:"911HL020600733",model:"TK180 Plastic",qty:"9 units",price:9000000,currency:"IDR",terms:["DDP"],warranty:"5Y",bp:null,totalOverride:83320000,notes:["5 ATB, 4 BTP (with paper roll)","Paper roll (580,000 IDR × 4 units) = 2,320,000 IDR","USD/IDR rate: USD 1.00 = IDR 16,750.00 +/- 2%. If actual rate moves outside +/-2% band, price to be adjusted accordingly."]},
+  {customer:"Philippines Airlines",country:"Philippines",date:"17 Apr 2026",status:"PO",project:"Worldwide Philippines",pn:"43000000045700",model:"TK180 TPH",qty:"—",price:118,currency:"USD",terms:["DDP"],warranty:"1Y",bp:null,noPrinterTotal:true,notes:["Thermal Print Head (consumable/spare part) for TK180"]},
+  {customer:"Arinc",country:"Philippines",date:"",status:"Quotation",project:"Philippines",pn:"43000000045700",model:"TK180 TPH",qty:"—",price:108.8,currency:"USD",terms:["EXW"],warranty:"1Y",bp:null,noPrinterTotal:true,notes:["Thermal Print Head (consumable/spare part) for TK180"]},
+  {customer:"SITA",country:"Indonesia",date:"3 Feb 2026",status:"PO",project:"DPS (Bali)",pn:"43000000045700",model:"TK180 TPH",qty:"50 units",price:1788000,currency:"IDR",terms:["DDP"],warranty:"1Y",bp:null,totalOverride:90200000,noPrinterTotal:true,notes:["Thermal Print Head (consumable/spare part) for TK180","Delivery: 800,000 IDR"]},
+  {customer:"WZ",country:"China",date:"",status:"Quotation",project:"WZ Standard Pricing",pn:"",model:"KPM180 with AEA",qty:"TBD",price:5100,currency:"RMB",terms:[],warranty:"1Y",bp:null,notes:["Standard selling prices for WZ"]},
+
+
+  {customer:"WZ",country:"China",date:"",status:"Quotation",project:"WZ Standard Pricing",pn:"",model:"TK180 Metal Cutter",qty:"TBD",price:5280,currency:"RMB",terms:[],warranty:"1Y",bp:null,notes:[]},
+
+
+  {customer:"WZ",country:"China",date:"",status:"Quotation",project:"WZ Standard Pricing",pn:"",model:"TK202 with AEA",qty:"TBD",price:5800,currency:"RMB",terms:[],warranty:"1Y",bp:null,notes:[]},
+];
+
+function parseDV(d){if(!d)return 0;const p=Date.parse(d);return isNaN(p)?0:p;}
+function dDisplay(tx){return tx.displayDate||tx.date||"";}
+function bStatus(s){
+  if(s==="PO")return'<span class="badge b-po">&#10003; PO confirmed</span>';
+  if(s==="Quotation")return'<span class="badge b-qt">&#9711; Quotation</span>';
+  return'<span class="badge b-ls">&#10005; Lost quote</span>';
+}
+function bTerm(t){const m={DDP:"b-ddp",DAP:"b-dap",EXW:"b-exw"};return`<span class="badge ${m[t]||"b-exw"}">${t}</span>`;}
+function bWarranty(w){if(!w)return"";const m={"5Y":"b-5y","3Y":"b-3y","2Y":"b-2y","1Y":"b-1y"};return`<span class="badge ${m[w]||"b-1y"}">${w} warranty</span>`;}
+
+let currentTab="customers",expandedCards={},expandedRows={};
+
+function setTab(btn){
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");currentTab=btn.dataset.tab;
+  document.getElementById("filter-bar").style.display=currentTab==="customers"?"flex":"none";
+  renderContent();
+}
+function getFiltered(){
+  const fc=document.getElementById("fc").value;
+  const fm=document.getElementById("fm").value;
+  const fs=document.getElementById("fs").value;
+  return TX.filter(t=>(!fc||t.country===fc)&&(!fm||t.model===fm)&&(!fs||t.status===fs));
+}
+function refreshFilterOptions(){
+  const fc=document.getElementById("fc"),fm=document.getElementById("fm");
+  const fcV=fc.value,fmV=fm.value;
+  fc.innerHTML='<option value="">All countries</option>';
+  fm.innerHTML='<option value="">All models</option>';
+  [...new Set(TX.map(t=>t.country))].sort().forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;if(c===fcV)o.selected=true;fc.appendChild(o);});
+  [...new Set(TX.map(t=>t.model))].sort().forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=m;if(m===fmV)o.selected=true;fm.appendChild(o);});
+  const cl=document.getElementById("customer-list"),ml=document.getElementById("model-list"),cntl=document.getElementById("country-list");
+  if(cl)cl.innerHTML=[...new Set(TX.map(t=>t.customer))].sort().map(c=>`<option value="${c}">`).join("");
+  if(ml)ml.innerHTML=[...new Set(TX.map(t=>t.model))].sort().map(m=>`<option value="${m}">`).join("");
+  if(cntl)cntl.innerHTML=[...new Set(TX.map(t=>t.country))].sort().map(c=>`<option value="${c}">`).join("");
+}
+function renderStats(){
+  const pos=TX.filter(t=>t.status==="PO").length,qt=TX.filter(t=>t.status==="Quotation").length,ls=TX.filter(t=>t.status==="Lose").length;
+  const cu=new Set(TX.map(t=>t.customer+"__"+t.country)).size;
+  document.getElementById("stats").innerHTML=`
+    <div class="stat"><div class="stat-label">Customers</div><div class="stat-value">${cu}</div><div class="stat-sub">across multiple countries</div></div>
+    <div class="stat"><div class="stat-label">Confirmed POs</div><div class="stat-value">${pos}</div><div class="stat-sub">transactions</div></div>
+    <div class="stat"><div class="stat-label">Open quotations</div><div class="stat-value">${qt}</div><div class="stat-sub">pending</div></div>
+    <div class="stat"><div class="stat-label">Lost quotes</div><div class="stat-value">${ls}</div><div class="stat-sub">for reference</div></div>`;
+}
+function buildCustomerCard(name,txs){
+  const country=txs[0].country,flagIcon=FLAGS[country]||"\u{1F310}";
+  const cardKey=name+"__"+country,isOpen=expandedCards[cardKey];
+  const pos=txs.filter(t=>t.status==="PO").length,qt=txs.filter(t=>t.status!=="PO").length;
+  const sorted=[...txs].sort((a,b)=>{
+      const aCombined=a.projectGroup&&a.model&&a.model.includes("+");
+      const bCombined=b.projectGroup&&b.model&&b.model.includes("+");
+      if(a.projectGroup&&b.projectGroup&&a.projectGroup===b.projectGroup){
+        if(aCombined&&!bCombined)return -1;
+        if(!aCombined&&bCombined)return 1;
+      }
+      return parseDV(b.date)-parseDV(a.date);
+    });
+  const rows=sorted.map(tx=>{
+    const margin=tx.bp&&tx.currency==="USD"?tx.price-tx.bp:null;
+    const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
+    const isCombined=tx.projectGroup&&tx.model&&tx.model.includes("+");
+    const isSplit=tx.projectGroup&&tx.project&&(tx.project.includes("\u2014 ATB")||tx.project.includes("\u2014 BTP"));
+    const grpId=tx.projectGroup?tx.projectGroup.replace(/[^a-zA-Z0-9]/g,"-"):"";
+    const groupTag=(()=>{
+      if(!tx.projectGroup)return "";
+      if(isCombined)return "<div style='margin-bottom:5px'><button class='expand-btn' onclick='toggleGroup(\""+grpId+"\",this,event)'>\u25bc Show individual model entries</button></div>";
+      if(isSplit)return "<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:#fff3cd;color:#856404;border:1px solid #ffc107;margin-bottom:5px'>&#128279; Part of: "+tx.projectGroup+"</div>";
+      return "";
+    })();
+    const inner="<div class='tx'><div>"+
+      groupTag+
+      "<div class='tx-date'>"+(dDisplay(tx)?dDisplay(tx)+" \xb7 ":"")+bStatus(tx.status)+"</div>"+
+      "<div class='tx-model'>"+tx.model+" &nbsp;&middot;&nbsp; "+tx.project+" &nbsp;&middot;&nbsp; "+tx.qty+"</div>"+
+      (tx.pn?"<div class='tx-pn'>"+tx.pn+"</div>":"")+
+      "<div class='tx-badges'>"+tx.terms.map(bTerm).join("")+bWarranty(tx.warranty)+"</div>"+
+      (tx.notes.length?"<div class='tx-notes'>"+tx.notes.map(function(n){return "<div class='tx-note'>"+n+"</div>";}).join("")+"</div>":"")+
+    "</div>"+
+    "<div style='text-align:right;display:flex;flex-direction:column;min-height:100%'>"+
+      (tx.dualPrice?
+        "<div style='text-align:right;line-height:1.8'>"+
+          "<span style='font-size:10px;color:#5a7a8a'>Cutter ARINC</span><br>"+
+          "<span style='font-weight:600;font-size:13px;color:#1a3a4a'>"+tx.price.toLocaleString()+" "+tx.currency+"</span><br>"+
+          "<span style='font-size:10px;color:#5a7a8a'>Non Cutter ARINC</span><br>"+
+          "<span style='font-weight:600;font-size:13px;color:#1a3a4a'>"+tx.dualPrice.toLocaleString()+" "+tx.currency+"</span>"+
+        "</div>"
+      :
+        "<div class='tx-price'>"+tx.price.toLocaleString()+" "+tx.currency+"</div>"
+      )+
+      (margin!==null?"<div class='tx-margin'>Margin: $"+margin.toFixed(0)+" ("+mPct+"%)</div>":"")+
+      (()=>{
+        const qm=(tx.qty||"").match(/[0-9]+/);const q=qm?parseInt(qm[0]):null;const printerTot=(q&&q>0)?tx.price*q:null;
+        if(tx.totalOverride){
+          const pTot=tx.printerTotalOverride||(printerTot&&!tx.noPrinterTotal?printerTot:null);
+          if(pTot)return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Printer Total: <strong>"+pTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:#1a3a4a;margin-top:3px'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong></div>";
+          return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong></div>";
+        }
+        if(!printerTot)return "";
+        if(tx.noPrinterTotal)return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong></div>";
+        return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Printer Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:#1a3a4a;margin-top:3px'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong></div>";
+      })()+
+      "<div style='display:flex;justify-content:flex-end;padding-bottom:14px;margin-top:auto;padding-top:8px'>"+
+        "<button class='edit-btn' onclick='editTx("+TX.indexOf(tx)+",event)'>Edit</button>"+
+      "</div>"+
+    "</div></div>";
+    return isSplit?"<div class='grp-entry' data-group='"+grpId+"' style='display:none'>"+inner+"</div>":inner;
+  }).join("");
+  const sid=cardKey.replace(/[^a-zA-Z0-9]/g,"-");
+  const escapedKey=cardKey.replace(/'/g,"\\'");
+  return`<div class="card">
+    <div class="card-header" onclick="toggleCard('${escapedKey}','${sid}')">
+      <div class="flag-icon">${flagIcon}</div>
+      <div style="flex:1"><div class="cname">${name}</div>
+      <div class="cmeta">${country} \xb7 ${pos} PO${pos!==1?"s":""} \xb7 ${qt} quote${qt!==1?"s":""}</div></div>
+      <div class="chevron ${isOpen?"open":""}" id="chev-${sid}">\u25be</div>
+    </div>
+    <div class="card-body ${isOpen?"open":""}" id="body-${sid}">${rows}</div>
+  </div>`;
+}
+function renderCustomers(){
+  const data=getFiltered(),sortMode=document.getElementById("fsort").value,groupMode="country";
+  const byC={};
+  data.forEach(t=>{const key=t.customer+"__"+t.country;if(!byC[key])byC[key]=[];byC[key].push(t);});
+  if(!Object.keys(byC).length){document.getElementById("content").innerHTML='<div class="empty">No transactions match your filters.</div>';return;}
+  let entries=Object.entries(byC).map(([key,txs])=>[txs[0].customer,txs,key]);
+  if(sortMode==="name")entries.sort((a,b)=>a[0].localeCompare(b[0]));
+  else if(sortMode==="name-desc")entries.sort((a,b)=>b[0].localeCompare(a[0]));
+  else if(sortMode==="po-desc")entries.sort((a,b)=>b[1].filter(t=>t.status==="PO").length-a[1].filter(t=>t.status==="PO").length);
+  else if(sortMode==="recent")entries.sort((a,b)=>Math.max(...b[1].map(t=>parseDV(t.date)))-Math.max(...a[1].map(t=>parseDV(t.date))));
+  let html="";
+  if(groupMode==="country"){
+    const byCountry={};
+    entries.forEach(([name,txs,key])=>{const c=txs[0].country||"Unknown";if(!byCountry[c])byCountry[c]=[];byCountry[c].push([name,txs,key]);});
+    Object.entries(byCountry).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([country,list])=>{
+      const f=flagImg(country,18);
+      html+=`<div class="country-group-label">${f} ${country} <span class="country-count">${list.length} customer${list.length!==1?"s":""}</span></div>`;
+      list.forEach(([name,txs])=>{html+=buildCustomerCard(name,txs);});
+    });
+  } else {
+    entries.forEach(([name,txs])=>{html+=buildCustomerCard(name,txs);});
+  }
+  document.getElementById("content").innerHTML=html;
+}
+function toggleGroup(grp,btn,e){
+  e.stopPropagation();
+  const entries=document.querySelectorAll(".grp-entry[data-group=\""+grp+"\"]");
+  const isHidden=entries.length>0&&entries[0].style.display==="none";
+  entries.forEach(function(el){el.style.display=isHidden?"block":"none";});
+  btn.innerHTML=isHidden?"&#9650; Hide individual model entries":"&#9660; Show individual model entries";
+}
+function toggleCard(key,sid){
+  expandedCards[key]=!expandedCards[key];
+  document.getElementById("body-"+sid).classList.toggle("open",expandedCards[key]);
+  document.getElementById("chev-"+sid).classList.toggle("open",expandedCards[key]);
+}
+function renderModel(){
+  const MODEL_GROUPS={
+    "TK180 Metal Cutter":["TK180 Metal Cutter","TK180 Metal Cutter ARINC"],
+    "TK180 Metal Non Cutter":["TK180 Metal Non Cutter","TK180 Metal Non Cutter ARINC"],
+  };
+  const allModels=[...new Set(TX.map(t=>t.displayModel||t.model))];
+  const models=allModels.filter(m=>!Object.values(MODEL_GROUPS).flat().includes(m)||Object.keys(MODEL_GROUPS).includes(m)).sort();
+  const sel=document.getElementById("model-sel"),current=sel?sel.value:models[0];
+  const groupModels=MODEL_GROUPS[current]||[current];
+  const txs=TX.filter(t=>groupModels.includes(t.displayModel||t.model)&&t.model!=="TK180 Metal Cutter ARINC (ATB) + TK180 Metal Non Cutter ARINC (BTP)").sort((a,b)=>parseDV(b.date)-parseDV(a.date));
+  const opts=models.map(m=>`<option value="${m}"${m===current?" selected":""}>${m}</option>`).join("");
+  let rows="";
+  txs.forEach((tx,i)=>{
+    const margin=tx.bp&&tx.currency==="USD"?(tx.price-tx.bp).toFixed(0):null;
+    const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
+    const f=flagImg(tx.country,18);
+    rows+=`<tr class="clickable" onclick="toggleRow(${i})">
+      <td style="color:#aaa;white-space:nowrap;font-size:12px">${dDisplay(tx)||"\u2014"}</td>
+      <td style="font-weight:600;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Montserrat',sans-serif">${f} ${tx.customer}</td>
+      <td style="color:#555;font-size:12px">${tx.project||"\u2014"}</td>
+      <td style="color:#888">${tx.country}</td>
+      <td>${bStatus(tx.status)}</td>
+      <td>${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
+      <td style="text-align:right;font-weight:600">${tx.price.toLocaleString()} ${tx.currency}</td>
+      <td style="text-align:right;color:#aaa;font-size:12px">${margin?`$${margin} (${mPct}%)`:"—"}</td>
+    </tr><tr class="exp-detail ${expandedRows[i]?"open":""}" id="erow-${i}">
+      <td colspan="8"><strong>Project:</strong> ${tx.project} | <strong>Qty:</strong> ${tx.qty} | <strong>PN:</strong> ${tx.pn||"\u2014"}${tx.notes.length?" | "+tx.notes.join(" \xb7 "):""}</td>
+    </tr>`;
+  });
+  document.getElementById("content").innerHTML=`<div class="cmp-wrap"><div class="cmp-head">
+    <span class="cmp-lbl">Compare model</span>
+    <select id="model-sel" onchange="renderModel()">${opts}</select>
+    <span class="cmp-hint">${txs.length} records \u2014 click row for detail</span>
+  </div><div style="overflow-x:auto"><table>
+    <thead><tr><th>Date</th><th>Customer</th><th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th style="text-align:right">Price</th><th style="text-align:right">Margin</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="7" class="empty">No data.</td></tr>'}</tbody>
+  </table></div></div>`;
+}
+function toggleRow(i){expandedRows[i]=!expandedRows[i];const el=document.getElementById("erow-"+i);if(el)el.classList.toggle("open",expandedRows[i]);}
+function renderBuying(){
+  var sortBuy=document.getElementById("buy-sort")?document.getElementById("buy-sort").value:"model";
+  var searchVal=document.getElementById("buy-search")?document.getElementById("buy-search").value:"";
+  var searchLow=searchVal.toLowerCase();
+  var expandedGroups=window._buyGroups||{};
+  var sorted=BUYING.map(function(b,i){return {model:b.model,pn:b.pn,price:b.price,currency:b.currency,specialPrice:b.specialPrice,specialCustomer:b.specialCustomer,group:b.group,_i:i};});
+  if(searchLow) sorted=sorted.filter(function(b){return b.model.toLowerCase().indexOf(searchLow)!==-1||(b.pn||"").toLowerCase().indexOf(searchLow)!==-1;});
+  if(sortBuy==="price-asc")sorted.sort(function(a,b){return a.price-b.price;});
+  else if(sortBuy==="price-desc")sorted.sort(function(a,b){return b.price-a.price;});
+  else sorted.sort(function(a,b){return a.model.localeCompare(b.model);});
+
+  var groups={};
+  var noGroup=[];
+  sorted.forEach(function(b){
+    if(b.group){if(!groups[b.group])groups[b.group]=[];groups[b.group].push(b);}
+    else noGroup.push(b);
+  });
+
+  function makeRow(b){
+    var sp=b.specialPrice?"<span style='font-size:10px;color:#856404;background:#fff3cd;padding:1px 6px;border-radius:4px;font-weight:500;margin-left:6px'>"+(b.specialCustomer||"Special")+": $"+b.specialPrice.toFixed(2)+"</span>":"";
+    return "<tr><td style='font-weight:500'>"+b.model+"</td><td style='font-size:11px;color:#5a7a8a;font-family:monospace'>"+(b.pn||"—")+"</td><td style='text-align:right;font-weight:600;color:#1a3a4a'>$"+b.price.toFixed(2)+" "+b.currency+sp+"</td><td style='text-align:right'><button class='delete-btn' onclick='deleteBuying("+b._i+")'>Remove</button></td></tr>";
+  }
+
+  var rows="";
+  noGroup.forEach(function(b){rows+=makeRow(b);});
+  Object.keys(groups).sort().forEach(function(grp){
+    var isExp=!!expandedGroups[grp];
+    var grpId=grp.replace(/[^a-zA-Z0-9]/g,"-");
+    rows+="<tr style='background:#e8f0f4;cursor:pointer' onclick='toggleBuyGroup(this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
+      "<td colspan='4' style='font-size:11px;font-weight:600;color:#1a3a4a;padding:8px 12px'>"+
+        "<span id='buy-grp-icon-"+grpId+"'>"+(isExp?"▲":"▼")+"</span> "+grp+" ("+groups[grp].length+" items)"+
+      "</td></tr>";
+    if(isExp){groups[grp].forEach(function(b){rows+=makeRow(b);});}
+  });
+
+  var tbody=document.getElementById("buy-tbody");
+  var countEl=document.getElementById("buy-count");
+  if(tbody){tbody.innerHTML=rows||"<tr><td colspan='4' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>";if(countEl)countEl.textContent=sorted.length+" / "+BUYING.length+" items";return;}
+
+  document.getElementById("content").innerHTML=
+    "<div class='buying-card'>"+
+    "<div style='padding:12px 16px;border-bottom:1px solid #c8d8e0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#e8f0f4'>"+
+      "<input id='buy-search' type='text' placeholder='Search model or part number...' oninput='renderBuying()' value='"+searchVal.replace(/'/g,"&#39;")+"' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #c8d8e0;background:#fff;color:#333;font-family:Montserrat,sans-serif;width:240px'>"+
+      "<span style='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#1a3a4a;margin-left:4px'>Sort</span>"+
+      "<select id='buy-sort' onchange='renderBuying()' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #c8d8e0;background:#fff;color:#333;font-family:Montserrat,sans-serif'>"+
+        "<option value='model'"+(sortBuy==="model"?" selected":"")+">Model A–Z</option>"+
+        "<option value='price-asc'"+(sortBuy==="price-asc"?" selected":"")+">Price: Low to high</option>"+
+        "<option value='price-desc'"+(sortBuy==="price-desc"?" selected":"")+">Price: High to low</option>"+
+      "</select>"+
+      "<span id='buy-count' style='font-size:11px;color:#5a7a8a'>"+sorted.length+" / "+BUYING.length+" items</span>"+
+    "</div>"+
+    "<table><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th></th></tr></thead>"+
+    "<tbody id='buy-tbody'>"+(rows||"<tr><td colspan='4' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+"</tbody></table>"+
+    "</div>";
+  var inp=document.getElementById("buy-search");
+  if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
+}
+
+function toggleBuyGroup(el){var grp=el.dataset?el.dataset.grp:el;
+  if(!window._buyGroups)window._buyGroups={};
+  window._buyGroups[grp]=!window._buyGroups[grp];
+  renderBuying();
+  var inp=document.getElementById("buy-search");
+  if(inp)inp.focus();
+}
+
+function renderOthers(){
+  const rows=OTHERS.map((o,i)=>`<div class="others-row"><div style="flex:1">${o.date?`<div class="others-date">${o.date}</div>`:""}<div class="others-desc">${o.desc}</div>${o.sub?`<div class="others-sub">${o.sub}</div>`:""}</div><div style="display:flex;align-items:start;gap:12px;flex-shrink:0"><div class="others-val">${o.value}</div><button class="edit-btn" onclick="editOther(${i})">Edit</button><button class="delete-btn" onclick="deleteOther(${i})">Remove</button></div></div>`).join("");
+  document.getElementById("content").innerHTML=`<div class="others-card">${rows}</div>`;
+}
+const SPARES=[
+  {name:"TK180 TPH (Thermal Print Head)",pn:"43000000045700",price:118,currency:"USD",customer:"Philippines Airlines",terms:"DDP",note:"Quotation 17 Apr 2026"},
+  {name:"TK180 TPH (Thermal Print Head)",pn:"43000000045700",price:108.80,currency:"USD",customer:"Arinc",terms:"EXW",note:"Standard price"},
+  {name:"TK180 TPH (Thermal Print Head)",pn:"4300000045700",price:1788000,currency:"IDR",customer:"SITA Indonesia",terms:"DDP",note:"PO 3 Feb 2026 — 50 units"},
+  {name:"Roll Holder (TK180)",pn:"974HL020000004",price:108,currency:"SGD",customer:"Singapore Airlines",terms:"",note:"Changi Airport TK180 project"},
+  {name:"Roll Holder",pn:"974HL010000009",price:128,currency:"SGD",customer:"Singapore Cruise Center",terms:"",note:"Harborfront Cruise"},
+  {name:"Roll Holder",pn:"974HL010000009",price:98,currency:"USD",customer:"Aboitiz",terms:"",note:"Cebu project"},
+  {name:"Roll Holder",pn:"974HL010000003",price:98,currency:"USD",customer:"Aboitiz",terms:"",note:"Bohol & Laguindingan"},
+  {name:"Roll Holder (Daifuku)",pn:"",price:78,currency:"USD",customer:"Daifuku",terms:"",note:"Gold Coast quotation"},
+  {name:"Vertical Tray TK302 Metal Case",pn:"974BB060000003",price:78,currency:"SGD",customer:"Singapore Airlines",terms:"",note:"Changi Airport TK302 project"},
+  {name:"Ticket Tray Metal",pn:"976HL010000007",price:98,currency:"USD",customer:"Aboitiz",terms:"",note:"Bohol & Laguindingan"},
+  {name:"1.8M USB Cable",pn:"2650000000003566",price:10.80,currency:"USD",customer:"Aboitiz",terms:"",note:"Bohol & Laguindingan"},
+  {name:"USA Plug Power Cable",pn:"2610000000031",price:17.80,currency:"USD",customer:"Aboitiz",terms:"",note:"Bohol & Laguindingan"},
+  {name:"Paper Roll",pn:"",price:580000,currency:"IDR",customer:"SITA Indonesia",terms:"",note:"DPS Bali & SUB Surabaya"},
+  {name:"On-site installation",pn:"",price:42,currency:"SGD",customer:"Singapore Airlines",terms:"",note:"Per unit — Changi Airport"},
+  {name:"Annual maintenance + consumables",pn:"",price:240,currency:"SGD",customer:"Singapore Airlines",terms:"",note:"Per printer per year — Changi Airport"},
+];
+
+function renderSpares(){
+  var rows=SPARES.map(function(s){
+    var pn=s.pn||"—";
+    var terms=s.terms||"—";
+    return "<tr>"+
+      "<td style='font-weight:500'>"+s.name+"</td>"+
+      "<td style='font-size:11px;color:#5a7a8a;font-family:monospace'>"+pn+"</td>"+
+      "<td style='color:#5a7a8a;font-size:12px'>"+s.customer+"</td>"+
+      "<td style='text-align:right;font-weight:600;color:#1a3a4a'>"+s.price.toLocaleString()+" "+s.currency+"</td>"+
+      "<td style='font-size:12px;color:#5a7a8a'>"+terms+"</td>"+
+      "<td style='font-size:11px;color:#888;font-style:italic'>"+s.note+"</td>"+
+    "</tr>";
+  }).join("");
+  document.getElementById("content").innerHTML=
+    "<div class='buying-card'><table>"+
+    "<thead><tr>"+
+      "<th>Part name</th><th>Part number</th><th>Customer ref</th>"+
+      "<th style='text-align:right'>Unit price</th><th>Terms</th><th>Note</th>"+
+    "</tr></thead>"+
+    "<tbody>"+rows+"</tbody>"+
+    "</table></div>";
+}
+
+function renderContent(){
+  if(currentTab==="customers")renderCustomers();
+  else if(currentTab==="model")renderModel();
+  else if(currentTab==="buying")renderBuying();
+  else if(currentTab==="spares")renderSpares();
+  else renderOthers();
+}
+function openModal(){
+  if(currentTab==="customers"){refreshFilterOptions();document.getElementById("modal-tx").classList.add("open");}
+  else if(currentTab==="buying")document.getElementById("modal-buying").classList.add("open");
+  else if(currentTab==="others")document.getElementById("modal-others").classList.add("open");
+}
+function closeModal(id){document.getElementById(id).classList.remove("open");}
+document.querySelectorAll(".modal-overlay").forEach(el=>{el.addEventListener("click",e=>{if(e.target===el)el.classList.remove("open");});});
+function saveTx(){
+  const customer=document.getElementById("f-customer").value.trim(),country=document.getElementById("f-country").value.trim();
+  const price=parseFloat(document.getElementById("f-price").value),model=document.getElementById("f-model").value.trim();
+  if(!customer||!country||!model||isNaN(price)){alert("Please fill in Customer, Country, Model and Price.");return;}
+  const termsVal=document.getElementById("f-terms").value,notesRaw=document.getElementById("f-notes").value.trim();
+  const notes=notesRaw?notesRaw.split("\n").map(n=>n.trim()).filter(Boolean):[];
+  const bpVal=document.getElementById("f-bp").value;
+  TX.push({customer,country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"\u2014",pn:document.getElementById("f-pn").value.trim(),model,qty:document.getElementById("f-qty").value.trim()||"\u2014",price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes});
+  closeModal("modal-tx");
+  document.getElementById("modal-tx").querySelectorAll("input,textarea").forEach(el=>el.value="");
+  refreshFilterOptions();renderStats();renderContent();
+}
+function saveBuying(){
+  const model=document.getElementById("b-model").value.trim(),price=parseFloat(document.getElementById("b-price").value);
+  if(!model||isNaN(price)){alert("Please fill in Model and Price.");return;}
+  BUYING.push({model,pn:document.getElementById("b-pn").value.trim(),price,currency:document.getElementById("b-currency").value});
+  closeModal("modal-buying");document.getElementById("modal-buying").querySelectorAll("input").forEach(el=>el.value="");renderContent();
+}
+function saveOther(){
+  const desc=document.getElementById("o-desc").value.trim(),value=document.getElementById("o-value").value.trim();
+  if(!desc||!value){alert("Please fill in Description and Value.");return;}
+  OTHERS.push({date:document.getElementById("o-date").value.trim(),desc,value,sub:document.getElementById("o-sub").value.trim()});
+  closeModal("modal-others");document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(el=>el.value="");renderContent();
+}
+
+function editTx(i, e){
+  if(e) e.stopPropagation();
+  const tx=TX[i];
+  refreshFilterOptions();
+  document.getElementById("f-customer").value=tx.customer;
+  document.getElementById("f-country").value=tx.country;
+  document.getElementById("f-date").value=tx.date||"";
+  document.getElementById("f-status").value=tx.status;
+  document.getElementById("f-project").value=tx.project==="—"?"":tx.project;
+  document.getElementById("f-model").value=tx.model;
+  document.getElementById("f-pn").value=tx.pn||"";
+  document.getElementById("f-qty").value=tx.qty==="—"?"":tx.qty;
+  document.getElementById("f-price").value=tx.price;
+  document.getElementById("f-currency").value=tx.currency;
+  document.getElementById("f-bp").value=tx.bp||"";
+  document.getElementById("f-terms").value=tx.terms[0]||"";
+  document.getElementById("f-warranty").value=tx.warranty||"";
+  document.getElementById("f-notes").value=tx.notes.join("\n");
+  const saveBtn=document.querySelector("#modal-tx .btn-save");
+  saveBtn.textContent="Update entry";
+  saveBtn.onclick=function(){
+    const customer=document.getElementById("f-customer").value.trim();
+    const country=document.getElementById("f-country").value.trim();
+    const price=parseFloat(document.getElementById("f-price").value);
+    const model=document.getElementById("f-model").value.trim();
+    if(!customer||!country||!model||isNaN(price)){alert("Please fill in Customer, Country, Model and Price.");return;}
+    const termsVal=document.getElementById("f-terms").value;
+    const notesRaw=document.getElementById("f-notes").value.trim();
+    const notes=notesRaw?notesRaw.split("\n").map(n=>n.trim()).filter(Boolean):[];
+    const bpVal=document.getElementById("f-bp").value;
+    TX[i]={customer,country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"—",pn:document.getElementById("f-pn").value.trim(),model,qty:document.getElementById("f-qty").value.trim()||"—",price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes};
+    closeModal("modal-tx");
+    document.getElementById("modal-tx").querySelectorAll("input,textarea").forEach(el=>el.value="");
+    saveBtn.textContent="Save entry";
+    saveBtn.onclick=saveTx;
+    refreshFilterOptions();renderStats();renderContent();
+  };
+  document.getElementById("modal-tx").classList.add("open");
+}
+
+function editBuying(i){
+  const b=BUYING[i];
+  document.getElementById("b-model").value=b.model;
+  document.getElementById("b-pn").value=b.pn||"";
+  document.getElementById("b-price").value=b.price;
+  document.getElementById("b-currency").value=b.currency;
+  // Change save button to update
+  const saveBtn=document.querySelector("#modal-buying .btn-save");
+  saveBtn.textContent="Update entry";
+  saveBtn.onclick=function(){
+    const model=document.getElementById("b-model").value.trim();
+    const price=parseFloat(document.getElementById("b-price").value);
+    if(!model||isNaN(price)){alert("Please fill in Model and Price.");return;}
+    BUYING[i]={model,pn:document.getElementById("b-pn").value.trim(),price,currency:document.getElementById("b-currency").value};
+    closeModal("modal-buying");
+    document.getElementById("modal-buying").querySelectorAll("input").forEach(el=>el.value="");
+    saveBtn.textContent="Save entry";
+    saveBtn.onclick=saveBuying;
+    renderContent();
+  };
+  document.getElementById("modal-buying").classList.add("open");
+}
+
+function editOther(i){
+  const o=OTHERS[i];
+  document.getElementById("o-date").value=o.date||"";
+  document.getElementById("o-value").value=o.value||"";
+  document.getElementById("o-desc").value=o.desc||"";
+  document.getElementById("o-sub").value=o.sub||"";
+  const saveBtn=document.querySelector("#modal-others .btn-save");
+  saveBtn.textContent="Update entry";
+  saveBtn.onclick=function(){
+    const desc=document.getElementById("o-desc").value.trim();
+    const value=document.getElementById("o-value").value.trim();
+    if(!desc||!value){alert("Please fill in Description and Value.");return;}
+    OTHERS[i]={date:document.getElementById("o-date").value.trim(),desc,value,sub:document.getElementById("o-sub").value.trim()};
+    closeModal("modal-others");
+    document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(el=>el.value="");
+    saveBtn.textContent="Save entry";
+    saveBtn.onclick=saveOther;
+    renderContent();
+  };
+  document.getElementById("modal-others").classList.add("open");
+}
+function deleteBuying(i){if(!confirm("Remove this buying price entry?"))return;BUYING.splice(i,1);renderContent();}
+function deleteOther(i){if(!confirm("Remove this note?"))return;OTHERS.splice(i,1);renderContent();}
+refreshFilterOptions();renderStats();renderCustomers();
+</script>
+</body>
+</html>
