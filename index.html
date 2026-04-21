@@ -176,15 +176,20 @@ tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style
 </div>
 <div class="modal-overlay" id="modal-buying">
   <div class="modal">
-    <div class="modal-title">Add buying price</div>
+    <div class="modal-title" id="buying-modal-title">Add buying price</div>
     <div class="form-grid">
       <div class="form-group form-full"><label>Model name *</label><input id="b-model" placeholder="e.g. TK180 Metal Cutter AEA"></div>
       <div class="form-group form-full"><label>Part number</label><input id="b-pn" placeholder="e.g. 911HL011200733" style="font-family:'DM Mono',monospace"></div>
       <div class="form-group"><label>Price *</label><input id="b-price" type="number" placeholder="e.g. 369"></div>
       <div class="form-group"><label>Currency</label><select id="b-currency"><option value="USD">USD</option><option value="SGD">SGD</option><option value="EUR">EUR</option></select></div>
       <div class="form-group form-full"><label>Group / category <span style="font-size:10px;color:#aaa;font-weight:400">(optional — groups items under a collapsible toggle)</span></label><input id="b-group" placeholder="e.g. TK180 Spare Parts" list="b-group-list"><datalist id="b-group-list"></datalist></div>
+      <div class="form-group form-full"><label>Special price <span style="font-size:10px;color:#aaa;font-weight:400">(optional — customer-specific price)</span></label><div style="display:flex;gap:8px"><input id="b-special-price" type="number" placeholder="e.g. 135.60" style="flex:1"><input id="b-special-customer" placeholder="Customer name e.g. Nanshan" style="flex:2"></div></div>
     </div>
-    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-buying')">Cancel</button><button class="btn-save" onclick="sbSaveBuying()">Save entry</button></div>
+    <div class="modal-actions">
+      <button id="btn-delete-buying" class="delete-btn" style="margin-right:auto;font-size:13px;padding:9px 14px;display:none" onclick="sbDeleteBuyingFromModal()">Delete entry</button>
+      <button class="btn-cancel" onclick="closeBuyingModal()">Cancel</button>
+      <button class="btn-save" id="btn-save-buying" onclick="sbSaveBuying()">Save entry</button>
+    </div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-others">
@@ -230,11 +235,12 @@ let BUYING=[
   {model:"Cutter Ejector Module KPM180H CN",pn:"976AH010000003",price:94.53,currency:"USD",group:"KPM180 Spare Parts"},
   {model:"PCBA CPU KPM180 E12 R2 ST101_DP007 VN UL",pn:"8120000000000961",price:70.08,currency:"USD",group:"KPM180 Spare Parts"},
   {model:"Autocutter KPM180H 85MM Kyoujin",pn:"9B2GR020000011",price:33.60,currency:"USD",group:"KPM180 Spare Parts"},
+  {model:"TK180 TPH",pn:"43000000045700",price:23.88,currency:"USD"},
   {model:"KPM180 TPH",pn:"43000000045700",price:23.88,currency:"USD"},
   {model:"K80",pn:"915LC010137300",price:58.25,currency:"USD"},
   {model:"TG2480HIII",pn:"915CH030100300",price:112.00,currency:"USD"},
   {model:"VKP80III Rear Connector",pn:"915DX011700300",price:149.00,currency:"USD",specialPrice:135.60,specialCustomer:"Nanshan"},
-  {model:"KX80S ETH USB RS232",pn:"915PF020100700",price:81.00,currency:"USD"},
+  {model:"KX80S ETH USB RS232",pn:"915PF020100700",price:81.00,currency:"USD",specialPrice:81.00,specialCustomer:"Cui Zong"},
   {model:"TG2460HIII Standard Version",pn:"915CG040200300 or 915CG060100300",price:119.00,currency:"USD"},
   {model:"VKP80II-RX",pn:"915DW011200300",price:189.00,currency:"USD"},
   {model:"VKP80II Paper Roll Holder",pn:"974DW010000001",price:10.00,currency:"USD"},
@@ -522,8 +528,11 @@ function renderBuying(){
   });
 
   function makeRow(b){
-    var sp=b.specialPrice?"<span style='font-size:10px;color:#856404;background:#fff3cd;padding:1px 6px;border-radius:4px;font-weight:500;margin-left:6px'>"+(b.specialCustomer||"Special")+": $"+b.specialPrice.toFixed(2)+"</span>":"";
-    return "<tr><td style='font-weight:500'>"+b.model+"</td><td style='font-size:11px;color:#5a7a8a;font-family:monospace'>"+(b.pn||"—")+"</td><td style='text-align:right;font-weight:600;color:#1a3a4a'>$"+b.price.toFixed(2)+" "+b.currency+sp+"</td><td style='text-align:right'><button class='delete-btn' onclick='sbDeleteBuying("+b._i+")'>Remove</button></td></tr>";
+    var grpTag=b.group?"<div style='font-size:10px;color:#6d28d9;margin-top:2px'>"+b.group+"</div>":"";
+    var spCell=b.specialPrice?
+      "<td style='text-align:right'><div style='font-weight:600;color:#856404'>$"+b.specialPrice.toFixed(2)+" "+b.currency+"</div><div style='font-size:10px;color:#aaa;margin-top:1px'>"+(b.specialCustomer||"Special")+"</div></td>":
+      "<td style='text-align:right;color:#ddd;font-size:12px'>—</td>";
+    return "<tr><td style='font-weight:500'>"+b.model+grpTag+"</td><td style='font-size:11px;color:#5a7a8a;font-family:monospace'>"+(b.pn||"—")+"</td><td style='text-align:right;font-weight:600;color:#1a3a4a'>$"+b.price.toFixed(2)+" "+b.currency+"</td>"+spCell+"<td style='text-align:right;white-space:nowrap'><button class='edit-btn' onclick='editBuying("+b._i+")' style='margin-right:8px'>Edit</button><button class='delete-btn' onclick='sbDeleteBuying("+b._i+")'>Remove</button></td></tr>";
   }
 
   var rows="";
@@ -556,7 +565,7 @@ function renderBuying(){
       "</select>"+
       "<span id='buy-count' style='font-size:11px;color:#5a7a8a'>"+sorted.length+" / "+BUYING.length+" items</span>"+
     "</div>"+
-    "<table><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th></th></tr></thead>"+
+    "<table><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th style='text-align:right'>Special price</th><th></th></tr></thead>"+
     "<tbody id='buy-tbody'>"+(rows||"<tr><td colspan='4' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+"</tbody></table>"+
     "</div>";
   var inp=document.getElementById("buy-search");
@@ -575,14 +584,13 @@ function renderOthers(){
   const rows=OTHERS.map((o,i)=>`<div class="others-row"><div style="flex:1">${o.date?`<div class="others-date">${o.date}</div>`:""}<div class="others-desc">${o.desc}</div>${o.sub?`<div class="others-sub">${o.sub}</div>`:""}</div><div style="display:flex;align-items:start;gap:12px;flex-shrink:0"><div class="others-val">${o.value}</div><button class="edit-btn" onclick="editOther(${i})">Edit</button><button class="delete-btn" onclick="deleteOther(${i})">Remove</button></div></div>`).join("");
   document.getElementById("content").innerHTML=`<div class="others-card">${rows}</div>`;
 }
-const SPARES=[
-  {name:"TK180 TPH (Thermal Print Head)",pn:"43000000045700",price:118,currency:"USD",customer:"Philippines Airlines",terms:"DDP",note:"Quotation 17 Apr 2026"},
-  {name:"TK180 TPH (Thermal Print Head)",pn:"43000000045700",price:108.80,currency:"USD",customer:"Arinc",terms:"EXW",note:"Standard price"},
-  {name:"TK180 TPH (Thermal Print Head)",pn:"4300000045700",price:1788000,currency:"IDR",customer:"SITA Indonesia",terms:"DDP",note:"PO 3 Feb 2026 — 50 units"},
+let SPARES=[
+  {name:"TK180 TPH",pn:"43000000045700",price:118,currency:"USD",customer:"Philippines Airlines",terms:"DDP",note:"Quotation 17 Apr 2026"},
+  {name:"TK180 TPH",pn:"43000000045700",price:108.80,currency:"USD",customer:"Arinc",terms:"EXW",note:"Standard price"},
+  {name:"TK180 TPH",pn:"43000000045700",price:1788000,currency:"IDR",customer:"SITA Indonesia",terms:"DDP",note:"PO 3 Feb 2026 — 50 units"},
   {name:"Roll Holder (TK180)",pn:"974HL020000004",price:108,currency:"SGD",customer:"Singapore Airlines",terms:"",note:"Changi Airport TK180 project"},
   {name:"Roll Holder",pn:"974HL010000009",price:128,currency:"SGD",customer:"Singapore Cruise Center",terms:"",note:"Harborfront Cruise"},
-  {name:"Roll Holder",pn:"974HL010000009",price:98,currency:"USD",customer:"Aboitiz",terms:"",note:"Cebu project"},
-  {name:"Roll Holder",pn:"974HL010000003",price:98,currency:"USD",customer:"Aboitiz",terms:"",note:"Bohol & Laguindingan"},
+  {name:"Roll Holder",pn:"974HL010000009",price:98,currency:"USD",customer:"Aboitiz",terms:"",note:"Cebu, Bohol & Laguindingan"},
   {name:"Roll Holder (Daifuku)",pn:"",price:78,currency:"USD",customer:"Daifuku",terms:"",note:"Gold Coast quotation"},
   {name:"Vertical Tray TK302 Metal Case",pn:"974BB060000003",price:78,currency:"SGD",customer:"Singapore Airlines",terms:"",note:"Changi Airport TK302 project"},
   {name:"Ticket Tray Metal",pn:"976HL010000007",price:98,currency:"USD",customer:"Aboitiz",terms:"",note:"Bohol & Laguindingan"},
@@ -594,7 +602,22 @@ const SPARES=[
 ];
 
 function renderSpares(){
-  var rows=SPARES.map(function(s){
+  var searchVal=document.getElementById("sp-search")?document.getElementById("sp-search").value:"";
+  var sortVal=document.getElementById("sp-sort")?document.getElementById("sp-sort").value:"name";
+  var searchLow=searchVal.toLowerCase();
+  var filtered=SPARES.map(function(s,i){return Object.assign({},s,{_i:i});});
+  if(searchLow)filtered=filtered.filter(function(s){
+    return s.name.toLowerCase().indexOf(searchLow)!==-1||
+      (s.pn||"").toLowerCase().indexOf(searchLow)!==-1||
+      (s.customer||"").toLowerCase().indexOf(searchLow)!==-1||
+      (s.note||"").toLowerCase().indexOf(searchLow)!==-1;
+  });
+  if(sortVal==="name")filtered.sort(function(a,b){return a.name.localeCompare(b.name);});
+  else if(sortVal==="price-asc")filtered.sort(function(a,b){return a.price-b.price;});
+  else if(sortVal==="price-desc")filtered.sort(function(a,b){return b.price-a.price;});
+  else if(sortVal==="customer")filtered.sort(function(a,b){return (a.customer||"").localeCompare(b.customer||"");});
+
+  var rows=filtered.map(function(s){
     var pn=s.pn||"—";
     var terms=s.terms||"—";
     return "<tr>"+
@@ -602,18 +625,104 @@ function renderSpares(){
       "<td style='font-size:11px;color:#5a7a8a;font-family:monospace'>"+pn+"</td>"+
       "<td style='color:#5a7a8a;font-size:12px'>"+s.customer+"</td>"+
       "<td style='text-align:right;font-weight:600;color:#1a3a4a'>"+s.price.toLocaleString()+" "+s.currency+"</td>"+
-      "<td style='font-size:12px;color:#5a7a8a'>"+terms+"</td>"+
+      "<td style='font-size:12px;color:#5a7a8a'>"+(s.terms||"—")+"</td>"+
       "<td style='font-size:11px;color:#888;font-style:italic'>"+s.note+"</td>"+
+      "<td style='text-align:right;white-space:nowrap'>"+
+        "<button class='edit-btn' onclick='editSpare("+s._i+")' style='margin-right:8px'>Edit</button>"+
+        "<button class='delete-btn' onclick='deleteSpare("+s._i+")'>Remove</button>"+
+      "</td>"+
     "</tr>";
   }).join("");
+
+  var tbody=document.getElementById("sp-tbody");
+  var countEl=document.getElementById("sp-count");
+  if(tbody){
+    tbody.innerHTML=rows||"<tr><td colspan='7' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>";
+    if(countEl)countEl.textContent=filtered.length+" / "+SPARES.length+" items";
+    return;
+  }
+
   document.getElementById("content").innerHTML=
-    "<div class='buying-card'><table>"+
-    "<thead><tr>"+
+    "<div class='buying-card'>"+
+    "<div style='padding:12px 16px;border-bottom:1px solid #c8d8e0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#e8f0f4'>"+
+      "<input id='sp-search' type='text' placeholder='Search name, part number, customer...' oninput='renderSpares()' value='"+searchVal.replace(/'/g,"&#39;")+"' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #c8d8e0;background:#fff;color:#333;font-family:Montserrat,sans-serif;width:280px'>"+
+      "<span style='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#1a3a4a;margin-left:4px'>Sort</span>"+
+      "<select id='sp-sort' onchange='renderSpares()' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #c8d8e0;background:#fff;color:#333;font-family:Montserrat,sans-serif'>"+
+        "<option value='name'"+(sortVal==="name"?" selected":"")+">Name A–Z</option>"+
+        "<option value='customer'"+(sortVal==="customer"?" selected":"")+">Customer A–Z</option>"+
+        "<option value='price-asc'"+(sortVal==="price-asc"?" selected":"")+">Price: Low to high</option>"+
+        "<option value='price-desc'"+(sortVal==="price-desc"?" selected":"")+">Price: High to low</option>"+
+      "</select>"+
+      "<span id='sp-count' style='font-size:11px;color:#5a7a8a'>"+filtered.length+" / "+SPARES.length+" items</span>"+
+    "</div>"+
+    "<table><thead><tr>"+
       "<th>Part name</th><th>Part number</th><th>Customer ref</th>"+
-      "<th style='text-align:right'>Unit price</th><th>Terms</th><th>Note</th>"+
+      "<th style='text-align:right'>Unit price</th><th>Terms</th><th>Note</th><th></th>"+
     "</tr></thead>"+
-    "<tbody>"+rows+"</tbody>"+
-    "</table></div>";
+    "<tbody id='sp-tbody'>"+
+      (rows||"<tr><td colspan='7' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+
+    "</tbody></table>"+
+    "</div>";
+  var inp=document.getElementById("sp-search");
+  if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
+}
+
+function editSpare(i){
+  var s=SPARES[i];
+  document.getElementById("modal-spares").setAttribute("data-edit-idx",i);
+  document.getElementById("spare-modal-title").textContent="Edit spare part / accessory";
+  document.getElementById("sp-name").value=s.name||"";
+  document.getElementById("sp-pn").value=s.pn||"";
+  document.getElementById("sp-price").value=s.price||"";
+  document.getElementById("sp-currency").value=s.currency||"USD";
+  document.getElementById("sp-customer").value=s.customer||"";
+  document.getElementById("sp-terms").value=s.terms||"";
+  document.getElementById("sp-note").value=s.note||"";
+  var delBtn=document.getElementById("btn-delete-spare");if(delBtn)delBtn.style.display="inline-flex";
+  var saveBtn=document.getElementById("btn-save-spare");
+  if(saveBtn){saveBtn.textContent="Update entry";saveBtn.onclick=function(){saveSpare(i);};}
+  document.getElementById("modal-spares").classList.add("open");
+}
+
+function saveSpare(i){
+  var name=document.getElementById("sp-name").value.trim();
+  var price=parseFloat(document.getElementById("sp-price").value);
+  if(!name||isNaN(price)){alert("Please fill in Part name and Price.");return;}
+  var updated={name:name,pn:document.getElementById("sp-pn").value.trim(),price:price,currency:document.getElementById("sp-currency").value,customer:document.getElementById("sp-customer").value.trim(),terms:document.getElementById("sp-terms").value.trim(),note:document.getElementById("sp-note").value.trim()};
+  if(i===undefined||i===null){
+    SPARES.push(updated);
+  } else {
+    SPARES[i]=updated;
+  }
+  closeSpareModal();
+  renderContent();
+}
+
+function deleteSpare(i){
+  if(!confirm("Remove this entry?"))return;
+  SPARES.splice(i,1);
+  renderContent();
+}
+
+function deleteSpareFromModal(){
+  var i=parseInt(document.getElementById("modal-spares").getAttribute("data-edit-idx"));
+  if(isNaN(i))return;
+  if(!confirm("Delete this entry permanently?"))return;
+  SPARES.splice(i,1);
+  closeSpareModal();
+  renderContent();
+}
+
+function closeSpareModal(){
+  document.getElementById("modal-spares").removeAttribute("data-edit-idx");
+  document.getElementById("spare-modal-title").textContent="Add spare part / accessory";
+  var delBtn=document.getElementById("btn-delete-spare");if(delBtn)delBtn.style.display="none";
+  var saveBtn=document.getElementById("btn-save-spare");
+  if(saveBtn){saveBtn.textContent="Save entry";saveBtn.onclick=function(){saveSpare();};}
+  document.getElementById("modal-spares").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
+  document.getElementById("sp-terms").value="";
+  document.getElementById("sp-currency").value="USD";
+  closeModal("modal-spares");
 }
 
 function renderContent(){
@@ -650,8 +759,19 @@ function openModal(){
     document.getElementById("modal-tx").classList.add("open");
   }
   else if(currentTab==="buying"){
+    document.getElementById("modal-buying").removeAttribute("data-edit-idx");
+    document.getElementById("buying-modal-title").textContent="Add buying price";
+    var delBtnB=document.getElementById("btn-delete-buying");if(delBtnB)delBtnB.style.display="none";
+    var saveBB=document.getElementById("btn-save-buying");if(saveBB){saveBB.textContent="Save entry";saveBB.onclick=sbSaveBuying;}
     document.getElementById("modal-buying").querySelectorAll("input").forEach(function(el){el.value="";});
     document.getElementById("modal-buying").classList.add("open");
+  }
+  else if(currentTab==="spares"){
+    closeSpareModal();
+    // populate customer datalist
+    var spcl=document.getElementById("sp-customer-list");
+    if(spcl)spcl.innerHTML=[...new Set(SPARES.map(function(s){return s.customer;}).filter(Boolean))].sort().map(function(c){return "<option value='"+c+"'>";}).join("");
+    document.getElementById("modal-spares").classList.add("open");
   }
   else if(currentTab==="others"){
     document.getElementById("modal-others").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
@@ -862,8 +982,7 @@ async function sbSaveBuying(){
   if(!model||isNaN(price)){alert("Please fill in Model and Price.");return;}
   var grpVal=document.getElementById("b-group")?document.getElementById("b-group").value.trim():"";var nb={model:model,pn:document.getElementById("b-pn").value.trim(),price:price,currency:document.getElementById("b-currency").value,group:grpVal||null};
   showLoad("Saving...");var r=await sbInsert("buying_prices",bToDb(nb));if(r&&r[0])nb._id=r[0].id;
-  BUYING.push(nb);hideLoad();closeModal("modal-buying");
-  document.getElementById("modal-buying").querySelectorAll("input").forEach(function(el){el.value="";});renderContent();
+  BUYING.push(nb);hideLoad();closeBuyingModal();renderContent();
 }
 async function sbSaveOther(){
   var desc=document.getElementById("o-desc").value.trim(),value=document.getElementById("o-value").value.trim();
@@ -915,27 +1034,60 @@ function editTx(i, e){
 
 function editBuying(i){
   var b=BUYING[i];
+  document.getElementById("modal-buying").setAttribute("data-edit-idx",i);
+  document.getElementById("buying-modal-title").textContent="Edit buying price";
   document.getElementById("b-model").value=b.model;
   document.getElementById("b-pn").value=b.pn||"";
   document.getElementById("b-price").value=b.price;
   document.getElementById("b-currency").value=b.currency;
-  var saveBtnB=document.querySelector("#modal-buying .btn-save");
+  document.getElementById("b-group").value=b.group||"";
+  document.getElementById("b-special-price").value=b.specialPrice||"";
+  document.getElementById("b-special-customer").value=b.specialCustomer||"";
+  var delBtn=document.getElementById("btn-delete-buying");
+  if(delBtn)delBtn.style.display="inline-flex";
+  var saveBtnB=document.getElementById("btn-save-buying");
   saveBtnB.textContent="Update entry";
-  saveBtnB.onclick=function(){
+  saveBtnB.onclick=async function(){
     var model=document.getElementById("b-model").value.trim();
     var price=parseFloat(document.getElementById("b-price").value);
     if(!model||isNaN(price)){alert("Please fill in Model and Price.");return;}
-    BUYING[i]={model:model,pn:document.getElementById("b-pn").value.trim(),price:price,currency:document.getElementById("b-currency").value,_id:b._id};
+    var spVal=document.getElementById("b-special-price").value;
+    var grpVal=document.getElementById("b-group").value.trim();
+    var updated={model:model,pn:document.getElementById("b-pn").value.trim(),price:price,currency:document.getElementById("b-currency").value,group:grpVal||null,specialPrice:spVal?parseFloat(spVal):undefined,specialCustomer:document.getElementById("b-special-customer").value.trim()||undefined,_id:b._id};
+    showLoad("Updating...");
     if(b._id){
-      fetch(SB_URL+"/rest/v1/buying_prices?id=eq."+b._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(bToDb(BUYING[i]))});
+      await fetch(SB_URL+"/rest/v1/buying_prices?id=eq."+b._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(bToDb(updated))});
     }
-    closeModal("modal-buying");
-    document.getElementById("modal-buying").querySelectorAll("input").forEach(function(el){el.value="";});
-    saveBtnB.textContent="Save entry";
-    saveBtnB.onclick=sbSaveBuying;
+    BUYING[i]=updated;
+    hideLoad();
+    closeBuyingModal();
     renderContent();
   };
   document.getElementById("modal-buying").classList.add("open");
+}
+
+function closeBuyingModal(){
+  var delBtn=document.getElementById("btn-delete-buying");
+  if(delBtn)delBtn.style.display="none";
+  var saveBtnB=document.getElementById("btn-save-buying");
+  saveBtnB.textContent="Save entry";
+  saveBtnB.onclick=sbSaveBuying;
+  document.getElementById("buying-modal-title").textContent="Add buying price";
+  document.getElementById("modal-buying").querySelectorAll("input").forEach(function(el){el.value="";});
+  closeModal("modal-buying");
+}
+
+async function sbDeleteBuyingFromModal(){
+  var i=parseInt(document.getElementById("modal-buying").getAttribute("data-edit-idx"));
+  if(isNaN(i))return;
+  if(!confirm("Delete this buying price entry permanently?"))return;
+  var item=BUYING[i];
+  showLoad("Deleting...");
+  if(item&&item._id)await sbDelete("buying_prices",item._id);
+  BUYING.splice(i,1);
+  hideLoad();
+  closeBuyingModal();
+  renderContent();
 }
 
 function editOther(i){
@@ -972,6 +1124,25 @@ loadFromDB();
 </div>
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
+<div class="modal-overlay" id="modal-spares">
+  <div class="modal">
+    <div class="modal-title" id="spare-modal-title">Add spare part / accessory</div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Part name *</label><input id="sp-name" placeholder="e.g. Roll Holder Kit for TK180 Metal"></div>
+      <div class="form-group form-full"><label>Part number</label><input id="sp-pn" placeholder="e.g. 974HL010000009" style="font-family:'DM Mono',monospace"></div>
+      <div class="form-group"><label>Unit price *</label><input id="sp-price" type="number" placeholder="e.g. 98"></div>
+      <div class="form-group"><label>Currency</label><select id="sp-currency"><option value="USD">USD</option><option value="SGD">SGD</option><option value="IDR">IDR</option><option value="EUR">EUR</option></select></div>
+      <div class="form-group form-full"><label>Customer ref</label><input id="sp-customer" placeholder="e.g. Aboitiz" list="sp-customer-list"><datalist id="sp-customer-list"></datalist></div>
+      <div class="form-group"><label>Shipping terms</label><select id="sp-terms"><option value="">None</option><option value="DDP">DDP</option><option value="DAP">DAP</option><option value="EXW">EXW</option><option value="CIF">CIF</option><option value="FOB">FOB</option></select></div>
+      <div class="form-group form-full"><label>Note</label><input id="sp-note" placeholder="e.g. Bohol & Laguindingan project"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="btn-delete-spare" class="delete-btn" style="margin-right:auto;font-size:13px;padding:9px 14px;display:none" onclick="deleteSpareFromModal()">Delete entry</button>
+      <button class="btn-cancel" onclick="closeSpareModal()">Cancel</button>
+      <button class="btn-save" id="btn-save-spare" onclick="saveSpare()">Save entry</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-models">
   <div class="modal">
     <div class="modal-title">Manage model list</div>
