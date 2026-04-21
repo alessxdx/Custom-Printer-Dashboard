@@ -171,7 +171,7 @@ tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style
       <div class="form-group"><label>Warranty</label><select id="f-warranty"><option value="">Unknown / N/A</option><option value="1Y">1 Year</option><option value="2Y">2 Years</option><option value="3Y">3 Years</option><option value="5Y">5 Years</option></select></div>
       <div class="form-group form-full"><label>Notes</label><textarea id="f-notes" placeholder="One note per line."></textarea><span class="form-hint">Press Enter for multiple notes</span></div>
     </div>
-    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-tx')">Cancel</button><button class="btn-save" onclick="sbSaveTx()">Save entry</button></div>
+    <div class="modal-actions"><button id="btn-delete-tx" class="delete-btn" style="margin-right:auto;font-size:13px;padding:9px 14px;display:none" onclick="sbDeleteTx()">Delete entry</button><button class="btn-cancel" onclick="closeModal('modal-tx')">Cancel</button><button class="btn-save" id="btn-save-tx" onclick="sbSaveTx()">Save entry</button></div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-buying">
@@ -623,12 +623,8 @@ var SPARE_PARTS=["Autocutter KPM180H 85MM Kyoujin","Cutter Ejector Module KPM180
 function populateModelSelect(){
   var sel=document.getElementById("f-model");
   if(!sel||sel.tagName!=="SELECT")return;
-  var printerModels=BUYING.filter(function(b){
-    return b.model&&!SPARE_PARTS.some(function(sp){return b.model.toLowerCase().includes(sp.toLowerCase());});
-  }).map(function(b){return b.model;});
-  var extraModels=getModelList().filter(function(m){return !printerModels.includes(m)&&!SPARE_PARTS.some(function(sp){return m.toLowerCase().includes(sp.toLowerCase());});});
-  var allModels=[...new Set([...printerModels,...extraModels])].sort();
-  sel.innerHTML="<option value=''>-- Select model --</option>"+allModels.map(function(m){
+  var models=getModelList().sort();
+  sel.innerHTML="<option value=''>-- Select model --</option>"+models.map(function(m){
     return "<option value='"+m+"'>"+m+"</option>";
   }).join("");
 }
@@ -644,8 +640,8 @@ function openModal(){
     document.getElementById("f-warranty").value="";
     document.getElementById("modal-tx").querySelector(".modal-title").textContent="Add transaction entry";
     document.getElementById("modal-tx").removeAttribute("data-edit-id");
-    document.querySelector("#modal-tx .btn-save").textContent="Save entry";
-    document.querySelector("#modal-tx .btn-save").onclick=sbSaveTx;
+    var delBtn2=document.getElementById("btn-delete-tx");if(delBtn2)delBtn2.style.display="none";
+    var saveBtn2=document.getElementById("btn-save-tx");if(saveBtn2){saveBtn2.textContent="Save entry";saveBtn2.onclick=sbSaveTx;}
     document.getElementById("modal-tx").classList.add("open");
   }
   else if(currentTab==="buying"){
@@ -724,6 +720,44 @@ function autoFillPN(){
   }
 }
 
+
+async function sbDeleteTx(){
+  var idx=parseInt(document.getElementById("modal-tx").getAttribute("data-edit-idx"));
+  if(isNaN(idx))return;
+  if(!confirm("Delete this entry permanently?"))return;
+  var tx=TX[idx];
+  showLoad("Deleting...");
+  if(tx&&tx._id)await sbDelete("transactions",tx._id);
+  TX.splice(idx,1);
+  hideLoad();
+  closeModal("modal-tx");
+  refreshFilterOptions();renderStats();renderContent();
+}
+
+async function sbUpdateTx(idx){
+  var tx=TX[idx];
+  if(!tx)return;
+  var customer=document.getElementById("f-customer").value.trim();
+  var country=document.getElementById("f-country").value.trim();
+  var price=parseFloat(document.getElementById("f-price").value);
+  var model=document.getElementById("f-model").value.trim();
+  if(!customer||!country||!model||isNaN(price)){alert("Please fill in Customer, Country, Model and Price.");return;}
+  var termsVal=document.getElementById("f-terms").value;
+  var notesRaw=document.getElementById("f-notes").value.trim();
+  var notes=notesRaw?notesRaw.split("\n").map(function(n){return n.trim();}).filter(Boolean):[];
+  var bpVal=document.getElementById("f-bp").value;
+  var pgv=document.getElementById("f-project-group")?document.getElementById("f-project-group").value.trim():"";
+  var updated={customer:customer,country:country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"—",pn:document.getElementById("f-pn").value.trim(),model:model,qty:document.getElementById("f-qty").value.trim()||"—",price:price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes:notes,projectGroup:pgv,_id:tx._id};
+  showLoad("Updating...");
+  if(tx._id){
+    await fetch(SB_URL+"/rest/v1/transactions?id=eq."+tx._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(txToDb(updated))});
+  }
+  TX[idx]=updated;
+  hideLoad();
+  closeModal("modal-tx");
+  refreshFilterOptions();renderStats();renderContent();
+}
+
 async function sbSaveTx(){
   var customer=document.getElementById("f-customer").value.trim(),country=document.getElementById("f-country").value.trim(),price=parseFloat(document.getElementById("f-price").value),model=document.getElementById("f-model").value.trim();
   if(!customer||!country||!model||isNaN(price)){alert("Please fill in Customer, Country, Model and Price.");return;}
@@ -792,6 +826,12 @@ function saveOther(){
 function editTx(i, e){
   if(e) e.stopPropagation();
   const tx=TX[i];
+  document.getElementById("modal-tx").setAttribute("data-edit-idx", i);
+  var delBtn=document.getElementById("btn-delete-tx");
+  var saveBtn=document.getElementById("btn-save-tx");
+  if(delBtn)delBtn.style.display="inline-flex";
+  if(saveBtn){saveBtn.textContent="Update entry";saveBtn.onclick=function(){sbUpdateTx(i);};}
+  document.getElementById("modal-tx").querySelector(".modal-title").textContent="Edit transaction entry";
   refreshFilterOptions();
   document.getElementById("f-customer").value=tx.customer;
   document.getElementById("f-country").value=tx.country;
