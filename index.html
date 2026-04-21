@@ -540,7 +540,7 @@ function renderBuying(){
   Object.keys(groups).sort().forEach(function(grp){
     var isExp=!!expandedGroups[grp];
     var grpId=grp.replace(/[^a-zA-Z0-9]/g,"-");
-    rows+="<tr style='background:#e8f0f4;cursor:pointer' onclick='toggleBuyGroup(this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
+    rows+="<tr style='background:#e8f0f4;cursor:pointer' onclick='toggleBuyGroup(event,this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
       "<td colspan='4' style='font-size:11px;font-weight:600;color:#1a3a4a;padding:8px 12px'>"+
         "<span id='buy-grp-icon-"+grpId+"'>"+(isExp?"▲":"▼")+"</span> "+grp+" ("+groups[grp].length+" items)"+
       "</td></tr>";
@@ -572,12 +572,16 @@ function renderBuying(){
   if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
 }
 
-function toggleBuyGroup(el){var grp=el.dataset?el.dataset.grp:el;
+function toggleBuyGroup(evtOrEl,grpArg){
+  var grp=grpArg!==undefined?grpArg:(evtOrEl.dataset?evtOrEl.dataset.grp:evtOrEl);
+  if(evtOrEl&&evtOrEl.preventDefault){evtOrEl.preventDefault();evtOrEl.stopPropagation();}
+  // Remember scroll position
+  var scrollY=window.scrollY||window.pageYOffset;
   if(!window._buyGroups)window._buyGroups={};
   window._buyGroups[grp]=!window._buyGroups[grp];
   renderBuying();
-  var inp=document.getElementById("buy-search");
-  if(inp)inp.focus();
+  // Restore scroll position after render
+  window.scrollTo(0,scrollY);
 }
 
 function renderOthers(){
