@@ -121,6 +121,7 @@ tr.exp-detail td{font-size:11px;color:#888;padding:8px 16px 12px 24px;font-style
   <div class="stat-grid" id="stats"></div>
   <div class="tab-row">
     <button class="tab active" data-tab="customers" onclick="setTab(this)">By Customer</button>
+    <button class="tab" data-tab="projects" onclick="setTab(this)" style="background:#fef3c7;color:#92400e;border-radius:6px 6px 0 0">By Project (NEW)</button>
     <button class="tab" data-tab="model" onclick="setTab(this)">Model Comparison</button>
     <button class="tab" data-tab="buying" onclick="setTab(this)">Buying Prices</button>
     <button class="tab" data-tab="spares" onclick="setTab(this)">Spare Parts / Accessories</button>
@@ -309,6 +310,10 @@ var BUYING_SEED=BUYING.map(function(b){return Object.assign({},b);});
 var OTHERS_SEED=OTHERS.map(function(o){return Object.assign({},o);});
 var SPARES_SEED=[];
 var MODELS_SEED=[];
+
+// NEW (Stage 2): Projects + line items from new tables
+let PROJECTS=[];
+let LINE_ITEMS=[];
 
 function parseDV(d){if(!d)return 0;const p=Date.parse(d);return isNaN(p)?0:p;}
 function dDisplay(tx){return tx.displayDate||tx.date||"";}
@@ -757,11 +762,143 @@ function closeSpareModal(){
 
 function renderContent(){
   if(currentTab==="customers")renderCustomers();
+  else if(currentTab==="projects")renderProjects();
   else if(currentTab==="model")renderModel();
   else if(currentTab==="buying")renderBuying();
   else if(currentTab==="spares")renderSpares();
   else renderOthers();
 }
+
+// ============================================================
+// NEW (Stage 2): renderProjects — read-only project + line item view
+// ============================================================
+let expandedProjects={};
+function projectTotal(projId){
+  return LINE_ITEMS.filter(function(li){return li.projectId===projId;})
+    .reduce(function(sum,li){return sum+(li.qty*li.unitPrice);},0);
+}
+function projectPrinterTotal(projId){
+  return LINE_ITEMS.filter(function(li){return li.projectId===projId&&li.type==="printer";})
+    .reduce(function(sum,li){return sum+(li.qty*li.unitPrice);},0);
+}
+function buildProjectCard(name,projects){
+  var country=projects[0].country;
+  var flag=FLAGS[country]||"";
+  var poCount=projects.filter(function(p){return p.status==="PO";}).length;
+  var qtCount=projects.filter(function(p){return p.status!=="PO";}).length;
+  var sorted=projects.slice().sort(function(a,b){return parseDV(b.date)-parseDV(a.date);});
+  var cardKey="proj__"+name+"__"+country;
+  var sid=cardKey.replace(/[^a-zA-Z0-9]/g,"-");
+  var isOpen=expandedProjects[cardKey];
+
+  var bodyHtml=sorted.map(function(p){
+    var lis=LINE_ITEMS.filter(function(li){return li.projectId===p._id;})
+      .sort(function(a,b){return a.sortOrder-b.sortOrder;});
+    var totalCalc=projectTotal(p._id);
+    var printerTot=projectPrinterTotal(p._id);
+
+    var lineHtml=lis.map(function(li){
+      var subtotal=li.qty*li.unitPrice;
+      var typeColor=li.type==="printer"?"#1a3a4a":li.type==="other"?"#856404":"#5a7a8a";
+      var typeBg=li.type==="printer"?"#e8f0f4":li.type==="other"?"#fff3cd":"#f5f5f5";
+      var qtyDisplay=li.qty===1&&li.type!=="printer"?"":li.qty+" \xd7 ";
+      var subtotalDisplay=subtotal.toLocaleString(undefined,{minimumFractionDigits:subtotal%1?2:0,maximumFractionDigits:2});
+      var marginInfo="";
+      if(li.type==="printer"&&li.buyingPrice&&p.currency==="USD"){
+        var m=li.unitPrice-li.buyingPrice;
+        var mPct=(m/li.unitPrice*100).toFixed(1);
+        marginInfo="<span style='font-size:10px;color:#aaa;margin-left:8px'>(margin $"+m.toFixed(0)+", "+mPct+"%)</span>";
+      }
+      return "<div style='display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #e0e0e0'>"+
+        "<div style='flex:1'>"+
+          "<span style='font-size:10px;font-weight:600;text-transform:uppercase;background:"+typeBg+";color:"+typeColor+";padding:2px 6px;border-radius:3px;margin-right:8px'>"+li.type+"</span>"+
+          "<span style='font-size:13px;color:#1a3a4a;font-weight:500'>"+li.name+"</span>"+
+          (li.pn?"<span style='font-size:10px;color:#888;font-family:monospace;margin-left:8px'>"+li.pn+"</span>":"")+
+          marginInfo+
+        "</div>"+
+        "<div style='text-align:right;white-space:nowrap;font-size:13px'>"+
+          "<span style='color:#888'>"+qtyDisplay+(li.unitPrice<0?"(":"")+li.unitPrice.toLocaleString()+(li.unitPrice<0?")":"")+" "+p.currency+"</span>"+
+          "<span style='font-weight:600;color:#1a3a4a;margin-left:12px;display:inline-block;min-width:90px;text-align:right'>"+(subtotal<0?"\u2212":"")+subtotalDisplay+" "+p.currency+"</span>"+
+        "</div>"+
+      "</div>";
+    }).join("");
+
+    return "<div style='padding:18px;border-bottom:3px solid #c8d8e0;background:#fff'>"+
+      "<div style='display:flex;justify-content:space-between;align-items:start;margin-bottom:10px'>"+
+        "<div>"+
+          "<div style='font-size:11px;color:#444;margin-bottom:4px'>"+(p.displayDate||p.date||"")+" \xb7 "+bStatus(p.status)+"</div>"+
+          "<div style='font-size:14px;font-weight:600;color:#1a3a4a'>"+p.project+"</div>"+
+          (p.projectGroup?"<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:#fff3cd;color:#856404;border:1px solid #ffc107;margin-top:4px'>\ud83d\udd17 "+p.projectGroup+"</div>":"")+
+          "<div style='margin-top:6px'>"+
+            (p.shippingTerms?bTerm(p.shippingTerms):"")+
+            bWarranty(p.warranty)+
+          "</div>"+
+        "</div>"+
+        "<div style='text-align:right'>"+
+          (printerTot!==totalCalc&&printerTot>0?"<div style='font-size:11px;color:#5a7a8a'>Printer subtotal: "+printerTot.toLocaleString()+" "+p.currency+"</div>":"")+
+          "<div style='font-size:15px;font-weight:600;color:#1a3a4a;margin-top:3px'>Project Total: "+totalCalc.toLocaleString()+" "+p.currency+"</div>"+
+        "</div>"+
+      "</div>"+
+      (lineHtml?"<div style='background:#fafbfc;border:1px solid #e8eef2;border-radius:8px;padding:6px 14px;margin-top:10px'>"+lineHtml+"</div>":"<div style='font-size:12px;color:#aaa;font-style:italic;padding:8px 0'>No line items</div>")+
+      (p.notes&&p.notes.length?"<div style='margin-top:10px;font-size:12px;color:#444;line-height:1.6'>"+p.notes.map(function(n){return "<div>\u2022 "+n+"</div>";}).join("")+"</div>":"")+
+    "</div>";
+  }).join("");
+
+  return "<div class='card'>"+
+    "<div class='card-header' onclick='toggleProjectCard(\""+cardKey.replace(/'/g,"\\'")+"\",\""+sid+"\")'>"+
+      "<div class='flag-icon'>"+flag+"</div>"+
+      "<div style='flex:1'>"+
+        "<div class='cname'>"+name+"</div>"+
+        "<div class='cmeta'>"+country+" \xb7 "+poCount+" PO"+(poCount!==1?"s":"")+" \xb7 "+qtCount+" quote"+(qtCount!==1?"s":"")+" \xb7 "+projects.length+" project"+(projects.length!==1?"s":"")+"</div>"+
+      "</div>"+
+      "<div class='chevron "+(isOpen?"open":"")+"' id='chev-"+sid+"'>\u25be</div>"+
+    "</div>"+
+    "<div class='card-body "+(isOpen?"open":"")+"' id='body-"+sid+"'>"+bodyHtml+"</div>"+
+  "</div>";
+}
+function toggleProjectCard(key,sid){
+  expandedProjects[key]=!expandedProjects[key];
+  document.getElementById("body-"+sid).classList.toggle("open",expandedProjects[key]);
+  document.getElementById("chev-"+sid).classList.toggle("open",expandedProjects[key]);
+}
+function renderProjects(){
+  if(!PROJECTS.length){
+    document.getElementById("content").innerHTML='<div class="empty">No projects found. The new <code>projects</code> table is empty \u2014 did you run Stage 1B migration?</div>';
+    return;
+  }
+  // Group by customer + country
+  var byC={};
+  PROJECTS.forEach(function(p){
+    var k=p.customer+"__"+p.country;
+    if(!byC[k])byC[k]=[];
+    byC[k].push(p);
+  });
+  // Group customers by country
+  var byCountry={};
+  Object.entries(byC).forEach(function(entry){
+    var name=entry[0].split("__")[0];
+    var projs=entry[1];
+    var c=projs[0].country||"Unknown";
+    if(!byCountry[c])byCountry[c]=[];
+    byCountry[c].push([name,projs]);
+  });
+  var html="<div style='background:#fef3c7;color:#92400e;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:12px;border:1px solid #fbbf24'>"+
+    "<strong>\ud83d\udea7 NEW VIEW (read-only)</strong> \u2014 This is the new Project + Line Items structure migrated from your transactions. "+
+    "Compare with the 'By Customer' tab and verify the data looks correct. Once confirmed, edit/delete will be added in Stage 3."+
+  "</div>";
+  Object.entries(byCountry).sort(function(a,b){return a[0].localeCompare(b[0]);}).forEach(function(entry){
+    var country=entry[0],list=entry[1];
+    list.sort(function(a,b){return a[0].localeCompare(b[0]);});
+    var f=flagImg(country,18);
+    html+="<div class='country-group-label'>"+f+" "+country+" <span class='country-count'>"+list.length+" customer"+(list.length!==1?"s":"")+"</span></div>";
+    list.forEach(function(item){html+=buildProjectCard(item[0],item[1]);});
+  });
+  document.getElementById("content").innerHTML=html;
+}
+// ============================================================
+// END NEW (Stage 2)
+// ============================================================
+
 var SPARE_PARTS=["Autocutter KPM180H 85MM Kyoujin","Cutter Ejector Module KPM180H CN","PCBA CPU KPM180 E12 R2 ST101_DP007 VN UL","New Metal Roll Holder for Bag Tag and GPP Paper (TK180 Plastic)","Roll Holder Kit for TK180 Metal","KPM180 TPH (Thermal Print Head)","TK180 TPH","Roll Holder","Ticket Tray Metal","1.8M USB Cable","USA Plug Power Cable","Paper Roll","On-site installation","Annual maintenance + consumables","Vertical Tray TK302 Metal Case","VKP80II Paper Roll Holder"];
 
 function populateModelSelect(){
@@ -826,13 +963,20 @@ function oToDb(o){return{date:o.date||"",description:o.desc,value:o.value,sub:o.
 function dbToS(r){return{_id:r.id,name:r.name||"",pn:r.pn||"",price:Number(r.price)||0,currency:r.currency||"USD",customer:r.customer||"",terms:r.terms||"",note:r.note||""};}
 function sToDb(s){return{name:s.name,pn:s.pn||"",price:s.price,currency:s.currency||"USD",customer:s.customer||"",terms:s.terms||"",note:s.note||""};}
 function dbToM(r){return r.name;}
+// NEW (Stage 2): Project + line item converters
+function dbToProject(r){return{_id:r.id,customer:r.customer||"",country:r.country||"",date:r.date||"",displayDate:r.display_date||"",status:r.status||"PO",project:r.project||"",projectGroup:r.project_group||"",shippingTerms:r.shipping_terms||"",warranty:r.warranty||"",currency:r.currency||"USD",notes:r.notes||[],totalOverride:r.total_override?Number(r.total_override):null};}
+function dbToLineItem(r){return{_id:r.id,projectId:r.project_id,type:r.type||"printer",name:r.name||"",displayModel:r.display_model||"",pn:r.pn||"",qty:Number(r.qty)||1,unitPrice:Number(r.unit_price)||0,buyingPrice:r.buying_price?Number(r.buying_price):null,sortOrder:Number(r.sort_order)||0};}
 function showLoad(m){var e=document.getElementById("ld");if(e){e.style.display="flex";e.querySelector("span").textContent=m||"Loading...";}}
 function hideLoad(){var e=document.getElementById("ld");if(e)e.style.display="none";}
 async function loadFromDB(){
   showLoad("Connecting to database...");
   try{
-    var res=await Promise.all([sbGet("transactions"),sbGet("buying_prices"),sbGet("others"),sbGet("spares"),sbGet("models")]);
-    var txRows=res[0],buyRows=res[1],othRows=res[2],spareRows=res[3],modelRows=res[4];
+    var res=await Promise.all([sbGet("transactions"),sbGet("buying_prices"),sbGet("others"),sbGet("spares"),sbGet("models"),sbGet("projects"),sbGet("line_items")]);
+    var txRows=res[0],buyRows=res[1],othRows=res[2],spareRows=res[3],modelRows=res[4],projRows=res[5],liRows=res[6];
+
+    // NEW (Stage 2): Load projects + line items (read-only, no seeding)
+    if(projRows){PROJECTS.length=0;projRows.forEach(function(r){PROJECTS.push(dbToProject(r));});}
+    if(liRows){LINE_ITEMS.length=0;liRows.forEach(function(r){LINE_ITEMS.push(dbToLineItem(r));});}
 
     // Only trust DB if it has a reasonable number of rows (>= hardcoded count)
     // Otherwise treat as incomplete seed and re-seed from code
