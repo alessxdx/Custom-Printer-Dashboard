@@ -307,6 +307,8 @@ let TX=[
 var TX_SEED=TX.map(function(t){return Object.assign({},t);});
 var BUYING_SEED=BUYING.map(function(b){return Object.assign({},b);});
 var OTHERS_SEED=OTHERS.map(function(o){return Object.assign({},o);});
+var SPARES_SEED=[];
+var MODELS_SEED=[];
 
 function parseDV(d){if(!d)return 0;const p=Date.parse(d);return isNaN(p)?0:p;}
 function dDisplay(tx){return tx.displayDate||tx.date||"";}
@@ -609,6 +611,9 @@ let SPARES=[
   {name:"Annual maintenance + consumables",pn:"",price:240,currency:"SGD",customer:"Singapore Airlines",terms:"",note:"Per printer per year — Changi Airport"},
 ];
 
+SPARES_SEED=SPARES.map(function(s){return Object.assign({},s);});
+MODELS_SEED=["TK180 Plastic","TK180 Plastic AEA","TK180 Metal Cutter","TK180 Metal Cutter AEA","TK180 Metal Cutter NON AEA","TK180 Metal Cutter ARINC","TK180 Metal Non Cutter","TK180 Metal Non Cutter ARINC","TK180 TPH","TK302 Metal Triple Feeder","KPM180 Cutter NON AEA","KPM180 with AEA","KPM180H-LL","KPM180 NON AEA","KPM180 TPH","TK202 Plastic","TK202 with AEA","TG2460HIII","TG2480HIII","VKP80II","VKP80II-RX","VKP80III","VKP80III Rear Connector","K80","KX80S"];
+
 function renderSpares(){
   var searchVal=document.getElementById("sp-search")?document.getElementById("sp-search").value:"";
   var sortVal=document.getElementById("sp-sort")?document.getElementById("sp-sort").value:"name";
@@ -692,31 +697,48 @@ function editSpare(i){
   document.getElementById("modal-spares").classList.add("open");
 }
 
-function saveSpare(i){
+async function saveSpare(i){
   var name=document.getElementById("sp-name").value.trim();
   var price=parseFloat(document.getElementById("sp-price").value);
   if(!name||isNaN(price)){alert("Please fill in Part name and Price.");return;}
   var updated={name:name,pn:document.getElementById("sp-pn").value.trim(),price:price,currency:document.getElementById("sp-currency").value,customer:document.getElementById("sp-customer").value.trim(),terms:document.getElementById("sp-terms").value.trim(),note:document.getElementById("sp-note").value.trim()};
+  showLoad("Saving...");
   if(i===undefined||i===null){
+    var r=await sbInsert("spares",sToDb(updated));
+    if(r&&r[0])updated._id=r[0].id;
     SPARES.push(updated);
   } else {
+    var existing=SPARES[i];
+    if(existing&&existing._id){
+      await fetch(SB_URL+"/rest/v1/spares?id=eq."+existing._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(sToDb(updated))});
+      updated._id=existing._id;
+    }
     SPARES[i]=updated;
   }
+  hideLoad();
   closeSpareModal();
   renderContent();
 }
 
-function deleteSpare(i){
+async function deleteSpare(i){
   if(!confirm("Remove this entry?"))return;
+  var item=SPARES[i];
+  showLoad("Deleting...");
+  if(item&&item._id)await sbDelete("spares",item._id);
   SPARES.splice(i,1);
+  hideLoad();
   renderContent();
 }
 
-function deleteSpareFromModal(){
+async function deleteSpareFromModal(){
   var i=parseInt(document.getElementById("modal-spares").getAttribute("data-edit-idx"));
   if(isNaN(i))return;
   if(!confirm("Delete this entry permanently?"))return;
+  var item=SPARES[i];
+  showLoad("Deleting...");
+  if(item&&item._id)await sbDelete("spares",item._id);
   SPARES.splice(i,1);
+  hideLoad();
   closeSpareModal();
   renderContent();
 }
@@ -801,13 +823,16 @@ function dbToB(r){return{_id:r.id,model:r.model,pn:r.pn||"",price:Number(r.price
 function bToDb(b){return{model:b.model,pn:b.pn||"",price:b.price,currency:b.currency,special_price:b.specialPrice||null,special_customer:b.specialCustomer||null,grp:b.group||null};}
 function dbToO(r){return{_id:r.id,date:r.date||"",desc:r.description||"",value:r.value||"",sub:r.sub||""};}
 function oToDb(o){return{date:o.date||"",description:o.desc,value:o.value,sub:o.sub||""};}
+function dbToS(r){return{_id:r.id,name:r.name||"",pn:r.pn||"",price:Number(r.price)||0,currency:r.currency||"USD",customer:r.customer||"",terms:r.terms||"",note:r.note||""};}
+function sToDb(s){return{name:s.name,pn:s.pn||"",price:s.price,currency:s.currency||"USD",customer:s.customer||"",terms:s.terms||"",note:s.note||""};}
+function dbToM(r){return r.name;}
 function showLoad(m){var e=document.getElementById("ld");if(e){e.style.display="flex";e.querySelector("span").textContent=m||"Loading...";}}
 function hideLoad(){var e=document.getElementById("ld");if(e)e.style.display="none";}
 async function loadFromDB(){
   showLoad("Connecting to database...");
   try{
-    var res=await Promise.all([sbGet("transactions"),sbGet("buying_prices"),sbGet("others")]);
-    var txRows=res[0],buyRows=res[1],othRows=res[2];
+    var res=await Promise.all([sbGet("transactions"),sbGet("buying_prices"),sbGet("others"),sbGet("spares"),sbGet("models")]);
+    var txRows=res[0],buyRows=res[1],othRows=res[2],spareRows=res[3],modelRows=res[4];
 
     // Only trust DB if it has a reasonable number of rows (>= hardcoded count)
     // Otherwise treat as incomplete seed and re-seed from code
@@ -856,6 +881,33 @@ async function loadFromDB(){
         if(ro&&ro[0])o._id=ro[0].id;
         OTHERS.push(o);
       }
+    }
+
+    // SPARES — load from DB if any rows exist, otherwise seed defaults
+    if(spareRows&&spareRows.length>0){
+      SPARES.length=0;spareRows.forEach(function(r){SPARES.push(dbToS(r));});
+    } else {
+      showLoad("Seeding spares ("+SPARES_SEED.length+" entries)...");
+      await fetch(SB_URL+"/rest/v1/spares?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
+      SPARES.length=0;
+      for(var sIdx=0;sIdx<SPARES_SEED.length;sIdx++){
+        var sp=Object.assign({},SPARES_SEED[sIdx]);delete sp._id;
+        var rs=await sbInsert("spares",sToDb(sp));
+        if(rs&&rs[0])sp._id=rs[0].id;
+        SPARES.push(sp);
+      }
+    }
+
+    // MODELS — load from DB if any rows exist, otherwise seed defaults
+    if(modelRows&&modelRows.length>0){
+      CUSTOM_MODELS=modelRows.map(dbToM);
+    } else {
+      showLoad("Seeding models ("+MODELS_SEED.length+" entries)...");
+      await fetch(SB_URL+"/rest/v1/models?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
+      for(var mIdx=0;mIdx<MODELS_SEED.length;mIdx++){
+        await sbInsert("models",{name:MODELS_SEED[mIdx]});
+      }
+      CUSTOM_MODELS=MODELS_SEED.slice();
     }
 
   }catch(e){console.error(e);alert("Could not connect to database. Using local data.");}
@@ -908,14 +960,22 @@ function openManageModels(){
   document.getElementById("model-list-editor").value=getModelList().join("\n");
   document.getElementById("modal-models").classList.add("open");
 }
-function saveModelList(){
+async function saveModelList(){
   var lines=document.getElementById("model-list-editor").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  CUSTOM_MODELS=lines;
-  localStorage.setItem("cpd_models",JSON.stringify(lines));
+  showLoad("Saving model list...");
+  try{
+    await fetch(SB_URL+"/rest/v1/models?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
+    for(var i=0;i<lines.length;i++){
+      await sbInsert("models",{name:lines[i]});
+    }
+    CUSTOM_MODELS=lines;
+    localStorage.setItem("cpd_models",JSON.stringify(lines));
+  }catch(e){console.error(e);alert("Save failed: "+e.message);hideLoad();return;}
+  hideLoad();
   var ml=document.getElementById("model-list");
   if(ml)ml.innerHTML=lines.map(function(m){return "<option value=\""+m+"\">";}).join("");
   closeModal("modal-models");
-  alert("Model list saved! Changes are stored in your browser.");
+  alert("Model list saved to cloud — visible on all devices.");
 }
 
 
