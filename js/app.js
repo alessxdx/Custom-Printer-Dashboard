@@ -36,15 +36,21 @@ function setTab(btn){
 }
 
 /* ===== THEME ===== */
+var THEME_ORDER = ["light","navy","dark"];
 function applyTheme(t){
   document.documentElement.setAttribute("data-theme", t);
   document.body.setAttribute("data-theme", t);
   try { localStorage.setItem("cpd_theme", t); } catch(e){}
+  document.querySelectorAll(".theme-swatch").forEach(function(el){
+    el.classList.toggle("active", el.dataset.themeChoice === t);
+  });
 }
 function toggleTheme(){
   var cur = document.documentElement.getAttribute("data-theme") || "light";
-  applyTheme(cur === "light" ? "dark" : "light");
+  var idx = THEME_ORDER.indexOf(cur);
+  applyTheme(THEME_ORDER[(idx + 1) % THEME_ORDER.length]);
 }
+function setThemeChoice(t){ applyTheme(t); }
 (function initTheme(){
   // Always start light per user preference; if user toggled this session, respect it
   var saved = null;

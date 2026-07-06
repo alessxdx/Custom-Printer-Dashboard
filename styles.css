@@ -65,6 +65,39 @@
   --badge-group-bg: #3a2e10; --badge-group-fg: #e6c769; --badge-group-bd: #5a4520;
   --scroll-thumb: #404040;
 }
+:root[data-theme="navy"]{
+  --bg: #0d1b2e;
+  --bg-sidebar: #112240;
+  --bg-hover: #1b2f4d;
+  --bg-soft: #16243b;
+  --bg-input: #16243b;
+  --bg-modal: #142238;
+  --bg-stat: #112240;
+  --bg-row-stripe: #10203a;
+  --bg-accent-soft: #1c3350;
+  --text: #dbe4f0;
+  --text-muted: #9fb0c9;
+  --text-faint: #71839c;
+  --text-strong: #ffffff;
+  --border: #223350;
+  --border-strong: #2e4568;
+  --divider: #1c2c47;
+  --accent: #4da3ff;
+  --accent-hover: #6cb5ff;
+  --accent-soft: #16294a;
+  --accent-text: #7db4ff;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.4);
+  --shadow-lg: 0 6px 24px rgba(0,0,0,.5);
+  --badge-po-bg: #143a30; --badge-po-fg: #6ec9a8;
+  --badge-qt-bg: #1a2b4a; --badge-qt-fg: #8fb3ec;
+  --badge-ls-bg: #3d1f1f; --badge-ls-fg: #e88b8b;
+  --badge-term-bg: #1b2f4d; --badge-term-fg: #c9d6e8;
+  --badge-w-bg: #1b2f4d; --badge-w-fg: #c9d6e8;
+  --badge-special-bg: #3a2e10; --badge-special-fg: #e6c769;
+  --badge-group-bg: #23345a; --badge-group-fg: #7db4ff; --badge-group-bd: #345080;
+  --scroll-thumb: #2e4568;
+}
 
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -610,6 +643,25 @@ tr.exp-detail td{
 .theme-icon-sun,.theme-icon-moon{display:none}
 :root[data-theme="light"] .theme-icon-moon{display:block}
 :root[data-theme="dark"] .theme-icon-sun{display:block}
+:root[data-theme="navy"] .theme-icon-moon{display:block}
+
+/* ==========  THEME SWITCHER (topbar)  ========== */
+.theme-switcher{
+  display:flex;align-items:center;gap:7px;
+  margin-right:10px;padding-right:10px;
+  border-right:1px solid var(--divider);
+}
+.theme-swatch{
+  width:20px;height:20px;border-radius:50%;
+  padding:0;cursor:pointer;
+  border:2px solid var(--border);
+  transition:border-color .12s,transform .12s,box-shadow .12s;
+}
+.theme-swatch:hover{transform:scale(1.12)}
+.theme-swatch.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.theme-swatch[data-theme-choice="light"]{background:#ffffff}
+.theme-swatch[data-theme-choice="navy"]{background:#0d1b2e}
+.theme-swatch[data-theme-choice="dark"]{background:#191919}
 
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{
