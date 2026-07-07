@@ -114,13 +114,14 @@ function pjRecalc(){
 var PJ_ATT=[];
 function renderPjAttList(){
   var el=document.getElementById("p-pdf-current");
-  if(el)el.innerHTML=attListHtml(PJ_ATT,"pjRemoveAttachment","p-pdf");
+  if(el)el.innerHTML=attListHtml(PJ_ATT,"pjRemoveAttachment","pjSetDoctype","p-pdf");
 }
 function pjRemoveAttachment(e,i){
   if(e)e.preventDefault();
   PJ_ATT.splice(i,1);
   renderPjAttList();
 }
+function pjSetDoctype(val,i){if(PJ_ATT[i])PJ_ATT[i].doctype=val;}
 function openProjectModal(){
   PJ_EDIT_ID=null;
   pjPopulateDatalists();

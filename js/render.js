@@ -67,7 +67,11 @@ function attClipsHtml(list){
   if(!list||!list.length)return "";
   return list.map(function(a){
     var full=String(a.name||"PDF").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-    return "<a class='pdf-clip' href='"+a.url+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title=\"Open "+full+" in a new tab\">&#128206; "+attShortName(a.name).replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</a>";
+    var dt=a.doctype||(typeof guessDoctype==="function"?guessDoctype(a.name):"");
+    var useTag=dt&&dt!=="Other";
+    var label=(useTag?dt:attShortName(a.name)).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+    var cls=useTag?" doc-"+dt.toLowerCase():"";
+    return "<a class='pdf-clip"+cls+"' href='"+a.url+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title=\""+full+"\">&#128206; "+label+"</a>";
   }).join(" ");
 }
 function buildTxEntriesHtml(txs){

@@ -759,3 +759,9 @@ tr.exp-detail td{
 .att-item .att-remove:hover{color:#b91c1c;text-decoration:none}
 .att-item.att-pending{border-style:dashed;color:var(--text-faint)}
 .att-item.att-pending em{font-style:normal;font-size:9.5px;color:var(--text-faint)}
+
+/* Document-type tags */
+.att-type{font-size:10px;font-family:'Montserrat',sans-serif;padding:2px 4px;border:1px solid var(--border-strong);border-radius:5px;background:var(--bg-input);color:var(--text);cursor:pointer}
+.pdf-clip.doc-quotation{background:var(--badge-qt-bg);color:var(--badge-qt-fg);border-color:transparent}
+.pdf-clip.doc-po{background:var(--badge-po-bg);color:var(--badge-po-fg);border-color:transparent}
+.pdf-clip.doc-invoice{background:var(--badge-special-bg);color:var(--badge-special-fg);border-color:transparent}
