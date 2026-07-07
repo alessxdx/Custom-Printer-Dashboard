@@ -78,7 +78,7 @@ function buildTxEntriesHtml(txs){
     const groupTag=(()=>{
       if(!tx.projectGroup)return "";
       if(isCombined)return "<div style='margin-bottom:5px'><button class='expand-btn' onclick='toggleGroup(\""+grpId+"\",this,event)'>\u25bc Show individual model entries</button></div>";
-      if(isSplit)return "<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:#fff3cd;color:#856404;border:1px solid #ffc107;margin-bottom:5px'>&#128279; Part of: "+tx.projectGroup+"</div>";
+      if(isSplit)return "<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--badge-group-bg);color:var(--badge-group-fg);border:1px solid var(--badge-group-bd);margin-bottom:5px'>&#128279; Part of: "+tx.projectGroup+"</div>";
       return "";
     })();
     const pdfClip=tx.pdfUrl?"<a class='pdf-clip' href='"+tx.pdfUrl+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title='Open attached PDF in a new tab'>&#128206; PDF</a>":"";
@@ -94,10 +94,10 @@ function buildTxEntriesHtml(txs){
     "<div style='text-align:right;display:flex;flex-direction:column;min-height:100%'>"+
       (tx.dualPrice?
         "<div style='text-align:right;line-height:1.8'>"+
-          "<span style='font-size:10px;color:#5a7a8a'>Cutter ARINC</span><br>"+
-          "<span style='font-weight:600;font-size:13px;color:#1a3a4a'>"+tx.price.toLocaleString()+" "+tx.currency+"</span>"+fxEqSpan(tx.price,tx.currency)+"<br>"+
-          "<span style='font-size:10px;color:#5a7a8a'>Non Cutter ARINC</span><br>"+
-          "<span style='font-weight:600;font-size:13px;color:#1a3a4a'>"+tx.dualPrice.toLocaleString()+" "+tx.currency+"</span>"+fxEqSpan(tx.dualPrice,tx.currency)+
+          "<span style='font-size:10px;color:var(--text-muted)'>Cutter ARINC</span><br>"+
+          "<span style='font-weight:600;font-size:13px;color:var(--text-strong)'>"+tx.price.toLocaleString()+" "+tx.currency+"</span>"+fxEqSpan(tx.price,tx.currency)+"<br>"+
+          "<span style='font-size:10px;color:var(--text-muted)'>Non Cutter ARINC</span><br>"+
+          "<span style='font-weight:600;font-size:13px;color:var(--text-strong)'>"+tx.dualPrice.toLocaleString()+" "+tx.currency+"</span>"+fxEqSpan(tx.dualPrice,tx.currency)+
         "</div>"
       :
         "<div class='tx-price'>"+tx.price.toLocaleString()+" "+tx.currency+fxEqSpan(tx.price,tx.currency)+"</div>"
@@ -107,12 +107,12 @@ function buildTxEntriesHtml(txs){
         const qm=(tx.qty||"").match(/[0-9]+/);const q=qm?parseInt(qm[0]):null;const printerTot=(q&&q>0)?tx.price*q:null;
         if(tx.totalOverride){
           const pTot=tx.printerTotalOverride||(printerTot&&!tx.noPrinterTotal?printerTot:null);
-          if(pTot)return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Printer Total: <strong>"+pTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:#1a3a4a;margin-top:3px'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(tx.totalOverride,tx.currency)+"</div>";
-          return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(tx.totalOverride,tx.currency)+"</div>";
+          if(pTot)return "<div style='font-size:11px;color:var(--accent-text);margin-top:6px;padding-top:5px;border-top:1px solid var(--border-strong)'>Printer Total: <strong>"+pTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:var(--accent-text);margin-top:3px'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(tx.totalOverride,tx.currency)+"</div>";
+          return "<div style='font-size:11px;color:var(--accent-text);margin-top:6px;padding-top:5px;border-top:1px solid var(--border-strong)'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(tx.totalOverride,tx.currency)+"</div>";
         }
         if(!printerTot)return "";
-        if(tx.noPrinterTotal)return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(printerTot,tx.currency)+"</div>";
-        return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Printer Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:#1a3a4a;margin-top:3px'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(printerTot,tx.currency)+"</div>";
+        if(tx.noPrinterTotal)return "<div style='font-size:11px;color:var(--accent-text);margin-top:6px;padding-top:5px;border-top:1px solid var(--border-strong)'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(printerTot,tx.currency)+"</div>";
+        return "<div style='font-size:11px;color:var(--accent-text);margin-top:6px;padding-top:5px;border-top:1px solid var(--border-strong)'>Printer Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:var(--accent-text);margin-top:3px'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(printerTot,tx.currency)+"</div>";
       })()+
       fxNoteLine+
       "<div style='display:flex;justify-content:flex-end;padding-bottom:14px;margin-top:auto;padding-top:8px'>"+
@@ -192,10 +192,10 @@ function renderModel(){
     const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
     const f=flagImg(tx.country,18);
     rows+=`<tr class="clickable" onclick="toggleRow(${i})">
-      <td style="color:#aaa;white-space:nowrap;font-size:12px">${dDisplay(tx)||"\u2014"}</td>
+      <td style="color:var(--text-faint);white-space:nowrap;font-size:12px">${dDisplay(tx)||"\u2014"}</td>
       <td style="font-weight:600;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Montserrat',sans-serif">${f} ${tx.customer}</td>
-      <td style="color:#555;font-size:12px">${tx.project||"\u2014"}</td>
-      <td style="color:#888">${tx.country}</td>
+      <td style="color:var(--text-muted);font-size:12px">${tx.project||"\u2014"}</td>
+      <td style="color:var(--text-muted)">${tx.country}</td>
       <td>${bStatus(tx.status)}</td>
       <td>${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
       <td style="text-align:right;font-weight:600">${tx.price.toLocaleString()} ${tx.currency}</td>
@@ -233,11 +233,11 @@ function renderBuying(){
   });
 
   function makeRow(b){
-    var grpTag=b.group?"<div style='font-size:10px;color:#6d28d9;margin-top:2px'>"+b.group+"</div>":"";
+    var grpTag=b.group?"<div style='font-size:10px;color:var(--accent-text);margin-top:2px'>"+b.group+"</div>":"";
     var spCell=b.specialPrice?
-      "<td style='text-align:right'><div style='font-weight:600;color:#856404'>$"+b.specialPrice.toFixed(2)+" "+b.currency+"</div><div style='font-size:10px;color:#aaa;margin-top:1px'>"+(b.specialCustomer||"Special")+"</div></td>":
-      "<td style='text-align:right;color:#ddd;font-size:12px'>—</td>";
-    return "<tr><td style='font-weight:500'>"+b.model+grpTag+"</td><td style='font-size:11px;color:#5a7a8a;font-family:monospace'>"+(b.pn||"—")+"</td><td style='text-align:right;font-weight:600;color:#1a3a4a'>$"+b.price.toFixed(2)+" "+b.currency+"</td>"+spCell+"<td style='text-align:right;white-space:nowrap'><button class='edit-btn' onclick='editBuying("+b._i+")' style='margin-right:8px'>Edit</button><button class='delete-btn' onclick='sbDeleteBuying("+b._i+")'>Remove</button></td></tr>";
+      "<td style='text-align:right'><div style='font-weight:600;color:var(--badge-special-fg)'>$"+b.specialPrice.toFixed(2)+" "+b.currency+"</div><div style='font-size:10px;color:var(--text-faint);margin-top:1px'>"+(b.specialCustomer||"Special")+"</div></td>":
+      "<td style='text-align:right;color:var(--text-faint);font-size:12px'>—</td>";
+    return "<tr><td style='font-weight:500'>"+b.model+grpTag+"</td><td style='font-size:11px;color:var(--text-muted);font-family:monospace'>"+(b.pn||"—")+"</td><td style='text-align:right;font-weight:600;color:var(--accent-text)'>$"+b.price.toFixed(2)+" "+b.currency+"</td>"+spCell+"<td style='text-align:right;white-space:nowrap'><button class='edit-btn' onclick='editBuying("+b._i+")' style='margin-right:8px'>Edit</button><button class='delete-btn' onclick='sbDeleteBuying("+b._i+")'>Remove</button></td></tr>";
   }
 
   var rows="";
@@ -245,8 +245,8 @@ function renderBuying(){
   Object.keys(groups).sort().forEach(function(grp){
     var isExp=!!expandedGroups[grp];
     var grpId=grp.replace(/[^a-zA-Z0-9]/g,"-");
-    rows+="<tr style='background:#e8f0f4;cursor:pointer' onclick='toggleBuyGroup(event,this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
-      "<td colspan='5' style='font-size:11px;font-weight:600;color:#1a3a4a;padding:8px 12px'>"+
+    rows+="<tr style='background:var(--accent-soft);cursor:pointer' onclick='toggleBuyGroup(event,this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
+      "<td colspan='5' style='font-size:11px;font-weight:600;color:var(--accent-text);padding:8px 12px'>"+
         "<span id='buy-grp-icon-"+grpId+"'>"+(isExp?"▲":"▼")+"</span> "+grp+" ("+groups[grp].length+" items)"+
       "</td></tr>";
     if(isExp){groups[grp].forEach(function(b){rows+=makeRow(b);});}
@@ -260,15 +260,15 @@ function renderBuying(){
 
   document.getElementById("content").innerHTML=
     "<div class='buying-card'>"+
-    "<div style='padding:12px 16px;border-bottom:1px solid #c8d8e0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#e8f0f4'>"+
-      "<input id='buy-search' type='text' placeholder='Search model or part number...' oninput='renderBuying()' value='"+searchVal.replace(/'/g,"&#39;")+"' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #c8d8e0;background:#fff;color:#333;font-family:Montserrat,sans-serif;width:240px'>"+
-      "<span style='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#1a3a4a;margin-left:4px'>Sort</span>"+
-      "<select id='buy-sort' onchange='renderBuying()' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #c8d8e0;background:#fff;color:#333;font-family:Montserrat,sans-serif'>"+
+    "<div style='padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft)'>"+
+      "<input id='buy-search' type='text' placeholder='Search model or part number...' oninput='renderBuying()' value='"+searchVal.replace(/'/g,"&#39;")+"' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text);font-family:Montserrat,sans-serif;width:240px'>"+
+      "<span style='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--accent-text);margin-left:4px'>Sort</span>"+
+      "<select id='buy-sort' onchange='renderBuying()' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text);font-family:Montserrat,sans-serif'>"+
         "<option value='model'"+(sortBuy==="model"?" selected":"")+">Model A–Z</option>"+
         "<option value='price-asc'"+(sortBuy==="price-asc"?" selected":"")+">Price: Low to high</option>"+
         "<option value='price-desc'"+(sortBuy==="price-desc"?" selected":"")+">Price: High to low</option>"+
       "</select>"+
-      "<span id='buy-count' style='font-size:11px;color:#5a7a8a'>"+sorted.length+" / "+BUYING.length+" items</span>"+
+      "<span id='buy-count' style='font-size:11px;color:var(--text-muted)'>"+sorted.length+" / "+BUYING.length+" items</span>"+
     "</div>"+
     "<table><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th style='text-align:right'>Special price</th><th></th></tr></thead>"+
     "<tbody id='buy-tbody'>"+(rows||"<tr><td colspan='5' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+"</tbody></table>"+
@@ -334,11 +334,11 @@ function renderSpares(){
     var terms=s.terms||"—";
     return "<tr>"+
       "<td style='font-weight:500'>"+s.name+"</td>"+
-      "<td style='font-size:11px;color:#5a7a8a;font-family:monospace'>"+pn+"</td>"+
-      "<td style='color:#5a7a8a;font-size:12px'>"+s.customer+"</td>"+
-      "<td style='text-align:right;font-weight:600;color:#1a3a4a'>"+s.price.toLocaleString()+" "+s.currency+"</td>"+
-      "<td style='font-size:12px;color:#5a7a8a'>"+(s.terms||"—")+"</td>"+
-      "<td style='font-size:11px;color:#888;font-style:italic'>"+s.note+"</td>"+
+      "<td style='font-size:11px;color:var(--text-muted);font-family:monospace'>"+pn+"</td>"+
+      "<td style='color:var(--text-muted);font-size:12px'>"+s.customer+"</td>"+
+      "<td style='text-align:right;font-weight:600;color:var(--accent-text)'>"+s.price.toLocaleString()+" "+s.currency+"</td>"+
+      "<td style='font-size:12px;color:var(--text-muted)'>"+(s.terms||"—")+"</td>"+
+      "<td style='font-size:11px;color:var(--text-faint);font-style:italic'>"+s.note+"</td>"+
       "<td style='text-align:right;white-space:nowrap'>"+
         "<button class='edit-btn' onclick='editSpare("+s._i+")' style='margin-right:8px'>Edit</button>"+
         "<button class='delete-btn' onclick='deleteSpare("+s._i+")'>Remove</button>"+
@@ -356,16 +356,16 @@ function renderSpares(){
 
   document.getElementById("content").innerHTML=
     "<div class='buying-card'>"+
-    "<div style='padding:12px 16px;border-bottom:1px solid #c8d8e0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#e8f0f4'>"+
-      "<input id='sp-search' type='text' placeholder='Search name, part number, customer...' oninput='renderSpares()' value='"+searchVal.replace(/'/g,"&#39;")+"' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #c8d8e0;background:#fff;color:#333;font-family:Montserrat,sans-serif;width:280px'>"+
-      "<span style='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#1a3a4a;margin-left:4px'>Sort</span>"+
-      "<select id='sp-sort' onchange='renderSpares()' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #c8d8e0;background:#fff;color:#333;font-family:Montserrat,sans-serif'>"+
+    "<div style='padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft)'>"+
+      "<input id='sp-search' type='text' placeholder='Search name, part number, customer...' oninput='renderSpares()' value='"+searchVal.replace(/'/g,"&#39;")+"' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text);font-family:Montserrat,sans-serif;width:280px'>"+
+      "<span style='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--accent-text);margin-left:4px'>Sort</span>"+
+      "<select id='sp-sort' onchange='renderSpares()' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text);font-family:Montserrat,sans-serif'>"+
         "<option value='name'"+(sortVal==="name"?" selected":"")+">Name A–Z</option>"+
         "<option value='customer'"+(sortVal==="customer"?" selected":"")+">Customer A–Z</option>"+
         "<option value='price-asc'"+(sortVal==="price-asc"?" selected":"")+">Price: Low to high</option>"+
         "<option value='price-desc'"+(sortVal==="price-desc"?" selected":"")+">Price: High to low</option>"+
       "</select>"+
-      "<span id='sp-count' style='font-size:11px;color:#5a7a8a'>"+filtered.length+" / "+SPARES.length+" items</span>"+
+      "<span id='sp-count' style='font-size:11px;color:var(--text-muted)'>"+filtered.length+" / "+SPARES.length+" items</span>"+
     "</div>"+
     "<table><thead><tr>"+
       "<th>Part name</th><th>Part number</th><th>Customer ref</th>"+
@@ -501,40 +501,40 @@ function buildProjectCard(name,projects){
       if(li.type==="printer"&&li.buyingPrice&&p.currency==="USD"){
         var m=li.unitPrice-li.buyingPrice;
         var mPct=(m/li.unitPrice*100).toFixed(1);
-        marginInfo="<span style='font-size:10px;color:#aaa;margin-left:8px'>(margin $"+m.toFixed(0)+", "+mPct+"%)</span>";
+        marginInfo="<span style='font-size:10px;color:var(--text-faint);margin-left:8px'>(margin $"+m.toFixed(0)+", "+mPct+"%)</span>";
       }
-      return "<div style='display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #e0e0e0'>"+
+      return "<div style='display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--divider)'>"+
         "<div style='flex:1'>"+
           "<span style='font-size:10px;font-weight:600;text-transform:uppercase;background:"+typeBg+";color:"+typeColor+";padding:2px 6px;border-radius:3px;margin-right:8px'>"+li.type+"</span>"+
-          "<span style='font-size:13px;color:#1a3a4a;font-weight:500'>"+li.name+"</span>"+
-          (li.pn?"<span style='font-size:10px;color:#888;font-family:monospace;margin-left:8px'>"+li.pn+"</span>":"")+
+          "<span style='font-size:13px;color:var(--text);font-weight:500'>"+li.name+"</span>"+
+          (li.pn?"<span style='font-size:10px;color:var(--text-faint);font-family:monospace;margin-left:8px'>"+li.pn+"</span>":"")+
           marginInfo+
         "</div>"+
         "<div style='text-align:right;white-space:nowrap;font-size:13px'>"+
-          "<span style='color:#888'>"+qtyDisplay+(li.unitPrice<0?"(":"")+li.unitPrice.toLocaleString()+(li.unitPrice<0?")":"")+" "+p.currency+"</span>"+
-          "<span style='font-weight:600;color:#1a3a4a;margin-left:12px;display:inline-block;min-width:90px;text-align:right'>"+(subtotal<0?"\u2212":"")+subtotalDisplay+" "+p.currency+"</span>"+
+          "<span style='color:var(--text-muted)'>"+qtyDisplay+(li.unitPrice<0?"(":"")+li.unitPrice.toLocaleString()+(li.unitPrice<0?")":"")+" "+p.currency+"</span>"+
+          "<span style='font-weight:600;color:var(--text-strong);margin-left:12px;display:inline-block;min-width:90px;text-align:right'>"+(subtotal<0?"\u2212":"")+subtotalDisplay+" "+p.currency+"</span>"+
         "</div>"+
       "</div>";
     }).join("");
 
-    return "<div style='padding:18px;border-bottom:3px solid #c8d8e0;background:#fff'>"+
+    return "<div style='padding:18px;border-bottom:3px solid var(--border-strong);background:var(--bg)'>"+
       "<div style='display:flex;justify-content:space-between;align-items:start;margin-bottom:10px'>"+
         "<div>"+
-          "<div style='font-size:11px;color:#444;margin-bottom:4px'>"+(p.displayDate||p.date||"")+" \xb7 "+bStatus(p.status)+"</div>"+
-          "<div style='font-size:14px;font-weight:600;color:#1a3a4a'>"+p.project+"</div>"+
-          (p.projectGroup?"<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:#fff3cd;color:#856404;border:1px solid #ffc107;margin-top:4px'>\ud83d\udd17 "+p.projectGroup+"</div>":"")+
+          "<div style='font-size:11px;color:var(--text-muted);margin-bottom:4px'>"+(p.displayDate||p.date||"")+" \xb7 "+bStatus(p.status)+"</div>"+
+          "<div style='font-size:14px;font-weight:600;color:var(--text-strong)'>"+p.project+"</div>"+
+          (p.projectGroup?"<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--badge-group-bg);color:var(--badge-group-fg);border:1px solid var(--badge-group-bd);margin-top:4px'>\ud83d\udd17 "+p.projectGroup+"</div>":"")+
           "<div style='margin-top:6px'>"+
             (p.shippingTerms?bTerm(p.shippingTerms):"")+
             bWarranty(p.warranty)+
           "</div>"+
         "</div>"+
         "<div style='text-align:right'>"+
-          (printerTot!==totalCalc&&printerTot>0?"<div style='font-size:11px;color:#5a7a8a'>Printer subtotal: "+printerTot.toLocaleString()+" "+p.currency+"</div>":"")+
-          "<div style='font-size:15px;font-weight:600;color:#1a3a4a;margin-top:3px'>Project Total: "+totalCalc.toLocaleString()+" "+p.currency+"</div>"+
+          (printerTot!==totalCalc&&printerTot>0?"<div style='font-size:11px;color:var(--text-muted)'>Printer subtotal: "+printerTot.toLocaleString()+" "+p.currency+"</div>":"")+
+          "<div style='font-size:15px;font-weight:600;color:var(--accent-text);margin-top:3px'>Project Total: "+totalCalc.toLocaleString()+" "+p.currency+"</div>"+
         "</div>"+
       "</div>"+
-      (lineHtml?"<div style='background:#fafbfc;border:1px solid #e8eef2;border-radius:8px;padding:6px 14px;margin-top:10px'>"+lineHtml+"</div>":"<div style='font-size:12px;color:#aaa;font-style:italic;padding:8px 0'>No line items</div>")+
-      (p.notes&&p.notes.length?"<div style='margin-top:10px;font-size:12px;color:#444;line-height:1.6'>"+p.notes.map(function(n){return "<div>\u2022 "+n+"</div>";}).join("")+"</div>":"")+
+      (lineHtml?"<div style='background:var(--bg-soft);border:1px solid var(--divider);border-radius:8px;padding:6px 14px;margin-top:10px'>"+lineHtml+"</div>":"<div style='font-size:12px;color:#aaa;font-style:italic;padding:8px 0'>No line items</div>")+
+      (p.notes&&p.notes.length?"<div style='margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.6'>"+p.notes.map(function(n){return "<div>\u2022 "+n+"</div>";}).join("")+"</div>":"")+
     "</div>";
   }).join("");
 
