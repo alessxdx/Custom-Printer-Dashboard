@@ -195,7 +195,7 @@ function renderCustomersTable(){
       "<td class='num cell-money'>"+priceCell+"</td>"+
       "<td class='num cell-margin'>"+(margin !== null ? "$"+margin.toFixed(0)+" ("+mPct+"%)" : "—")+"</td>"+
       "<td class='num'><div class='row-actions'>"+
-        (tx.pdfUrl?"<a class='pdf-clip' href='"+tx.pdfUrl+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title='Open attached PDF in a new tab'>&#128206;</a>":"")+
+        ((tx.attachments&&tx.attachments.length)?"<a class='pdf-clip' href='"+tx.attachments[0].url+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title='Open attached PDF in a new tab'>&#128206;"+(tx.attachments.length>1?"×"+tx.attachments.length:"")+"</a>":"")+
         "<button class='edit-btn' onclick='event.stopPropagation();editTx("+idx+",event)'>Edit</button>"+
       "</div></td>"+
     "</tr>"+

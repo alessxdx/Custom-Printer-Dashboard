@@ -95,18 +95,28 @@ function pjRecalc(){
   el.innerHTML=html;
 }
 
+var PJ_ATT=[];
+function renderPjAttList(){
+  var el=document.getElementById("p-pdf-current");
+  if(el)el.innerHTML=attListHtml(PJ_ATT,"pjRemoveAttachment");
+}
+function pjRemoveAttachment(e,i){
+  if(e)e.preventDefault();
+  PJ_ATT.splice(i,1);
+  renderPjAttList();
+}
 function openProjectModal(){
   PJ_EDIT_ID=null;
   pjPopulateDatalists();
   document.getElementById("project-modal-title").textContent="Add quotation / project";
   var m=document.getElementById("modal-project");
-  m.removeAttribute("data-remove-pdf");
   m.querySelectorAll("input,textarea").forEach(function(el){el.value="";});
   document.getElementById("p-status").value="Quotation";
   document.getElementById("p-currency").value="USD";
   document.getElementById("p-terms").value="";
   document.getElementById("p-warranty").value="";
-  document.getElementById("p-pdf-current").innerHTML="";
+  PJ_ATT=[];
+  renderPjAttList();
   document.getElementById("pj-rows").innerHTML="";
   pjAddRow();
   var del=document.getElementById("btn-delete-project");if(del)del.style.display="none";
@@ -120,7 +130,6 @@ function editProject(id){
   pjPopulateDatalists();
   document.getElementById("project-modal-title").textContent="Edit quotation / project";
   var m=document.getElementById("modal-project");
-  m.removeAttribute("data-remove-pdf");
   document.getElementById("p-customer").value=p.customer;
   document.getElementById("p-country").value=p.country;
   document.getElementById("p-date").value=p.date||"";
@@ -133,9 +142,8 @@ function editProject(id){
   document.getElementById("p-override").value=p.totalOverride||"";
   document.getElementById("p-notes").value=(p.notes||[]).join("\n");
   var pdfInput=document.getElementById("p-pdf");if(pdfInput)pdfInput.value="";
-  document.getElementById("p-pdf-current").innerHTML=p.pdfUrl
-    ?"&#128206; <a href='"+p.pdfUrl+"' target='_blank' rel='noopener'>Current PDF</a> &middot; <a href='#' onclick='removePdfFromProjectModal(event)'>Remove</a>"
-    :"No PDF attached yet.";
+  PJ_ATT=(p.attachments||[]).slice();
+  renderPjAttList();
   var rows=LINE_ITEMS.filter(function(li){return li.projectId===id;}).sort(function(a,b){return a.sortOrder-b.sortOrder;});
   document.getElementById("pj-rows").innerHTML="";
   if(rows.length)rows.forEach(function(li){pjAddRow({type:li.type,name:li.name,pn:li.pn,qty:li.qty,unitPrice:li.unitPrice,buyingPrice:li.buyingPrice});});
@@ -148,27 +156,9 @@ function closeProjectModal(){
   PJ_EDIT_ID=null;
   closeModal("modal-project");
 }
-function removePdfFromProjectModal(e){
-  if(e)e.preventDefault();
-  document.getElementById("modal-project").setAttribute("data-remove-pdf","1");
-  document.getElementById("p-pdf-current").innerHTML="PDF will be removed when you save.";
-}
-async function pjHandlePdf(){
-  var input=document.getElementById("p-pdf");
-  if(input&&input.files&&input.files[0]){
-    var f=input.files[0];
-    if(f.type&&f.type!=="application/pdf"&&!/\.pdf$/i.test(f.name||"")){
-      throw new Error("please choose a PDF file");
-    }
-    showLoad("Uploading PDF...");
-    return await sbUploadPdf(f);
-  }
-  if(document.getElementById("modal-project").getAttribute("data-remove-pdf")==="1")return "";
-  return null;
-}
-
 function projectToDb(p){
-  return{customer:p.customer,country:p.country,date:p.date||"",display_date:p.displayDate||null,status:p.status,project:p.project,project_group:p.projectGroup||null,shipping_terms:p.shippingTerms||"",warranty:p.warranty||"",currency:p.currency,notes:p.notes||[],total_override:p.totalOverride||null,pdf_url:p.pdfUrl||null};
+  var att=p.attachments||[];
+  return{customer:p.customer,country:p.country,date:p.date||"",display_date:p.displayDate||null,status:p.status,project:p.project,project_group:p.projectGroup||null,shipping_terms:p.shippingTerms||"",warranty:p.warranty||"",currency:p.currency,notes:p.notes||[],total_override:p.totalOverride||null,attachments:att,pdf_url:att[0]?att[0].url:null};
 }
 function liToDb(li,projectId,order){
   return{project_id:projectId,type:li.type,name:li.name,display_model:li.type==="printer"?li.name:null,pn:li.pn||"",qty:li.qty,unit_price:li.unitPrice,buying_price:li.buyingPrice||null,sort_order:order};
@@ -204,12 +194,10 @@ async function sbSaveProject(){
     shippingTerms:document.getElementById("p-terms").value,
     warranty:document.getElementById("p-warranty").value,
     notes:notesRaw?notesRaw.split("\n").map(function(n){return n.trim();}).filter(Boolean):[],
-    totalOverride:ovr?parseFloat(ovr):null,
-    pdfUrl:existing?(existing.pdfUrl||""):""
+    totalOverride:ovr?parseFloat(ovr):null
   };
-  var pdfChange;
-  try{pdfChange=await pjHandlePdf();}catch(err){hideLoad();alert("PDF upload failed: "+err.message+"\nNothing was saved — please try again.");return;}
-  if(pdfChange!==null)header.pdfUrl=pdfChange;
+  try{await sbUploadAttachments("p-pdf",PJ_ATT);}catch(err){hideLoad();alert("PDF upload failed: "+err.message+"\nNothing was saved — please try again.");return;}
+  header.attachments=PJ_ATT.slice();
 
   showLoad(PJ_EDIT_ID?"Updating project...":"Saving project...");
   try{

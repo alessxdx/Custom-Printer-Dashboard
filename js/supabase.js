@@ -4,8 +4,15 @@ function sbH(){return{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-
 async function sbGet(t){var r=await fetch(SB_URL+"/rest/v1/"+t+"?select=*&order=created_at.asc",{headers:sbH()});return r.ok?r.json():null;}
 async function sbInsert(t,row){var r=await fetch(SB_URL+"/rest/v1/"+t,{method:"POST",headers:sbH(),body:JSON.stringify(row)});return r.ok?r.json():null;}
 async function sbDelete(t,id){return (await fetch(SB_URL+"/rest/v1/"+t+"?id=eq."+id,{method:"DELETE",headers:sbH()})).ok;}
-function dbToTx(r){return{_id:r.id,customer:r.customer||"",country:r.country||"",date:r.date||"",status:r.status||"PO",project:r.project||"",pn:r.pn||"",model:r.model||"",qty:r.qty||"",price:Number(r.price)||0,dualPrice:r.dual_price?Number(r.dual_price):undefined,currency:r.currency||"USD",terms:r.terms||[],warranty:r.warranty||"",bp:r.bp?Number(r.bp):null,totalOverride:r.total_override?Number(r.total_override):undefined,printerTotalOverride:r.printer_total_override?Number(r.printer_total_override):undefined,noPrinterTotal:r.no_printer_total||false,projectGroup:r.project_group||"",displayModel:r.display_model||"",pdfUrl:r.pdf_url||"",notes:r.notes||[]};}
-function txToDb(t){return{customer:t.customer,country:t.country,date:t.date,status:t.status,project:t.project,pn:t.pn,model:t.model,qty:t.qty,price:t.price,dual_price:t.dualPrice||null,currency:t.currency,terms:t.terms,warranty:t.warranty,bp:t.bp||null,total_override:t.totalOverride||null,printer_total_override:t.printerTotalOverride||null,no_printer_total:t.noPrinterTotal||false,project_group:t.projectGroup||null,display_model:t.displayModel||null,pdf_url:t.pdfUrl||null,notes:t.notes};}
+/* Attachments: array of {name,url}. Legacy rows saved before multi-PDF
+   support only have pdf_url — fall back to it when attachments is null. */
+function attFromDb(r){
+  if(r.attachments&&Array.isArray(r.attachments))return r.attachments;
+  if(r.pdf_url)return[{name:"PDF",url:r.pdf_url}];
+  return[];
+}
+function dbToTx(r){return{_id:r.id,customer:r.customer||"",country:r.country||"",date:r.date||"",status:r.status||"PO",project:r.project||"",pn:r.pn||"",model:r.model||"",qty:r.qty||"",price:Number(r.price)||0,dualPrice:r.dual_price?Number(r.dual_price):undefined,currency:r.currency||"USD",terms:r.terms||[],warranty:r.warranty||"",bp:r.bp?Number(r.bp):null,totalOverride:r.total_override?Number(r.total_override):undefined,printerTotalOverride:r.printer_total_override?Number(r.printer_total_override):undefined,noPrinterTotal:r.no_printer_total||false,projectGroup:r.project_group||"",displayModel:r.display_model||"",attachments:attFromDb(r),notes:r.notes||[]};}
+function txToDb(t){var att=t.attachments||[];return{customer:t.customer,country:t.country,date:t.date,status:t.status,project:t.project,pn:t.pn,model:t.model,qty:t.qty,price:t.price,dual_price:t.dualPrice||null,currency:t.currency,terms:t.terms,warranty:t.warranty,bp:t.bp||null,total_override:t.totalOverride||null,printer_total_override:t.printerTotalOverride||null,no_printer_total:t.noPrinterTotal||false,project_group:t.projectGroup||null,display_model:t.displayModel||null,attachments:att,pdf_url:att[0]?att[0].url:null,notes:t.notes};}
 /* Upload a PDF to the "documents" storage bucket; returns its public URL. */
 async function sbUploadPdf(file){
   var safe=(file.name||"document.pdf").replace(/[^a-zA-Z0-9._-]/g,"_");
@@ -18,28 +25,40 @@ async function sbUploadPdf(file){
   if(!r.ok)throw new Error("upload failed (HTTP "+r.status+")");
   return SB_URL+"/storage/v1/object/public/documents/"+path;
 }
-/* Reads the tx-modal PDF field. Returns:
-   - a URL string if a new file was uploaded
-   - "" if the user clicked Remove
-   - null if unchanged */
-async function sbHandlePdfField(){
-  var input=document.getElementById("f-pdf");
-  if(input&&input.files&&input.files[0]){
-    var f=input.files[0];
+/* Uploads every file selected in the given <input type=file multiple>
+   and appends {name,url} entries to `current`. Throws on non-PDFs. */
+async function sbUploadAttachments(inputId,current){
+  var input=document.getElementById(inputId);
+  var files=input&&input.files?Array.prototype.slice.call(input.files):[];
+  for(var i=0;i<files.length;i++){
+    var f=files[i];
     if(f.type&&f.type!=="application/pdf"&&!/\.pdf$/i.test(f.name||"")){
-      throw new Error("please choose a PDF file");
+      throw new Error("\""+f.name+"\" is not a PDF");
     }
-    showLoad("Uploading PDF...");
-    return await sbUploadPdf(f);
+    showLoad("Uploading PDF "+(i+1)+" of "+files.length+"...");
+    var url=await sbUploadPdf(f);
+    current.push({name:f.name||"document.pdf",url:url});
   }
-  if(document.getElementById("modal-tx").getAttribute("data-remove-pdf")==="1")return "";
-  return null;
+  if(input)input.value="";
+  return current;
 }
-function removePdfFromModal(e){
+function attEscName(n){return String(n||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function attListHtml(list,removeFn){
+  if(!list.length)return "No PDFs attached yet.";
+  return list.map(function(a,i){
+    return "<span class='att-item'>&#128206; <a href='"+a.url+"' target='_blank' rel='noopener'>"+attEscName(a.name)+"</a> <a href='#' class='att-remove' title='Remove' onclick='"+removeFn+"(event,"+i+")'>&#10005;</a></span>";
+  }).join("");
+}
+/* Attachment state for the transaction modal */
+var TX_ATT=[];
+function renderTxAttList(){
+  var el=document.getElementById("f-pdf-current");
+  if(el)el.innerHTML=attListHtml(TX_ATT,"txRemoveAttachment");
+}
+function txRemoveAttachment(e,i){
   if(e)e.preventDefault();
-  document.getElementById("modal-tx").setAttribute("data-remove-pdf","1");
-  var cur=document.getElementById("f-pdf-current");
-  if(cur)cur.innerHTML="PDF will be removed when you save.";
+  TX_ATT.splice(i,1);
+  renderTxAttList();
 }
 function dbToB(r){return{_id:r.id,model:r.model,pn:r.pn||"",price:Number(r.price),currency:r.currency,specialPrice:r.special_price?Number(r.special_price):undefined,specialCustomer:r.special_customer||"",group:r.grp||""};}
 function bToDb(b){return{model:b.model,pn:b.pn||"",price:b.price,currency:b.currency,special_price:b.specialPrice||null,special_customer:b.specialCustomer||null,grp:b.group||null};}
@@ -49,7 +68,7 @@ function dbToS(r){return{_id:r.id,name:r.name||"",pn:r.pn||"",price:Number(r.pri
 function sToDb(s){return{name:s.name,pn:s.pn||"",price:s.price,currency:s.currency||"USD",customer:s.customer||"",terms:s.terms||"",note:s.note||""};}
 function dbToM(r){return r.name;}
 // NEW (Stage 2): Project + line item converters
-function dbToProject(r){return{_id:r.id,customer:r.customer||"",country:r.country||"",date:r.date||"",displayDate:r.display_date||"",status:r.status||"PO",project:r.project||"",projectGroup:r.project_group||"",shippingTerms:r.shipping_terms||"",warranty:r.warranty||"",currency:r.currency||"USD",notes:r.notes||[],totalOverride:r.total_override?Number(r.total_override):null,pdfUrl:r.pdf_url||""};}
+function dbToProject(r){return{_id:r.id,customer:r.customer||"",country:r.country||"",date:r.date||"",displayDate:r.display_date||"",status:r.status||"PO",project:r.project||"",projectGroup:r.project_group||"",shippingTerms:r.shipping_terms||"",warranty:r.warranty||"",currency:r.currency||"USD",notes:r.notes||[],totalOverride:r.total_override?Number(r.total_override):null,attachments:attFromDb(r)};}
 function dbToLineItem(r){return{_id:r.id,projectId:r.project_id,type:r.type||"printer",name:r.name||"",displayModel:r.display_model||"",pn:r.pn||"",qty:Number(r.qty)||1,unitPrice:Number(r.unit_price)||0,buyingPrice:r.buying_price?Number(r.buying_price):null,sortOrder:Number(r.sort_order)||0};}
 function showLoad(m){var e=document.getElementById("ld");if(e){e.style.display="flex";e.querySelector("span").textContent=m||"Loading...";}}
 function hideLoad(){var e=document.getElementById("ld");if(e)e.style.display="none";}
@@ -252,10 +271,9 @@ async function sbUpdateTx(idx){
   var pgv=document.getElementById("f-project-group")?document.getElementById("f-project-group").value.trim():"";
   /* Carry over fields the modal doesn't edit, so editing an entry never
      wipes dual pricing, total overrides or the attached PDF. */
-  var updated={customer:customer,country:country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"—",pn:document.getElementById("f-pn").value.trim(),model:model,qty:document.getElementById("f-qty").value.trim()||"—",price:price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes:notes,projectGroup:pgv,dualPrice:tx.dualPrice,totalOverride:tx.totalOverride,printerTotalOverride:tx.printerTotalOverride,noPrinterTotal:tx.noPrinterTotal,displayModel:tx.displayModel,displayDate:tx.displayDate,pdfUrl:tx.pdfUrl||"",_id:tx._id};
-  var pdfChange;
-  try{pdfChange=await sbHandlePdfField();}catch(err){hideLoad();alert("PDF upload failed: "+err.message+"\nEntry was not updated — please try again.");return;}
-  if(pdfChange!==null)updated.pdfUrl=pdfChange;
+  var updated={customer:customer,country:country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"—",pn:document.getElementById("f-pn").value.trim(),model:model,qty:document.getElementById("f-qty").value.trim()||"—",price:price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes:notes,projectGroup:pgv,dualPrice:tx.dualPrice,totalOverride:tx.totalOverride,printerTotalOverride:tx.printerTotalOverride,noPrinterTotal:tx.noPrinterTotal,displayModel:tx.displayModel,displayDate:tx.displayDate,_id:tx._id};
+  try{await sbUploadAttachments("f-pdf",TX_ATT);}catch(err){hideLoad();alert("PDF upload failed: "+err.message+"\nEntry was not updated — please try again.");return;}
+  updated.attachments=TX_ATT.slice();
   showLoad("Updating...");
   if(tx._id){
     await fetch(SB_URL+"/rest/v1/transactions?id=eq."+tx._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(txToDb(updated))});
@@ -273,9 +291,8 @@ async function sbSaveTx(){
   var notes=notesRaw?notesRaw.split("\n").map(function(n){return n.trim();}).filter(Boolean):[];
   var bpVal=document.getElementById("f-bp").value;
   var pgv=document.getElementById("f-project-group")?document.getElementById("f-project-group").value.trim():"";var nt={customer:customer,country:country,date:document.getElementById("f-date").value.trim(),status:document.getElementById("f-status").value,project:document.getElementById("f-project").value.trim()||"—",pn:document.getElementById("f-pn").value.trim(),model:model,qty:document.getElementById("f-qty").value.trim()||"—",price:price,currency:document.getElementById("f-currency").value,terms:termsVal?[termsVal]:[],warranty:document.getElementById("f-warranty").value,bp:bpVal?parseFloat(bpVal):null,notes:notes,projectGroup:pgv};
-  var pdfChange;
-  try{pdfChange=await sbHandlePdfField();}catch(err){hideLoad();alert("PDF upload failed: "+err.message+"\nEntry was not saved — please try again.");return;}
-  if(pdfChange)nt.pdfUrl=pdfChange;
+  try{await sbUploadAttachments("f-pdf",TX_ATT);}catch(err){hideLoad();alert("PDF upload failed: "+err.message+"\nEntry was not saved — please try again.");return;}
+  nt.attachments=TX_ATT.slice();
   showLoad("Saving...");
   var r=await sbInsert("transactions",txToDb(nt));if(r&&r[0])nt._id=r[0].id;
   TX.push(nt);hideLoad();closeModal("modal-tx");
@@ -333,10 +350,9 @@ function editTx(i, e){
   document.getElementById("f-terms").value=tx.terms[0]||"";
   document.getElementById("f-warranty").value=tx.warranty||"";
   document.getElementById("f-notes").value=tx.notes.join("\n");
-  document.getElementById("modal-tx").removeAttribute("data-remove-pdf");
   var pdfInput=document.getElementById("f-pdf");if(pdfInput)pdfInput.value="";
-  var pdfCur=document.getElementById("f-pdf-current");
-  if(pdfCur)pdfCur.innerHTML=tx.pdfUrl?"&#128206; <a href='"+tx.pdfUrl+"' target='_blank' rel='noopener'>Current PDF</a> &middot; <a href='#' onclick='removePdfFromModal(event)'>Remove</a>":"No PDF attached yet.";
+  TX_ATT=(tx.attachments||[]).slice();
+  renderTxAttList();
   document.getElementById("modal-tx").classList.add("open");
 }
 

@@ -59,6 +59,17 @@ function fxEqSpan(amount,currency){
   const t=fxUsdText(amount,currency);
   return t?" <span class='fx-usd'>"+t+"</span>":"";
 }
+function attShortName(n){
+  var s=String(n||"PDF").replace(/\.pdf$/i,"");
+  return s.length>18?s.slice(0,17)+"…":s;
+}
+function attClipsHtml(list){
+  if(!list||!list.length)return "";
+  return list.map(function(a){
+    var full=String(a.name||"PDF").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+    return "<a class='pdf-clip' href='"+a.url+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title=\"Open "+full+" in a new tab\">&#128206; "+attShortName(a.name).replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</a>";
+  }).join(" ");
+}
 function buildTxEntriesHtml(txs){
   const sorted=[...txs].sort((a,b)=>{
       const aCombined=a.projectGroup&&a.model&&a.model.includes("+");
@@ -81,7 +92,7 @@ function buildTxEntriesHtml(txs){
       if(isSplit)return "<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--badge-group-bg);color:var(--badge-group-fg);border:1px solid var(--badge-group-bd);margin-bottom:5px'>&#128279; Part of: "+tx.projectGroup+"</div>";
       return "";
     })();
-    const pdfClip=tx.pdfUrl?"<a class='pdf-clip' href='"+tx.pdfUrl+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title='Open attached PDF in a new tab'>&#128206; PDF</a>":"";
+    const pdfClip=attClipsHtml(tx.attachments);
     const fxNoteLine=(tx.currency!=="USD"&&typeof fxNote==="function"&&fxNote(tx.currency))?"<div class='fx-note'>"+fxNote(tx.currency)+"</div>":"";
     const inner="<div class='tx'><div>"+
       groupTag+
@@ -537,8 +548,8 @@ function buildProjectCard(name,projects){
       "</div>"+
       (lineHtml?"<div style='background:var(--bg-soft);border:1px solid var(--divider);border-radius:8px;padding:6px 14px;margin-top:10px'>"+lineHtml+"</div>":"<div style='font-size:12px;color:#aaa;font-style:italic;padding:8px 0'>No line items</div>")+
       (p.notes&&p.notes.length?"<div style='margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.6'>"+p.notes.map(function(n){return "<div>\u2022 "+n+"</div>";}).join("")+"</div>":"")+
-      "<div style='display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:10px'>"+
-        (p.pdfUrl?"<a class='pdf-clip' href='"+p.pdfUrl+"' target='_blank' rel='noopener' title='Open attached PDF in a new tab'>&#128206; PDF</a>":"")+
+      "<div style='display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:10px'>"+
+        attClipsHtml(p.attachments)+
         "<button class='edit-btn' onclick='editProject(\""+p._id+"\")'>Edit</button>"+
       "</div>"+
     "</div>";
@@ -620,8 +631,8 @@ function openModal(){
     document.getElementById("f-warranty").value="";
     document.getElementById("modal-tx").querySelector(".modal-title").textContent="Add transaction entry";
     document.getElementById("modal-tx").removeAttribute("data-edit-id");
-    document.getElementById("modal-tx").removeAttribute("data-remove-pdf");
-    var pdfCur=document.getElementById("f-pdf-current");if(pdfCur)pdfCur.innerHTML="";
+    TX_ATT=[];
+    renderTxAttList();
     var delBtn2=document.getElementById("btn-delete-tx");if(delBtn2)delBtn2.style.display="none";
     var saveBtn2=document.getElementById("btn-save-tx");if(saveBtn2){saveBtn2.textContent="Save entry";saveBtn2.onclick=sbSaveTx;}
     document.getElementById("modal-tx").classList.add("open");
