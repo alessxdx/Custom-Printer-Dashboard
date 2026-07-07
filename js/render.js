@@ -490,6 +490,7 @@ function buildProjectCard(name,projects){
       .sort(function(a,b){return a.sortOrder-b.sortOrder;});
     var totalCalc=projectTotal(p._id);
     var printerTot=projectPrinterTotal(p._id);
+    var displayTotal=p.totalOverride||totalCalc;
 
     var lineHtml=lis.map(function(li){
       var subtotal=li.qty*li.unitPrice;
@@ -529,12 +530,17 @@ function buildProjectCard(name,projects){
           "</div>"+
         "</div>"+
         "<div style='text-align:right'>"+
-          (printerTot!==totalCalc&&printerTot>0?"<div style='font-size:11px;color:var(--text-muted)'>Printer subtotal: "+printerTot.toLocaleString()+" "+p.currency+"</div>":"")+
-          "<div style='font-size:15px;font-weight:600;color:var(--accent-text);margin-top:3px'>Project Total: "+totalCalc.toLocaleString()+" "+p.currency+"</div>"+
+          (printerTot!==totalCalc&&printerTot>0?"<div style='font-size:11px;color:var(--text-muted)'>Printer subtotal: "+printerTot.toLocaleString()+" "+p.currency+fxEqSpan(printerTot,p.currency)+"</div>":"")+
+          "<div style='font-size:15px;font-weight:600;color:var(--accent-text);margin-top:3px'>Project Total: "+displayTotal.toLocaleString()+" "+p.currency+fxEqSpan(displayTotal,p.currency)+"</div>"+
+          (p.currency!=="USD"&&typeof fxNote==="function"&&fxNote(p.currency)?"<div class='fx-note'>"+fxNote(p.currency)+"</div>":"")+
         "</div>"+
       "</div>"+
       (lineHtml?"<div style='background:var(--bg-soft);border:1px solid var(--divider);border-radius:8px;padding:6px 14px;margin-top:10px'>"+lineHtml+"</div>":"<div style='font-size:12px;color:#aaa;font-style:italic;padding:8px 0'>No line items</div>")+
       (p.notes&&p.notes.length?"<div style='margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.6'>"+p.notes.map(function(n){return "<div>\u2022 "+n+"</div>";}).join("")+"</div>":"")+
+      "<div style='display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:10px'>"+
+        (p.pdfUrl?"<a class='pdf-clip' href='"+p.pdfUrl+"' target='_blank' rel='noopener' title='Open attached PDF in a new tab'>&#128206; PDF</a>":"")+
+        "<button class='edit-btn' onclick='editProject(\""+p._id+"\")'>Edit</button>"+
+      "</div>"+
     "</div>";
   }).join("");
 
@@ -576,9 +582,8 @@ function renderProjects(){
     if(!byCountry[c])byCountry[c]=[];
     byCountry[c].push([name,projs]);
   });
-  var html="<div style='background:#fef3c7;color:#92400e;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:12px;border:1px solid #fbbf24'>"+
-    "<strong>\ud83d\udea7 NEW VIEW (read-only)</strong> \u2014 This is the new Project + Line Items structure migrated from your transactions. "+
-    "Compare with the 'By Customer' tab and verify the data looks correct. Once confirmed, edit/delete will be added in Stage 3."+
+  var html="<div style='background:var(--accent-soft);color:var(--accent-text);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:12px;border:1px solid var(--border-strong)'>"+
+    "Quotations with <strong>multiple models / line items</strong> live here \u2014 use <strong>+ Add entry</strong> to create one (printers, accessories, discounts per row, with an attached PDF), or <strong>Edit</strong> on any project below."+
   "</div>";
   Object.entries(byCountry).sort(function(a,b){return a[0].localeCompare(b[0]);}).forEach(function(entry){
     var country=entry[0],list=entry[1];
@@ -620,6 +625,9 @@ function openModal(){
     var delBtn2=document.getElementById("btn-delete-tx");if(delBtn2)delBtn2.style.display="none";
     var saveBtn2=document.getElementById("btn-save-tx");if(saveBtn2){saveBtn2.textContent="Save entry";saveBtn2.onclick=sbSaveTx;}
     document.getElementById("modal-tx").classList.add("open");
+  }
+  else if(currentTab==="projects"){
+    openProjectModal();
   }
   else if(currentTab==="buying"){
     document.getElementById("modal-buying").removeAttribute("data-edit-idx");

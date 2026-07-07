@@ -244,6 +244,40 @@
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="modal-project">
+  <div class="modal modal-wide">
+    <div class="modal-title" id="project-modal-title">Add quotation / project</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Customer *</label><input id="p-customer" placeholder="e.g. Aboitiz" list="customer-list"></div>
+      <div class="form-group"><label>Country *</label><input id="p-country" placeholder="e.g. Philippines" list="country-list"></div>
+      <div class="form-group"><label>Date</label><input id="p-date" placeholder="e.g. 17 Apr 2026"></div>
+      <div class="form-group"><label>Status *</label><select id="p-status"><option value="Quotation">Quotation</option><option value="PO">PO Confirmed</option><option value="Lose">Lost Quote</option></select></div>
+      <div class="form-group form-full"><label>Project name *</label><input id="p-project" placeholder="e.g. Bohol Airport"></div>
+      <div class="form-group form-full"><label>Project group <span style="font-size:10px;color:#aaa;font-weight:400">(optional — links related entries)</span></label><input id="p-group" placeholder="e.g. Bohol Airport" list="project-group-list"></div>
+      <div class="form-group"><label>Currency *</label><select id="p-currency" onchange="pjRecalc()"><option value="USD">USD</option><option value="SGD">SGD</option><option value="RMB">RMB</option><option value="IDR">IDR</option><option value="EUR">EUR</option></select></div>
+      <div class="form-group"><label>Shipping terms</label><select id="p-terms"><option value="">None</option><option value="DDP">DDP</option><option value="DAP">DAP</option><option value="EXW">EXW</option><option value="CIF">CIF</option><option value="FOB">FOB</option><option value="CIP">CIP</option><option value="CPT">CPT</option></select></div>
+      <div class="form-group"><label>Warranty</label><select id="p-warranty"><option value="">Unknown / N/A</option><option value="1Y">1 Year</option><option value="2Y">2 Years</option><option value="3Y">3 Years</option><option value="5Y">5 Years</option></select></div>
+    </div>
+    <div class="pj-items">
+      <label class="pj-items-label">Line items <span style="font-size:10px;color:#aaa;font-weight:400">(printers, accessories, discounts — one row each, like the quotation PDF)</span></label>
+      <div class="pj-head"><span>Type</span><span>Model / item</span><span>PN</span><span>Qty</span><span>Unit price</span><span>Buy $</span><span></span></div>
+      <div id="pj-rows"></div>
+      <datalist id="pj-name-list"></datalist>
+      <button type="button" class="pj-add" onclick="pjAddRow()">+ Add line item</button>
+      <div id="pj-total" class="pj-total"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Project total override <span style="font-size:10px;color:#aaa;font-weight:400">(optional — leave empty to use the sum of line items)</span></label><input id="p-override" type="number" step="any" placeholder="e.g. 88314.40" oninput="pjRecalc()"></div>
+      <div class="form-group form-full"><label>Notes</label><textarea id="p-notes" placeholder="One note per line."></textarea><span class="form-hint">Press Enter for multiple notes</span></div>
+      <div class="form-group form-full"><label>PDF document <span style="font-size:10px;color:#aaa;font-weight:400">(quotation or PO — one per project)</span></label><input id="p-pdf" type="file" accept="application/pdf"><span class="form-hint" id="p-pdf-current"></span></div>
+    </div>
+    <div class="modal-actions">
+      <button id="btn-delete-project" class="delete-btn" style="margin-right:auto;font-size:13px;padding:9px 14px;display:none" onclick="sbDeleteProject()">Delete project</button>
+      <button class="btn-cancel" onclick="closeProjectModal()">Cancel</button>
+      <button class="btn-save" onclick="sbSaveProject()">Save project</button>
+    </div>
+  </div>
+</div>
 <div id="ld" style="display:none;position:fixed;inset:0;background:rgba(26,58,74,.75);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
   <div style="width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div>
   <span style="color:#fff;font-size:14px;font-weight:500;font-family:Montserrat,sans-serif">Loading...</span>
@@ -254,6 +288,7 @@
 <script src="js/fx.js"></script>
 <script src="js/detail.js"></script>
 <script src="js/supabase.js"></script>
+<script src="js/projects.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

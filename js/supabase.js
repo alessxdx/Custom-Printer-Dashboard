@@ -49,7 +49,7 @@ function dbToS(r){return{_id:r.id,name:r.name||"",pn:r.pn||"",price:Number(r.pri
 function sToDb(s){return{name:s.name,pn:s.pn||"",price:s.price,currency:s.currency||"USD",customer:s.customer||"",terms:s.terms||"",note:s.note||""};}
 function dbToM(r){return r.name;}
 // NEW (Stage 2): Project + line item converters
-function dbToProject(r){return{_id:r.id,customer:r.customer||"",country:r.country||"",date:r.date||"",displayDate:r.display_date||"",status:r.status||"PO",project:r.project||"",projectGroup:r.project_group||"",shippingTerms:r.shipping_terms||"",warranty:r.warranty||"",currency:r.currency||"USD",notes:r.notes||[],totalOverride:r.total_override?Number(r.total_override):null};}
+function dbToProject(r){return{_id:r.id,customer:r.customer||"",country:r.country||"",date:r.date||"",displayDate:r.display_date||"",status:r.status||"PO",project:r.project||"",projectGroup:r.project_group||"",shippingTerms:r.shipping_terms||"",warranty:r.warranty||"",currency:r.currency||"USD",notes:r.notes||[],totalOverride:r.total_override?Number(r.total_override):null,pdfUrl:r.pdf_url||""};}
 function dbToLineItem(r){return{_id:r.id,projectId:r.project_id,type:r.type||"printer",name:r.name||"",displayModel:r.display_model||"",pn:r.pn||"",qty:Number(r.qty)||1,unitPrice:Number(r.unit_price)||0,buyingPrice:r.buying_price?Number(r.buying_price):null,sortOrder:Number(r.sort_order)||0};}
 function showLoad(m){var e=document.getElementById("ld");if(e){e.style.display="flex";e.querySelector("span").textContent=m||"Loading...";}}
 function hideLoad(){var e=document.getElementById("ld");if(e)e.style.display="none";}
