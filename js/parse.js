@@ -185,7 +185,7 @@ async function pjImportFromPdf(){
     document.getElementById("pj-rows").innerHTML="";
     q.items.forEach(function(li){
       /* auto-fill buying price for margin when the PN or name is known */
-      var match=BUYING.find(function(b){return (li.pn&&b.pn&&li.pn.indexOf(b.pn)!==-1)||b.model.toLowerCase()===li.name.toLowerCase();});
+      var match=findBuyingMatch(li.name,li.pn);
       pjAddRow({type:li.type,name:li.name,pn:li.pn,qty:li.qty,unitPrice:li.unitPrice,buyingPrice:(match&&li.type==="printer"&&match.currency==="USD")?match.price:""});
     });
     pjRecalc();

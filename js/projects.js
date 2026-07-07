@@ -36,7 +36,7 @@ function pjRowHtml(li){
   return "<div class='pj-row'>"+
     "<select class='pj-type' onchange='pjRecalc()'>"+opts+"</select>"+
     "<input class='pj-name' placeholder='Model / item name' list='pj-name-list' value=\""+pjEsc(li.name)+"\" oninput='pjAutoFill(this)'>"+
-    "<input class='pj-pn' placeholder='PN' value=\""+pjEsc(li.pn)+"\" style=\"font-family:'DM Mono',monospace\">"+
+    "<input class='pj-pn' placeholder='PN' value=\""+pjEsc(li.pn)+"\" oninput='pjAutoFill(this)' style=\"font-family:'DM Mono',monospace\">"+
     "<input class='pj-qty' type='number' step='any' min='0' placeholder='Qty' value=\""+pjEsc(li.qty)+"\" oninput='pjRecalc()'>"+
     "<input class='pj-price' type='number' step='any' placeholder='Unit price' value=\""+pjEsc(li.unitPrice)+"\" oninput='pjRecalc()'>"+
     "<input class='pj-bp' type='number' step='any' placeholder='Buy $' title='Buying price (USD) for margin' value=\""+pjEsc(li.buyingPrice)+"\">"+
@@ -52,12 +52,28 @@ function pjRemoveRow(btn){
   btn.closest(".pj-row").remove();
   pjRecalc();
 }
-function pjAutoFill(nameInput){
-  var row=nameInput.closest(".pj-row");
-  var val=nameInput.value.trim().toLowerCase();
-  var match=BUYING.find(function(b){return b.model.toLowerCase()===val;});
+/* Normalise a model name for matching: drop ATB/BTP tags, warranty text,
+   and punctuation so "TK180 Metal ARINC (ATB)" == "tk180 metal arinc". */
+function pjNormName(s){return String(s||"").toLowerCase().replace(/\((?:atb|btp)\)/g," ").replace(/\(\d+\s*years?\s*warranty\)/g," ").replace(/[^a-z0-9]+/g," ").trim();}
+/* Normalise a part number: use the base PN before any "+ accessory" or
+   "or <alt>", strip punctuation. "911HL010300733 + ARTFITT415" -> "911hl010300733". */
+function pjNormPn(s){return String(s||"").split("+")[0].split(/\bor\b/i)[0].replace(/[^a-z0-9]/gi,"").toLowerCase();}
+/* Find the Buying Prices row for a line item, by PN first then by name. */
+function findBuyingMatch(name,pn){
+  var np=pjNormPn(pn);
+  if(np){var byPn=BUYING.find(function(b){return b.pn&&pjNormPn(b.pn)===np;});if(byPn)return byPn;}
+  var nn=pjNormName(name);
+  if(nn){var byName=BUYING.find(function(b){return pjNormName(b.model)===nn;});if(byName)return byName;}
+  return null;
+}
+/* Fill PN + buying price (USD) from Buying Prices when the row's model or
+   PN is known. Triggered from both the name and PN fields; never
+   overwrites values already present. */
+function pjAutoFill(el){
+  var row=el.closest(".pj-row");
+  var pn=row.querySelector(".pj-pn"),bp=row.querySelector(".pj-bp");
+  var match=findBuyingMatch(row.querySelector(".pj-name").value,pn?pn.value:"");
   if(match){
-    var pn=row.querySelector(".pj-pn"),bp=row.querySelector(".pj-bp");
     if(pn&&!pn.value)pn.value=match.pn||"";
     if(bp&&!bp.value&&match.currency==="USD")bp.value=match.price;
   }
