@@ -54,10 +54,12 @@ function renderStats(){
     <div class="stat"><div class="stat-label">Open quotations</div><div class="stat-value">${qt}</div><div class="stat-sub">pending</div></div>
     <div class="stat"><div class="stat-label">Lost quotes</div><div class="stat-value">${ls}</div><div class="stat-sub">for reference</div></div>`;
 }
-function buildCustomerCard(name,txs){
-  const country=txs[0].country,flagIcon=FLAGS[country]||"\u{1F310}";
-  const cardKey=name+"__"+country,isOpen=expandedCards[cardKey];
-  const pos=txs.filter(t=>t.status==="PO").length,qt=txs.filter(t=>t.status!=="PO").length;
+function fxEqSpan(amount,currency){
+  if(typeof fxUsdText!=="function")return "";
+  const t=fxUsdText(amount,currency);
+  return t?" <span class='fx-usd'>"+t+"</span>":"";
+}
+function buildTxEntriesHtml(txs){
   const sorted=[...txs].sort((a,b)=>{
       const aCombined=a.projectGroup&&a.model&&a.model.includes("+");
       const bCombined=b.projectGroup&&b.model&&b.model.includes("+");
@@ -67,7 +69,7 @@ function buildCustomerCard(name,txs){
       }
       return parseDV(b.date)-parseDV(a.date);
     });
-  const rows=sorted.map(tx=>{
+  return sorted.map(tx=>{
     const margin=tx.bp&&tx.currency==="USD"?tx.price-tx.bp:null;
     const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
     const isCombined=tx.projectGroup&&tx.model&&tx.model.includes("+");
@@ -79,9 +81,11 @@ function buildCustomerCard(name,txs){
       if(isSplit)return "<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:#fff3cd;color:#856404;border:1px solid #ffc107;margin-bottom:5px'>&#128279; Part of: "+tx.projectGroup+"</div>";
       return "";
     })();
+    const pdfClip=tx.pdfUrl?"<a class='pdf-clip' href='"+tx.pdfUrl+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title='Open attached PDF in a new tab'>&#128206; PDF</a>":"";
+    const fxNoteLine=(tx.currency!=="USD"&&typeof fxNote==="function"&&fxNote(tx.currency))?"<div class='fx-note'>"+fxNote(tx.currency)+"</div>":"";
     const inner="<div class='tx'><div>"+
       groupTag+
-      "<div class='tx-date'>"+(dDisplay(tx)?dDisplay(tx)+" \xb7 ":"")+bStatus(tx.status)+"</div>"+
+      "<div class='tx-date'>"+(dDisplay(tx)?dDisplay(tx)+" \xb7 ":"")+bStatus(tx.status)+pdfClip+"</div>"+
       "<div class='tx-model'>"+tx.model+" &nbsp;&middot;&nbsp; "+tx.project+" &nbsp;&middot;&nbsp; "+tx.qty+"</div>"+
       (tx.pn?"<div class='tx-pn'>"+tx.pn+"</div>":"")+
       "<div class='tx-badges'>"+tx.terms.map(bTerm).join("")+bWarranty(tx.warranty)+"</div>"+
@@ -91,31 +95,38 @@ function buildCustomerCard(name,txs){
       (tx.dualPrice?
         "<div style='text-align:right;line-height:1.8'>"+
           "<span style='font-size:10px;color:#5a7a8a'>Cutter ARINC</span><br>"+
-          "<span style='font-weight:600;font-size:13px;color:#1a3a4a'>"+tx.price.toLocaleString()+" "+tx.currency+"</span><br>"+
+          "<span style='font-weight:600;font-size:13px;color:#1a3a4a'>"+tx.price.toLocaleString()+" "+tx.currency+"</span>"+fxEqSpan(tx.price,tx.currency)+"<br>"+
           "<span style='font-size:10px;color:#5a7a8a'>Non Cutter ARINC</span><br>"+
-          "<span style='font-weight:600;font-size:13px;color:#1a3a4a'>"+tx.dualPrice.toLocaleString()+" "+tx.currency+"</span>"+
+          "<span style='font-weight:600;font-size:13px;color:#1a3a4a'>"+tx.dualPrice.toLocaleString()+" "+tx.currency+"</span>"+fxEqSpan(tx.dualPrice,tx.currency)+
         "</div>"
       :
-        "<div class='tx-price'>"+tx.price.toLocaleString()+" "+tx.currency+"</div>"
+        "<div class='tx-price'>"+tx.price.toLocaleString()+" "+tx.currency+fxEqSpan(tx.price,tx.currency)+"</div>"
       )+
       (margin!==null?"<div class='tx-margin'>Margin: $"+margin.toFixed(0)+" ("+mPct+"%)</div>":"")+
       (()=>{
         const qm=(tx.qty||"").match(/[0-9]+/);const q=qm?parseInt(qm[0]):null;const printerTot=(q&&q>0)?tx.price*q:null;
         if(tx.totalOverride){
           const pTot=tx.printerTotalOverride||(printerTot&&!tx.noPrinterTotal?printerTot:null);
-          if(pTot)return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Printer Total: <strong>"+pTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:#1a3a4a;margin-top:3px'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong></div>";
-          return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong></div>";
+          if(pTot)return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Printer Total: <strong>"+pTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:#1a3a4a;margin-top:3px'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(tx.totalOverride,tx.currency)+"</div>";
+          return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Project Total: <strong>"+tx.totalOverride.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(tx.totalOverride,tx.currency)+"</div>";
         }
         if(!printerTot)return "";
-        if(tx.noPrinterTotal)return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong></div>";
-        return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Printer Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:#1a3a4a;margin-top:3px'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong></div>";
+        if(tx.noPrinterTotal)return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(printerTot,tx.currency)+"</div>";
+        return "<div style='font-size:11px;color:#1a3a4a;margin-top:6px;padding-top:5px;border-top:1px solid #c8d8e0'>Printer Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong></div><div style='font-size:11px;color:#1a3a4a;margin-top:3px'>Project Total: <strong>"+printerTot.toLocaleString()+" "+tx.currency+"</strong>"+fxEqSpan(printerTot,tx.currency)+"</div>";
       })()+
+      fxNoteLine+
       "<div style='display:flex;justify-content:flex-end;padding-bottom:14px;margin-top:auto;padding-top:8px'>"+
         "<button class='edit-btn' onclick='editTx("+TX.indexOf(tx)+",event)'>Edit</button>"+
       "</div>"+
     "</div></div>";
     return isSplit?"<div class='grp-entry' data-group='"+grpId+"' style='display:none'>"+inner+"</div>":inner;
   }).join("");
+}
+function buildCustomerCard(name,txs){
+  const country=txs[0].country,flagIcon=FLAGS[country]||"\u{1F310}";
+  const cardKey=name+"__"+country,isOpen=expandedCards[cardKey];
+  const pos=txs.filter(t=>t.status==="PO").length,qt=txs.filter(t=>t.status!=="PO").length;
+  const rows=buildTxEntriesHtml(txs);
   const sid=cardKey.replace(/[^a-zA-Z0-9]/g,"-");
   const escapedKey=cardKey.replace(/'/g,"\\'");
   return`<div class="card">
@@ -604,6 +615,8 @@ function openModal(){
     document.getElementById("f-warranty").value="";
     document.getElementById("modal-tx").querySelector(".modal-title").textContent="Add transaction entry";
     document.getElementById("modal-tx").removeAttribute("data-edit-id");
+    document.getElementById("modal-tx").removeAttribute("data-remove-pdf");
+    var pdfCur=document.getElementById("f-pdf-current");if(pdfCur)pdfCur.innerHTML="";
     var delBtn2=document.getElementById("btn-delete-tx");if(delBtn2)delBtn2.style.display="none";
     var saveBtn2=document.getElementById("btn-save-tx");if(saveBtn2){saveBtn2.textContent="Save entry";saveBtn2.onclick=sbSaveTx;}
     document.getElementById("modal-tx").classList.add("open");

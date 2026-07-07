@@ -87,16 +87,19 @@ function closeMobileSidebar(){
   } catch(e){}
 })();
 
-/* ===== VIEW MODE (table / cards) ===== */
-var VIEW_MODE = "table";
+/* ===== VIEW MODE (details / table / cards) =====
+   "detail" (master–detail) is the primary view. Stored under a new
+   key (cpd_view2) so everyone lands on the new view once, while
+   later choices still persist. */
+var VIEW_MODE = "detail";
 try {
-  var saved = localStorage.getItem("cpd_view");
-  if(saved === "cards" || saved === "table") VIEW_MODE = saved;
+  var saved = localStorage.getItem("cpd_view2");
+  if(saved === "cards" || saved === "table" || saved === "detail") VIEW_MODE = saved;
 } catch(e){}
 
 function setView(mode){
   VIEW_MODE = mode;
-  try { localStorage.setItem("cpd_view", mode); } catch(e){}
+  try { localStorage.setItem("cpd_view2", mode); } catch(e){}
   document.querySelectorAll(".view-toggle-btn").forEach(function(b){
     b.classList.toggle("active", b.dataset.view === mode);
   });
@@ -107,6 +110,10 @@ function setView(mode){
   document.querySelectorAll(".view-toggle-btn").forEach(function(b){
     b.classList.toggle("active", b.dataset.view === VIEW_MODE);
   });
+  // the toggle starts hidden in the HTML; show it on load since the
+  // initial tab is "customers"
+  var vt = document.getElementById("view-toggle");
+  if(vt && currentTab === "customers") vt.style.display = "inline-flex";
 })();
 
 /* ============================================================
@@ -117,7 +124,8 @@ function setView(mode){
 var renderCustomersCards = renderCustomers;
 renderCustomers = function(){
   if(VIEW_MODE === "table") renderCustomersTable();
-  else renderCustomersCards();
+  else if(VIEW_MODE === "cards") renderCustomersCards();
+  else renderCustomersDetail();
 };
 
 /* ============================================================
@@ -187,6 +195,7 @@ function renderCustomersTable(){
       "<td class='num cell-money'>"+priceCell+"</td>"+
       "<td class='num cell-margin'>"+(margin !== null ? "$"+margin.toFixed(0)+" ("+mPct+"%)" : "—")+"</td>"+
       "<td class='num'><div class='row-actions'>"+
+        (tx.pdfUrl?"<a class='pdf-clip' href='"+tx.pdfUrl+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title='Open attached PDF in a new tab'>&#128206;</a>":"")+
         "<button class='edit-btn' onclick='event.stopPropagation();editTx("+idx+",event)'>Edit</button>"+
       "</div></td>"+
     "</tr>"+
