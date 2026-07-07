@@ -5,10 +5,21 @@ async function sbGet(t){var r=await fetch(SB_URL+"/rest/v1/"+t+"?select=*&order=
 async function sbInsert(t,row){var r=await fetch(SB_URL+"/rest/v1/"+t,{method:"POST",headers:sbH(),body:JSON.stringify(row)});return r.ok?r.json():null;}
 async function sbDelete(t,id){return (await fetch(SB_URL+"/rest/v1/"+t+"?id=eq."+id,{method:"DELETE",headers:sbH()})).ok;}
 /* Attachments: array of {name,url}. Legacy rows saved before multi-PDF
-   support only have pdf_url — fall back to it when attachments is null. */
+   support only have pdf_url — fall back to it when attachments is null,
+   recovering the original filename from the storage path. */
+function attNameFromUrl(url){
+  try{
+    var base=decodeURIComponent(String(url).split("/").pop().split("?")[0]);
+    return base.replace(/^\d{10,}-/,"")||"PDF";
+  }catch(e){return "PDF";}
+}
 function attFromDb(r){
-  if(r.attachments&&Array.isArray(r.attachments))return r.attachments;
-  if(r.pdf_url)return[{name:"PDF",url:r.pdf_url}];
+  if(r.attachments&&Array.isArray(r.attachments)){
+    return r.attachments.map(function(a){
+      return (!a.name||a.name==="PDF")?{name:attNameFromUrl(a.url),url:a.url}:a;
+    });
+  }
+  if(r.pdf_url)return[{name:attNameFromUrl(r.pdf_url),url:r.pdf_url}];
   return[];
 }
 function dbToTx(r){return{_id:r.id,customer:r.customer||"",country:r.country||"",date:r.date||"",status:r.status||"PO",project:r.project||"",pn:r.pn||"",model:r.model||"",qty:r.qty||"",price:Number(r.price)||0,dualPrice:r.dual_price?Number(r.dual_price):undefined,currency:r.currency||"USD",terms:r.terms||[],warranty:r.warranty||"",bp:r.bp?Number(r.bp):null,totalOverride:r.total_override?Number(r.total_override):undefined,printerTotalOverride:r.printer_total_override?Number(r.printer_total_override):undefined,noPrinterTotal:r.no_printer_total||false,projectGroup:r.project_group||"",displayModel:r.display_model||"",attachments:attFromDb(r),notes:r.notes||[]};}
@@ -43,17 +54,24 @@ async function sbUploadAttachments(inputId,current){
   return current;
 }
 function attEscName(n){return String(n||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
-function attListHtml(list,removeFn){
-  if(!list.length)return "No PDFs attached yet.";
-  return list.map(function(a,i){
+function attListHtml(list,removeFn,inputId){
+  var html=list.map(function(a,i){
     return "<span class='att-item'>&#128206; <a href='"+a.url+"' target='_blank' rel='noopener'>"+attEscName(a.name)+"</a> <a href='#' class='att-remove' title='Remove' onclick='"+removeFn+"(event,"+i+")'>&#10005;</a></span>";
   }).join("");
+  /* files picked but not yet saved */
+  var input=inputId?document.getElementById(inputId):null;
+  if(input&&input.files&&input.files.length){
+    html+=Array.prototype.map.call(input.files,function(f){
+      return "<span class='att-item att-pending'>&#128206; "+attEscName(f.name)+" <em>uploads on save</em></span>";
+    }).join("");
+  }
+  return html||"No PDFs attached yet.";
 }
 /* Attachment state for the transaction modal */
 var TX_ATT=[];
 function renderTxAttList(){
   var el=document.getElementById("f-pdf-current");
-  if(el)el.innerHTML=attListHtml(TX_ATT,"txRemoveAttachment");
+  if(el)el.innerHTML=attListHtml(TX_ATT,"txRemoveAttachment","f-pdf");
 }
 function txRemoveAttachment(e,i){
   if(e)e.preventDefault();

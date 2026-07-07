@@ -757,3 +757,5 @@ tr.exp-detail td{
 .att-item a:hover{text-decoration:underline}
 .att-item .att-remove{color:var(--text-faint);font-size:10px;padding:0 2px}
 .att-item .att-remove:hover{color:#b91c1c;text-decoration:none}
+.att-item.att-pending{border-style:dashed;color:var(--text-faint)}
+.att-item.att-pending em{font-style:normal;font-size:9.5px;color:var(--text-faint)}

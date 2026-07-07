@@ -98,7 +98,7 @@ function pjRecalc(){
 var PJ_ATT=[];
 function renderPjAttList(){
   var el=document.getElementById("p-pdf-current");
-  if(el)el.innerHTML=attListHtml(PJ_ATT,"pjRemoveAttachment");
+  if(el)el.innerHTML=attListHtml(PJ_ATT,"pjRemoveAttachment","p-pdf");
 }
 function pjRemoveAttachment(e,i){
   if(e)e.preventDefault();
