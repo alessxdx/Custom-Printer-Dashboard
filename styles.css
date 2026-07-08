@@ -767,3 +767,5 @@ tr.exp-detail td{
 .pdf-clip.doc-invoice{background:var(--badge-special-bg);color:var(--badge-special-fg);border-color:transparent}
 .att-item .att-parse{color:var(--accent-text);font-size:13px;padding:0 3px;text-decoration:none}
 .att-item .att-parse:hover{filter:brightness(1.25)}
+.pchev{display:inline-block;font-size:11px;color:var(--text-faint);transition:transform .18s;margin-top:2px}
+.pchev.open{transform:rotate(180deg)}

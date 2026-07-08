@@ -488,6 +488,7 @@ function renderContent(){
 // NEW (Stage 2): renderProjects — read-only project + line item view
 // ============================================================
 let expandedProjects={};
+let expandedProjectItems={}; /* per-project line-item expand state (default collapsed) */
 function projectTotal(projId){
   return LINE_ITEMS.filter(function(li){return li.projectId===projId;})
     .reduce(function(sum,li){return sum+(li.qty*li.unitPrice);},0);
@@ -540,14 +541,17 @@ function buildProjectCard(name,projects){
     }).join("");
 
     return "<div style='padding:18px;border-bottom:3px solid var(--border-strong);background:var(--bg)'>"+
-      "<div style='display:flex;justify-content:space-between;align-items:start;margin-bottom:10px'>"+
-        "<div>"+
+      "<div onclick='toggleProjItems(\""+p._id+"\")' style='display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;cursor:pointer'>"+
+        "<div style='display:flex;gap:10px;align-items:flex-start'>"+
+          "<span class='pchev"+(expandedProjectItems[p._id]?" open":"")+"' id='pchev-"+p._id+"'>\u25be</span>"+
+          "<div>"+
           "<div style='font-size:11px;color:var(--text-muted);margin-bottom:4px'>"+(p.displayDate||p.date||"")+" \xb7 "+bStatus(p.status)+"</div>"+
           "<div style='font-size:14px;font-weight:600;color:var(--text-strong)'>"+p.project+"</div>"+
           (p.projectGroup?"<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--badge-group-bg);color:var(--badge-group-fg);border:1px solid var(--badge-group-bd);margin-top:4px'>\ud83d\udd17 "+p.projectGroup+"</div>":"")+
           "<div style='margin-top:6px'>"+
             (p.shippingTerms?bTerm(p.shippingTerms):"")+
             bWarranty(p.warranty)+
+          "</div>"+
           "</div>"+
         "</div>"+
         "<div style='text-align:right'>"+
@@ -556,8 +560,10 @@ function buildProjectCard(name,projects){
           (p.currency!=="USD"&&typeof fxNote==="function"&&fxNote(p.currency)?"<div class='fx-note'>"+fxNote(p.currency)+"</div>":"")+
         "</div>"+
       "</div>"+
-      (lineHtml?"<div style='background:var(--bg-soft);border:1px solid var(--divider);border-radius:8px;padding:6px 14px;margin-top:10px'>"+lineHtml+"</div>":"<div style='font-size:12px;color:#aaa;font-style:italic;padding:8px 0'>No line items</div>")+
-      (p.notes&&p.notes.length?"<div style='margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.6'>"+p.notes.map(function(n){return "<div>\u2022 "+n+"</div>";}).join("")+"</div>":"")+
+      "<div id='pitems-"+p._id+"' style='"+(expandedProjectItems[p._id]?"":"display:none;")+"'>"+
+        (lineHtml?"<div style='background:var(--bg-soft);border:1px solid var(--divider);border-radius:8px;padding:6px 14px;margin-top:10px'>"+lineHtml+"</div>":"<div style='font-size:12px;color:#aaa;font-style:italic;padding:8px 0'>No line items</div>")+
+        (p.notes&&p.notes.length?"<div style='margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.6'>"+p.notes.map(function(n){return "<div>\u2022 "+n+"</div>";}).join("")+"</div>":"")+
+      "</div>"+
       "<div style='display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:10px'>"+
         attClipsHtml(p.attachments)+
         "<button class='edit-btn' onclick='editProject(\""+p._id+"\")'>Edit</button>"+
@@ -576,6 +582,13 @@ function buildProjectCard(name,projects){
     "</div>"+
     "<div class='card-body "+(isOpen?"open":"")+"' id='body-"+sid+"'>"+bodyHtml+"</div>"+
   "</div>";
+}
+function toggleProjItems(pid){
+  expandedProjectItems[pid]=!expandedProjectItems[pid];
+  var el=document.getElementById("pitems-"+pid);
+  if(el)el.style.display=expandedProjectItems[pid]?"":"none";
+  var chev=document.getElementById("pchev-"+pid);
+  if(chev)chev.classList.toggle("open",expandedProjectItems[pid]);
 }
 function toggleProjectCard(key,sid){
   expandedProjects[key]=!expandedProjects[key];
