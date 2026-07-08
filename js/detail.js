@@ -36,7 +36,32 @@ function mdIsSplit(tx,txs){
    - Money uses the combined entries (source of truth for grouped project
      totals) and skips their split children. Value per entry:
      totalOverride, else unit price × parsed qty, else unit price. */
-function mdRollup(txs){
+/* Override-aware total for a project (By Project entry). */
+function mdProjTotal(p){
+  if(p.totalOverride)return p.totalOverride;
+  return LINE_ITEMS.filter(function(li){return li.projectId===p._id;})
+    .reduce(function(s,li){return s+li.qty*li.unitPrice;},0);
+}
+/* Does a project pass the active By Customer filter dropdowns? */
+function mdProjPassesFilters(p){
+  var fc=document.getElementById("fc").value;
+  var fs=document.getElementById("fs").value;
+  var fm=document.getElementById("fm").value;
+  if(fc&&p.country!==fc)return false;
+  if(fs&&p.status!==fs)return false;
+  if(fm&&!LINE_ITEMS.some(function(li){return li.projectId===p._id&&li.type==="printer"&&li.name===fm;}))return false;
+  return true;
+}
+/* Project-only deals for a customer key, respecting the filters. */
+function mdProjsForKey(key){
+  return getProjectOnly().filter(function(p){return (p.customer+"__"+p.country)===key&&mdProjPassesFilters(p);});
+}
+/* Per-customer rollup over transactions AND project-only deals.
+   - Transactions: unit counts from split entries (skip combined) and
+     money from combined entries (skip splits), as before.
+   - Project-only deals: printer units come from their line items,
+     money from the project total (override-aware). */
+function mdRollup(txs,projs){
   var models={},revenue={},pipeline={},approx=false;
   txs.forEach(function(tx){
     if(!mdIsCombined(tx)&&!tx.noPrinterTotal){
@@ -59,6 +84,17 @@ function mdRollup(txs){
       }
     }
   });
+  (projs||[]).forEach(function(p){
+    LINE_ITEMS.filter(function(li){return li.projectId===p._id&&li.type==="printer"&&li.qty>0;}).forEach(function(li){
+      var m=models[li.name]||(models[li.name]={po:0,quote:0,lost:0});
+      if(p.status==="PO")m.po+=li.qty;
+      else if(p.status==="Quotation")m.quote+=li.qty;
+      else m.lost+=li.qty;
+    });
+    var val=mdProjTotal(p);
+    if(p.status==="PO")revenue[p.currency]=(revenue[p.currency]||0)+val;
+    else if(p.status==="Quotation")pipeline[p.currency]=(pipeline[p.currency]||0)+val;
+  });
   return{models:models,revenue:revenue,pipeline:pipeline,approx:approx};
 }
 
@@ -78,43 +114,55 @@ function mdMoneyLines(map){
   return html;
 }
 
-/* Filtered + searched + sorted [key, txs] entries for the left list */
+/* Filtered + searched + sorted entries for the left list. Each entry is
+   {key,name,country,txs,projs} where projs are project-only deals. */
+function mdProjSearchText(p){
+  var li=LINE_ITEMS.filter(function(x){return x.projectId===p._id;}).map(function(x){return x.name+" "+(x.pn||"");}).join(" ");
+  return (p.customer+" "+p.country+" "+(p.project||"")+" "+(p.projectGroup||"")+" "+li).toLowerCase();
+}
 function mdComputeEntries(){
   var data=getFiltered();
   var sortMode=document.getElementById("fsort").value;
-  var byC={};
-  data.forEach(function(t){var k=t.customer+"__"+t.country;if(!byC[k])byC[k]=[];byC[k].push(t);});
-  var entries=Object.entries(byC);
+  var map={};
+  function ent(customer,country){
+    var k=customer+"__"+country;
+    if(!map[k])map[k]={key:k,name:customer,country:country,txs:[],projs:[]};
+    return map[k];
+  }
+  data.forEach(function(t){ent(t.customer,t.country).txs.push(t);});
+  getProjectOnly().forEach(function(p){if(mdProjPassesFilters(p))ent(p.customer,p.country).projs.push(p);});
+  var entries=Object.keys(map).map(function(k){return map[k];});
   var q=MD_SEARCH.trim().toLowerCase();
   if(q){
     entries=entries.filter(function(e){
-      return e[1].some(function(t){
-        return (t.customer+" "+t.country+" "+t.model+" "+(t.project||"")+" "+(t.projectGroup||"")+" "+(t.pn||"")).toLowerCase().indexOf(q)!==-1;
-      });
+      return e.txs.some(function(t){return (t.customer+" "+t.country+" "+t.model+" "+(t.project||"")+" "+(t.projectGroup||"")+" "+(t.pn||"")).toLowerCase().indexOf(q)!==-1;})
+        ||e.projs.some(function(p){return mdProjSearchText(p).indexOf(q)!==-1;});
     });
   }
-  if(sortMode==="name")entries.sort(function(a,b){return a[1][0].customer.localeCompare(b[1][0].customer);});
-  else if(sortMode==="name-desc")entries.sort(function(a,b){return b[1][0].customer.localeCompare(a[1][0].customer);});
-  else if(sortMode==="po-desc")entries.sort(function(a,b){return b[1].filter(function(t){return t.status==="PO";}).length-a[1].filter(function(t){return t.status==="PO";}).length;});
-  else if(sortMode==="recent")entries.sort(function(a,b){return Math.max.apply(null,b[1].map(function(t){return parseDV(t.date);}))-Math.max.apply(null,a[1].map(function(t){return parseDV(t.date);}));});
+  function poCount(e){return e.txs.filter(function(t){return t.status==="PO";}).length+e.projs.filter(function(p){return p.status==="PO";}).length;}
+  function recent(e){var ds=e.txs.map(function(t){return parseDV(t.date);}).concat(e.projs.map(function(p){return parseDV(p.date);}));return ds.length?Math.max.apply(null,ds):0;}
+  if(sortMode==="name")entries.sort(function(a,b){return a.name.localeCompare(b.name);});
+  else if(sortMode==="name-desc")entries.sort(function(a,b){return b.name.localeCompare(a.name);});
+  else if(sortMode==="po-desc")entries.sort(function(a,b){return poCount(b)-poCount(a);});
+  else if(sortMode==="recent")entries.sort(function(a,b){return recent(b)-recent(a);});
+  else entries.sort(function(a,b){return a.name.localeCompare(b.name);});
   return entries;
 }
 
 function buildMdList(entries){
   if(!entries.length)return "<div class='md-none'>No customers match.</div>";
   var byCountry={};
-  entries.forEach(function(e){var c=e[1][0].country||"Unknown";if(!byCountry[c])byCountry[c]=[];byCountry[c].push(e);});
+  entries.forEach(function(e){var c=e.country||"Unknown";if(!byCountry[c])byCountry[c]=[];byCountry[c].push(e);});
   return Object.keys(byCountry).sort().map(function(country){
     var items=byCountry[country].map(function(e){
-      var key=e[0],txs=e[1],name=txs[0].customer;
-      var pos=txs.filter(function(t){return t.status==="PO";}).length;
-      var qt=txs.filter(function(t){return t.status==="Quotation";}).length;
-      var ls=txs.filter(function(t){return t.status==="Lose";}).length;
+      var pos=e.txs.filter(function(t){return t.status==="PO";}).length+e.projs.filter(function(p){return p.status==="PO";}).length;
+      var qt=e.txs.filter(function(t){return t.status==="Quotation";}).length+e.projs.filter(function(p){return p.status==="Quotation";}).length;
+      var ls=e.txs.filter(function(t){return t.status==="Lose";}).length+e.projs.filter(function(p){return p.status==="Lose";}).length;
       var meta=pos+" PO"+(pos!==1?"s":"")+" · "+qt+" quote"+(qt!==1?"s":"")+(ls?" · "+ls+" lost":"");
-      return "<div class='md-item"+(key===MD_SEL?" active":"")+"' data-key=\""+mdEscAttr(key)+"\" onclick='mdSelect(this.getAttribute(\"data-key\"))'>"+
-        flagImg(txs[0].country,20)+
+      return "<div class='md-item"+(e.key===MD_SEL?" active":"")+"' data-key=\""+mdEscAttr(e.key)+"\" onclick='mdSelect(this.getAttribute(\"data-key\"))'>"+
+        flagImg(e.country,20)+
         "<div class='md-item-main'>"+
-          "<div class='md-item-name'>"+name+"</div>"+
+          "<div class='md-item-name'>"+e.name+"</div>"+
           "<div class='md-item-meta'>"+meta+"</div>"+
         "</div>"+
         "<div class='md-item-chev'>›</div>"+
@@ -126,12 +174,14 @@ function buildMdList(entries){
 
 function buildMdDetail(key){
   var txs=TX.filter(function(t){return (t.customer+"__"+t.country)===key;});
-  if(!txs.length)return "<div class='md-empty'>No entries for this customer.</div>";
-  var name=txs[0].customer,country=txs[0].country;
-  var r=mdRollup(txs);
-  var pos=txs.filter(function(t){return t.status==="PO";}).length;
-  var qt=txs.filter(function(t){return t.status==="Quotation";}).length;
-  var ls=txs.filter(function(t){return t.status==="Lose";}).length;
+  var projs=mdProjsForKey(key);
+  if(!txs.length&&!projs.length)return "<div class='md-empty'>No entries for this customer.</div>";
+  var ref=txs[0]||projs[0];
+  var name=ref.customer,country=ref.country;
+  var r=mdRollup(txs,projs);
+  var pos=txs.filter(function(t){return t.status==="PO";}).length+projs.filter(function(p){return p.status==="PO";}).length;
+  var qt=txs.filter(function(t){return t.status==="Quotation";}).length+projs.filter(function(p){return p.status==="Quotation";}).length;
+  var ls=txs.filter(function(t){return t.status==="Lose";}).length+projs.filter(function(p){return p.status==="Lose";}).length;
 
   var modelKeys=Object.keys(r.models).sort();
   var anyLost=modelKeys.some(function(m){return r.models[m].lost>0;});
@@ -147,6 +197,7 @@ function buildMdDetail(key){
     :"<div class='md-money-none'>No printer quantities recorded.</div>";
 
   var curs=[];txs.forEach(function(t){if(curs.indexOf(t.currency)===-1)curs.push(t.currency);});
+  projs.forEach(function(p){if(curs.indexOf(p.currency)===-1)curs.push(p.currency);});
   var notes=fxNotesFor(curs);
   var fxBlock=notes.length?"<div class='md-fx-notes'>"+notes.map(function(n){return "<div class='fx-note'>"+n+"</div>";}).join("")+(FX.live?"":"<div class='fx-note'>Live rates unavailable — using stored estimates.</div>")+"</div>":"";
 
@@ -172,8 +223,11 @@ function buildMdDetail(key){
     "</div>"+
     fxBlock+
     "<div class='md-section md-entries'>"+
-      "<div class='md-section-title'>History — quotations &amp; POs ("+txs.length+" entries)</div>"+
-      "<div class='md-entries-body'>"+buildTxEntriesHtml(txs)+"</div>"+
+      "<div class='md-section-title'>History — quotations &amp; POs ("+(txs.length+projs.length)+" entries)</div>"+
+      "<div class='md-entries-body'>"+
+        buildTxEntriesHtml(txs)+
+        (projs.length?projs.slice().sort(function(a,b){return parseDV(b.date)-parseDV(a.date);}).map(buildProjectBlock).join(""):"")+
+      "</div>"+
     "</div>";
 }
 
@@ -198,7 +252,7 @@ function renderCustomersDetail(){
     document.getElementById("content").innerHTML='<div class="empty">No transactions match your filters.</div>';
     return;
   }
-  var keys=entries.map(function(e){return e[0];});
+  var keys=entries.map(function(e){return e.key;});
   if(MD_SEL&&keys.indexOf(MD_SEL)===-1)MD_SEL=null;
   if(!MD_SEL&&keys.length&&!window.matchMedia("(max-width: 980px)").matches)MD_SEL=keys[0];
 

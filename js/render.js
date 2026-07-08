@@ -45,9 +45,26 @@ function refreshFilterOptions(){
   if(cntl)cntl.innerHTML=[...new Set(TX.map(t=>t.country))].sort().map(c=>`<option value="${c}">`).join("");
   var pgl=document.getElementById("project-group-list");if(pgl)pgl.innerHTML=[...new Set(TX.map(t=>t.projectGroup).filter(Boolean))].sort().map(p=>`<option value="${p}">`).join("");
 }
+/* A deal is identified by customer+country+project. "Project-only" deals
+   are By-Project entries with no matching transaction — they're the part
+   of a customer's picture the flat transactions table doesn't hold, so
+   By Customer folds them into its rollups (matched deals stay counted
+   once, from the transaction side, so nothing double-counts). */
+function dealKey(customer,country,project){return (customer||"").trim().toLowerCase()+"||"+(country||"").trim().toLowerCase()+"||"+(project||"").trim().toLowerCase();}
+function getProjectOnly(){
+  if(typeof PROJECTS==="undefined"||!PROJECTS.length)return [];
+  var seen={};
+  TX.forEach(function(t){seen[dealKey(t.customer,t.country,t.project)]=true;});
+  return PROJECTS.filter(function(p){return !seen[dealKey(p.customer,p.country,p.project)];});
+}
 function renderStats(){
-  const pos=TX.filter(t=>t.status==="PO").length,qt=TX.filter(t=>t.status==="Quotation").length,ls=TX.filter(t=>t.status==="Lose").length;
-  const cu=new Set(TX.map(t=>t.customer+"__"+t.country)).size;
+  const projOnly=getProjectOnly();
+  const pos=TX.filter(t=>t.status==="PO").length+projOnly.filter(p=>p.status==="PO").length;
+  const qt=TX.filter(t=>t.status==="Quotation").length+projOnly.filter(p=>p.status==="Quotation").length;
+  const ls=TX.filter(t=>t.status==="Lose").length+projOnly.filter(p=>p.status==="Lose").length;
+  const custSet=new Set(TX.map(t=>t.customer+"__"+t.country));
+  projOnly.forEach(p=>custSet.add(p.customer+"__"+p.country));
+  const cu=custSet.size;
   document.getElementById("stats").innerHTML=`
     <div class="stat"><div class="stat-label">Customers</div><div class="stat-value">${cu}</div><div class="stat-sub">across multiple countries</div></div>
     <div class="stat"><div class="stat-label">Confirmed POs</div><div class="stat-value">${pos}</div><div class="stat-sub">transactions</div></div>
@@ -497,17 +514,7 @@ function projectPrinterTotal(projId){
   return LINE_ITEMS.filter(function(li){return li.projectId===projId&&li.type==="printer";})
     .reduce(function(sum,li){return sum+(li.qty*li.unitPrice);},0);
 }
-function buildProjectCard(name,projects){
-  var country=projects[0].country;
-  var flag=FLAGS[country]||"";
-  var poCount=projects.filter(function(p){return p.status==="PO";}).length;
-  var qtCount=projects.filter(function(p){return p.status!=="PO";}).length;
-  var sorted=projects.slice().sort(function(a,b){return parseDV(b.date)-parseDV(a.date);});
-  var cardKey="proj__"+name+"__"+country;
-  var sid=cardKey.replace(/[^a-zA-Z0-9]/g,"-");
-  var isOpen=expandedProjects[cardKey];
-
-  var bodyHtml=sorted.map(function(p){
+function buildProjectBlock(p){
     var lis=LINE_ITEMS.filter(function(li){return li.projectId===p._id;})
       .sort(function(a,b){return a.sortOrder-b.sortOrder;});
     var totalCalc=projectTotal(p._id);
@@ -569,7 +576,17 @@ function buildProjectCard(name,projects){
         "<button class='edit-btn' onclick='editProject(\""+p._id+"\")'>Edit</button>"+
       "</div>"+
     "</div>";
-  }).join("");
+}
+function buildProjectCard(name,projects){
+  var country=projects[0].country;
+  var flag=FLAGS[country]||"";
+  var poCount=projects.filter(function(p){return p.status==="PO";}).length;
+  var qtCount=projects.filter(function(p){return p.status!=="PO";}).length;
+  var sorted=projects.slice().sort(function(a,b){return parseDV(b.date)-parseDV(a.date);});
+  var cardKey="proj__"+name+"__"+country;
+  var sid=cardKey.replace(/[^a-zA-Z0-9]/g,"-");
+  var isOpen=expandedProjects[cardKey];
+  var bodyHtml=sorted.map(buildProjectBlock).join("");
 
   return "<div class='card'>"+
     "<div class='card-header' onclick='toggleProjectCard(\""+cardKey.replace(/'/g,"\\'")+"\",\""+sid+"\")'>"+
