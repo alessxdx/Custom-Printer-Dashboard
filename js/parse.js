@@ -185,12 +185,17 @@ function pjApplyParsed(q,label){
   say("Filled from "+(q.ref||label)+" — "+q.items.length+" line items. Review, then Save.");
   return true;
 }
-/* Shared: confirm-if-needed, read lines via getLines(), parse, apply. */
-async function pjParseInto(getLines,label){
+/* Shared: confirm-if-needed, read lines via getLines(), parse, apply.
+   `pre` is an optional lead-in line explaining how this PDF was chosen. */
+async function pjParseInto(getLines,label,pre){
   var status=document.getElementById("pj-parse-status");
   var say=function(t){if(status)status.textContent=t;};
-  var hasData=pjReadRows().some(function(r){return r.name;});
-  if(hasData&&!confirm("Replace the current line items with the ones parsed from \""+label+"\"?"))return;
+  var curRows=pjReadRows().filter(function(r){return r.name;});
+  if(curRows.length){
+    var msg=(pre?pre+"\n\n":"")+
+      "This will replace the "+curRows.length+" line item"+(curRows.length!==1?"s":"")+" already in the form with the ones read from:\n\n“"+label+"”\n\nOK = replace them   ·   Cancel = keep what's there";
+    if(!confirm(msg))return;
+  }
   try{
     say("Reading "+label+"…");
     var lines=await getLines();
@@ -202,16 +207,17 @@ async function pjParseInto(getLines,label){
   }
 }
 /* ⚡ on a specific attachment chip — parse that already-attached PDF. */
-async function pjParseAttachment(e,i){
+async function pjParseAttachment(e,i,pre){
   if(e)e.preventDefault();
   var att=(typeof PJ_ATT!=="undefined")&&PJ_ATT[i];
   if(!att)return;
   return pjParseInto(function(){
     return fetch(att.url).then(function(r){if(!r.ok)throw new Error("could not download the PDF");return r.blob();}).then(function(b){return pdfFileToLines(new File([b],att.name,{type:"application/pdf"}));});
-  },att.name);
+  },att.name,pre);
 }
 /* Main button: parse a freshly-picked file, else the Quotation-tagged
-   attachment, else guide the user to the per-PDF ⚡ button. */
+   attachment (telling the user it auto-picked), else guide them to the
+   per-PDF ⚡ button. */
 async function pjImportFromPdf(){
   var input=document.getElementById("p-pdf");
   if(input&&input.files&&input.files[0]){
@@ -220,7 +226,7 @@ async function pjImportFromPdf(){
   }
   var atts=(typeof PJ_ATT!=="undefined"&&PJ_ATT)?PJ_ATT:[];
   var quotes=atts.map(function(a,i){return{a:a,i:i};}).filter(function(x){return (x.a.doctype||"")==="Quotation";});
-  if(quotes.length===1)return pjParseAttachment(null,quotes[0].i);
+  if(quotes.length===1)return pjParseAttachment(null,quotes[0].i,"No file was picked in “Choose files”, so this reads the attached PDF tagged “Quotation”. (To read a different one, click the ⚡ next to it.)");
   if(atts.length){alert("You have more than one PDF here. Click the ⚡ button next to the specific PDF you want to read (e.g. the Quotation).");return;}
-  alert("First choose the quotation PDF in the \"PDF documents\" field above, then click Fill again.");
+  alert("First choose the quotation PDF in the “PDF documents” field above, then click Fill again.");
 }
