@@ -179,7 +179,10 @@ async function pjImportFromPdf(){
     set("p-currency",q.currency);
     set("p-terms",q.terms);
     set("p-warranty",q.warranty);
-    document.getElementById("p-status").value="Quotation";
+    /* Only default the status to Quotation for a brand-new entry; when
+       overriding an existing one keep whatever status it already has
+       (e.g. a confirmed PO shouldn't silently revert to Quotation). */
+    if(!PJ_EDIT_ID)document.getElementById("p-status").value="Quotation";
     if(q.totalOverride)document.getElementById("p-override").value=q.totalOverride;
     if(q.notes.length)document.getElementById("p-notes").value=q.notes.join("\n");
     document.getElementById("pj-rows").innerHTML="";
