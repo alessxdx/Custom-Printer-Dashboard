@@ -156,46 +156,71 @@ function parseQuotation(lines){
 
 /* Button handler in the project modal: parse the first selected PDF
    and pre-fill the form. The file stays selected so it uploads on save. */
-async function pjImportFromPdf(){
-  var input=document.getElementById("p-pdf");
+/* Apply a parsed quotation to the modal form. Returns true on success. */
+function pjApplyParsed(q,label){
   var status=document.getElementById("pj-parse-status");
   var say=function(t){if(status)status.textContent=t;};
-  if(!input||!input.files||!input.files[0]){
-    alert("First choose the quotation PDF in the \"PDF documents\" field above, then click Fill again.");
-    return;
-  }
+  if(!q.items.length){say("");alert("No line items found in \""+label+"\" — this PDF doesn't match the known quotation layout (POs and invoices have different formats). Fill the form manually.");return false;}
+  var set=function(id,v){if(v)document.getElementById(id).value=v;};
+  set("p-customer",q.customer);
+  set("p-country",q.country);
+  set("p-date",q.date);
+  set("p-project",q.project);
+  set("p-currency",q.currency);
+  set("p-terms",q.terms);
+  set("p-warranty",q.warranty);
+  /* Only default the status to Quotation for a brand-new entry; when
+     overriding an existing one keep whatever status it already has
+     (e.g. a confirmed PO shouldn't silently revert to Quotation). */
+  if(!PJ_EDIT_ID)document.getElementById("p-status").value="Quotation";
+  if(q.totalOverride)document.getElementById("p-override").value=q.totalOverride;
+  if(q.notes.length)document.getElementById("p-notes").value=q.notes.join("\n");
+  document.getElementById("pj-rows").innerHTML="";
+  q.items.forEach(function(li){
+    /* auto-fill buying price for margin when the PN or name is known */
+    var match=findBuyingMatch(li.name,li.pn);
+    pjAddRow({type:li.type,name:li.name,pn:li.pn,qty:li.qty,unitPrice:li.unitPrice,buyingPrice:(match&&li.type==="printer"&&match.currency==="USD")?match.price:""});
+  });
+  pjRecalc();
+  say("Filled from "+(q.ref||label)+" — "+q.items.length+" line items. Review, then Save.");
+  return true;
+}
+/* Shared: confirm-if-needed, read lines via getLines(), parse, apply. */
+async function pjParseInto(getLines,label){
+  var status=document.getElementById("pj-parse-status");
+  var say=function(t){if(status)status.textContent=t;};
   var hasData=pjReadRows().some(function(r){return r.name;});
-  if(hasData&&!confirm("Replace the current line items with the ones parsed from the PDF?"))return;
+  if(hasData&&!confirm("Replace the current line items with the ones parsed from \""+label+"\"?"))return;
   try{
-    say("Reading PDF…");
-    var lines=await pdfFileToLines(input.files[0]);
-    var q=parseQuotation(lines);
-    if(!q.items.length){say("");alert("No line items found — this PDF doesn't match the known quotation layout. Fill the form manually.");return;}
-    var set=function(id,v){if(v)document.getElementById(id).value=v;};
-    set("p-customer",q.customer);
-    set("p-country",q.country);
-    set("p-date",q.date);
-    set("p-project",q.project);
-    set("p-currency",q.currency);
-    set("p-terms",q.terms);
-    set("p-warranty",q.warranty);
-    /* Only default the status to Quotation for a brand-new entry; when
-       overriding an existing one keep whatever status it already has
-       (e.g. a confirmed PO shouldn't silently revert to Quotation). */
-    if(!PJ_EDIT_ID)document.getElementById("p-status").value="Quotation";
-    if(q.totalOverride)document.getElementById("p-override").value=q.totalOverride;
-    if(q.notes.length)document.getElementById("p-notes").value=q.notes.join("\n");
-    document.getElementById("pj-rows").innerHTML="";
-    q.items.forEach(function(li){
-      /* auto-fill buying price for margin when the PN or name is known */
-      var match=findBuyingMatch(li.name,li.pn);
-      pjAddRow({type:li.type,name:li.name,pn:li.pn,qty:li.qty,unitPrice:li.unitPrice,buyingPrice:(match&&li.type==="printer"&&match.currency==="USD")?match.price:""});
-    });
-    pjRecalc();
-    say("Filled from "+(q.ref||input.files[0].name)+" — "+q.items.length+" line items. Review, then Save.");
+    say("Reading "+label+"…");
+    var lines=await getLines();
+    pjApplyParsed(parseQuotation(lines),label);
   }catch(err){
     console.error(err);
     say("");
     alert("Could not parse the PDF: "+err.message);
   }
+}
+/* ⚡ on a specific attachment chip — parse that already-attached PDF. */
+async function pjParseAttachment(e,i){
+  if(e)e.preventDefault();
+  var att=(typeof PJ_ATT!=="undefined")&&PJ_ATT[i];
+  if(!att)return;
+  return pjParseInto(function(){
+    return fetch(att.url).then(function(r){if(!r.ok)throw new Error("could not download the PDF");return r.blob();}).then(function(b){return pdfFileToLines(new File([b],att.name,{type:"application/pdf"}));});
+  },att.name);
+}
+/* Main button: parse a freshly-picked file, else the Quotation-tagged
+   attachment, else guide the user to the per-PDF ⚡ button. */
+async function pjImportFromPdf(){
+  var input=document.getElementById("p-pdf");
+  if(input&&input.files&&input.files[0]){
+    var f=input.files[0];
+    return pjParseInto(function(){return pdfFileToLines(f);},f.name);
+  }
+  var atts=(typeof PJ_ATT!=="undefined"&&PJ_ATT)?PJ_ATT:[];
+  var quotes=atts.map(function(a,i){return{a:a,i:i};}).filter(function(x){return (x.a.doctype||"")==="Quotation";});
+  if(quotes.length===1)return pjParseAttachment(null,quotes[0].i);
+  if(atts.length){alert("You have more than one PDF here. Click the ⚡ button next to the specific PDF you want to read (e.g. the Quotation).");return;}
+  alert("First choose the quotation PDF in the \"PDF documents\" field above, then click Fill again.");
 }

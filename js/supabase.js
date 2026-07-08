@@ -69,9 +69,10 @@ function docTypeSelect(cur,setFn,i){
     DOCTYPES.map(function(t){return "<option"+(t===cur?" selected":"")+">"+t+"</option>";}).join("")+
   "</select>";
 }
-function attListHtml(list,removeFn,setFn,inputId){
+function attListHtml(list,removeFn,setFn,inputId,parseFn){
   var html=list.map(function(a,i){
-    return "<span class='att-item'>"+docTypeSelect(a.doctype||guessDoctype(a.name),setFn,i)+" &#128206; <a href='"+a.url+"' target='_blank' rel='noopener'>"+attEscName(a.name)+"</a> <a href='#' class='att-remove' title='Remove' onclick='"+removeFn+"(event,"+i+")'>&#10005;</a></span>";
+    var parseBtn=parseFn?" <a href='#' class='att-parse' title='Fill the form from this PDF' onclick='"+parseFn+"(event,"+i+")'>&#9889;</a>":"";
+    return "<span class='att-item'>"+docTypeSelect(a.doctype||guessDoctype(a.name),setFn,i)+" &#128206; <a href='"+a.url+"' target='_blank' rel='noopener'>"+attEscName(a.name)+"</a>"+parseBtn+" <a href='#' class='att-remove' title='Remove' onclick='"+removeFn+"(event,"+i+")'>&#10005;</a></span>";
   }).join("");
   /* files picked but not yet saved */
   var input=inputId?document.getElementById(inputId):null;
