@@ -75,6 +75,11 @@ function attClipsHtml(list){
   }).join(" ");
 }
 function buildTxEntriesHtml(txs){
+  /* Which project groups still have a combined "ATB + BTP" summary entry?
+     Split rows are only hidden behind that entry's toggle; if the combined
+     entry was deleted, the orphaned splits must show on their own. */
+  const combinedGroups={};
+  txs.forEach(function(t){if(t.projectGroup&&t.model&&t.model.includes("+"))combinedGroups[t.projectGroup]=true;});
   const sorted=[...txs].sort((a,b)=>{
       const aCombined=a.projectGroup&&a.model&&a.model.includes("+");
       const bCombined=b.projectGroup&&b.model&&b.model.includes("+");
@@ -134,7 +139,8 @@ function buildTxEntriesHtml(txs){
         "<button class='edit-btn' onclick='editTx("+TX.indexOf(tx)+",event)'>Edit</button>"+
       "</div>"+
     "</div></div>";
-    return isSplit?"<div class='grp-entry' data-group='"+grpId+"' style='display:none'>"+inner+"</div>":inner;
+    const hiddenSplit=isSplit&&combinedGroups[tx.projectGroup];
+    return hiddenSplit?"<div class='grp-entry' data-group='"+grpId+"' style='display:none'>"+inner+"</div>":inner;
   }).join("");
 }
 function buildCustomerCard(name,txs){

@@ -116,16 +116,19 @@ async function loadFromDB(){
     if(projRows){PROJECTS.length=0;projRows.forEach(function(r){PROJECTS.push(dbToProject(r));});}
     if(liRows){LINE_ITEMS.length=0;liRows.forEach(function(r){LINE_ITEMS.push(dbToLineItem(r));});}
 
-    // Only trust DB if it has a reasonable number of rows (>= hardcoded count)
-    // Otherwise treat as incomplete seed and re-seed from code
+    // Seed the built-in sample rows ONLY into a genuinely empty table
+    // (first-time bootstrap). Once a table has any rows we always trust
+    // the DB, so the user's own edits and deletions are never reverted.
+    // (Use reseedDB() manually if a full reset back to the code data is
+    // ever wanted.)
     var TX_CODE_COUNT=TX_SEED.length;
     var BUYING_CODE_COUNT=BUYING_SEED.length;
     var OTHERS_CODE_COUNT=OTHERS_SEED.length;
 
-    if(txRows&&txRows.length>=TX_CODE_COUNT){
+    if(txRows&&txRows.length>0){
       TX.length=0;txRows.forEach(function(r){TX.push(dbToTx(r));});
     } else {
-      // Incomplete or empty — wipe and re-seed
+      // Empty table — bootstrap with the sample rows
       showLoad("Seeding transactions ("+TX_CODE_COUNT+" entries)...");
       await fetch(SB_URL+"/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
       TX.length=0;
@@ -137,7 +140,7 @@ async function loadFromDB(){
       }
     }
 
-    if(buyRows&&buyRows.length>=BUYING_CODE_COUNT){
+    if(buyRows&&buyRows.length>0){
       BUYING.length=0;buyRows.forEach(function(r){BUYING.push(dbToB(r));});
     } else {
       showLoad("Seeding buying prices ("+BUYING_CODE_COUNT+" entries)...");
