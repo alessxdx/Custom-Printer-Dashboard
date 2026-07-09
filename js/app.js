@@ -122,11 +122,9 @@ function setView(mode){
    and define a new renderCustomers that dispatches by VIEW_MODE.
    ============================================================ */
 var renderCustomersCards = renderCustomers;
-renderCustomers = function(){
-  if(VIEW_MODE === "table") renderCustomersTable();
-  else if(VIEW_MODE === "cards") renderCustomersCards();
-  else renderCustomersDetail();
-};
+/* By Customer is the single unified master–detail view. (Table/Cards
+   renderers kept as dead code in case a flat view is rebuilt later.) */
+renderCustomers = function(){ renderCustomersDetail(); };
 
 /* ============================================================
    TABLE VIEW for "By Customer"
