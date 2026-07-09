@@ -675,24 +675,9 @@ function populateModelSelect(){
   }).join("");
 }
 function openModal(){
-  if(currentTab==="customers"){
-    refreshFilterOptions();
-    populateModelSelect();
-    // Clear all fields before opening for new entry
-    document.getElementById("modal-tx").querySelectorAll("input,textarea").forEach(function(el){el.value="";});
-    document.getElementById("f-status").value="PO";
-    document.getElementById("f-currency").value="USD";
-    document.getElementById("f-terms").value="";
-    document.getElementById("f-warranty").value="";
-    document.getElementById("modal-tx").querySelector(".modal-title").textContent="Add transaction entry";
-    document.getElementById("modal-tx").removeAttribute("data-edit-id");
-    TX_ATT=[];
-    renderTxAttList();
-    var delBtn2=document.getElementById("btn-delete-tx");if(delBtn2)delBtn2.style.display="none";
-    var saveBtn2=document.getElementById("btn-save-tx");if(saveBtn2){saveBtn2.textContent="Save entry";saveBtn2.onclick=sbSaveTx;}
-    document.getElementById("modal-tx").classList.add("open");
-  }
-  else if(currentTab==="projects"){
+  if(currentTab==="customers"||currentTab==="projects"){
+    // New entries are created as projects (line items + PDF parsing).
+    // The transaction modal is still used when editing legacy transactions.
     openProjectModal();
   }
   else if(currentTab==="buying"){
