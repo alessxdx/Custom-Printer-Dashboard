@@ -52,9 +52,15 @@ function mdProjPassesFilters(p){
   if(fm&&!LINE_ITEMS.some(function(li){return li.projectId===p._id&&li.type==="printer"&&li.name===fm;}))return false;
   return true;
 }
-/* Project-only deals for a customer key, respecting the filters. */
-function mdProjsForKey(key){
-  return getProjectOnly().filter(function(p){return (p.customer+"__"+p.country)===key&&mdProjPassesFilters(p);});
+/* Does a transaction pass the active filter dropdowns? */
+function mdTxPassesFilters(t){
+  var fc=document.getElementById("fc").value,fm=document.getElementById("fm").value,fs=document.getElementById("fs").value;
+  return (!fc||t.country===fc)&&(!fm||t.model===fm)&&(!fs||t.status===fs);
+}
+/* Resolved deals with the filter dropdowns applied. */
+function mdFilteredResolved(){
+  var R=resolveDeals();
+  return {txs:R.txs.filter(mdTxPassesFilters),projs:R.projs.filter(mdProjPassesFilters)};
 }
 /* Per-customer rollup over transactions AND project-only deals.
    - Transactions: unit counts from split entries (skip combined) and
@@ -85,7 +91,7 @@ function mdRollup(txs,projs){
     }
   });
   (projs||[]).forEach(function(p){
-    LINE_ITEMS.filter(function(li){return li.projectId===p._id&&li.type==="printer"&&li.qty>0;}).forEach(function(li){
+    LINE_ITEMS.filter(function(li){return li.projectId===p._id&&li.type==="printer"&&li.qty>0&&!/\bTPH\b/i.test(li.name);}).forEach(function(li){
       var m=models[li.name]||(models[li.name]={po:0,quote:0,lost:0});
       if(p.status==="PO")m.po+=li.qty;
       else if(p.status==="Quotation")m.quote+=li.qty;
@@ -121,16 +127,16 @@ function mdProjSearchText(p){
   return (p.customer+" "+p.country+" "+(p.project||"")+" "+(p.projectGroup||"")+" "+li).toLowerCase();
 }
 function mdComputeEntries(){
-  var data=getFiltered();
   var sortMode=document.getElementById("fsort").value;
+  var R=mdFilteredResolved();
   var map={};
   function ent(customer,country){
     var k=customer+"__"+country;
     if(!map[k])map[k]={key:k,name:customer,country:country,txs:[],projs:[]};
     return map[k];
   }
-  data.forEach(function(t){ent(t.customer,t.country).txs.push(t);});
-  getProjectOnly().forEach(function(p){if(mdProjPassesFilters(p))ent(p.customer,p.country).projs.push(p);});
+  R.txs.forEach(function(t){ent(t.customer,t.country).txs.push(t);});
+  R.projs.forEach(function(p){ent(p.customer,p.country).projs.push(p);});
   var entries=Object.keys(map).map(function(k){return map[k];});
   var q=MD_SEARCH.trim().toLowerCase();
   if(q){
@@ -173,8 +179,9 @@ function buildMdList(entries){
 }
 
 function buildMdDetail(key){
-  var txs=TX.filter(function(t){return (t.customer+"__"+t.country)===key;});
-  var projs=mdProjsForKey(key);
+  var R=resolveDeals();
+  var txs=R.txs.filter(function(t){return (t.customer+"__"+t.country)===key;});
+  var projs=R.projs.filter(function(p){return (p.customer+"__"+p.country)===key;});
   if(!txs.length&&!projs.length)return "<div class='md-empty'>No entries for this customer.</div>";
   var ref=txs[0]||projs[0];
   var name=ref.customer,country=ref.country;

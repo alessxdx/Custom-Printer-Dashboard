@@ -45,25 +45,40 @@ function refreshFilterOptions(){
   if(cntl)cntl.innerHTML=[...new Set(TX.map(t=>t.country))].sort().map(c=>`<option value="${c}">`).join("");
   var pgl=document.getElementById("project-group-list");if(pgl)pgl.innerHTML=[...new Set(TX.map(t=>t.projectGroup).filter(Boolean))].sort().map(p=>`<option value="${p}">`).join("");
 }
-/* A deal is identified by customer+country+project. "Project-only" deals
-   are By-Project entries with no matching transaction — they're the part
-   of a customer's picture the flat transactions table doesn't hold, so
-   By Customer folds them into its rollups (matched deals stay counted
-   once, from the transaction side, so nothing double-counts). */
+/* A deal is identified by customer+country+project. To give By Customer a
+   complete, non-double-counted overview that also spans By-Project data,
+   every deal is resolved to ONE representation:
+   - only a project exists  -> use the project (e.g. BOHOL-PANGLAO)
+   - only a transaction      -> use the transaction
+   - both, totals match      -> use the project (richer: line items, PDFs)
+   - both, totals differ     -> keep the transaction (authoritative; the
+                                project migration was incomplete, e.g.
+                                SITA "Philippines T4 & T5")
+   resolveDeals() returns {txs,projs} — the entries to display and count. */
 function dealKey(customer,country,project){return (customer||"").trim().toLowerCase()+"||"+(country||"").trim().toLowerCase()+"||"+(project||"").trim().toLowerCase();}
-function getProjectOnly(){
-  if(typeof PROJECTS==="undefined"||!PROJECTS.length)return [];
-  var seen={};
-  TX.forEach(function(t){seen[dealKey(t.customer,t.country,t.project)]=true;});
-  return PROJECTS.filter(function(p){return !seen[dealKey(p.customer,p.country,p.project)];});
+function projTotalOf(p){if(p.totalOverride)return p.totalOverride;return (typeof LINE_ITEMS!=="undefined"?LINE_ITEMS:[]).filter(function(li){return li.projectId===p._id;}).reduce(function(s,li){return s+li.qty*li.unitPrice;},0);}
+function txValueOf(t){var u=(typeof mdParseUnits==="function")?mdParseUnits(t.qty):0;return t.totalOverride?t.totalOverride:(u>0?t.price*u:t.price);}
+function resolveDeals(){
+  var txByKey={},projByKey={},keys={};
+  TX.forEach(function(t){var k=dealKey(t.customer,t.country,t.project);(txByKey[k]=txByKey[k]||[]).push(t);keys[k]=1;});
+  (typeof PROJECTS!=="undefined"?PROJECTS:[]).forEach(function(p){var k=dealKey(p.customer,p.country,p.project);(projByKey[k]=projByKey[k]||[]).push(p);keys[k]=1;});
+  var txs=[],projs=[];
+  Object.keys(keys).forEach(function(k){
+    var t=txByKey[k]||[],p=projByKey[k]||[];
+    if(p.length&&!t.length){projs=projs.concat(p);return;}
+    if(!p.length){txs=txs.concat(t);return;}
+    var pt=p.reduce(function(s,x){return s+projTotalOf(x);},0);
+    var tt=t.reduce(function(s,x){return s+txValueOf(x);},0);
+    if(Math.abs(pt-tt)<1)projs=projs.concat(p);else txs=txs.concat(t);
+  });
+  return {txs:txs,projs:projs};
 }
 function renderStats(){
-  const projOnly=getProjectOnly();
-  const pos=TX.filter(t=>t.status==="PO").length+projOnly.filter(p=>p.status==="PO").length;
-  const qt=TX.filter(t=>t.status==="Quotation").length+projOnly.filter(p=>p.status==="Quotation").length;
-  const ls=TX.filter(t=>t.status==="Lose").length+projOnly.filter(p=>p.status==="Lose").length;
-  const custSet=new Set(TX.map(t=>t.customer+"__"+t.country));
-  projOnly.forEach(p=>custSet.add(p.customer+"__"+p.country));
+  const R=resolveDeals(),all=R.txs.concat(R.projs);
+  const pos=all.filter(x=>x.status==="PO").length;
+  const qt=all.filter(x=>x.status==="Quotation").length;
+  const ls=all.filter(x=>x.status==="Lose").length;
+  const custSet=new Set();all.forEach(x=>custSet.add(x.customer+"__"+x.country));
   const cu=custSet.size;
   document.getElementById("stats").innerHTML=`
     <div class="stat"><div class="stat-label">Customers</div><div class="stat-value">${cu}</div><div class="stat-sub">across multiple countries</div></div>
