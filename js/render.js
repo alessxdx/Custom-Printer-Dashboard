@@ -95,9 +95,17 @@ function attShortName(n){
   var s=String(n||"PDF").replace(/\.pdf$/i,"");
   return s.length>18?s.slice(0,17)+"…":s;
 }
+const ATT_DOCTYPE_ORDER={Quotation:0,PO:1};
 function attClipsHtml(list){
   if(!list||!list.length)return "";
-  return list.map(function(a){
+  const sorted=[...list].sort(function(a,b){
+    var da=a.doctype||(typeof guessDoctype==="function"?guessDoctype(a.name):"");
+    var db=b.doctype||(typeof guessDoctype==="function"?guessDoctype(b.name):"");
+    var ra=ATT_DOCTYPE_ORDER.hasOwnProperty(da)?ATT_DOCTYPE_ORDER[da]:2;
+    var rb=ATT_DOCTYPE_ORDER.hasOwnProperty(db)?ATT_DOCTYPE_ORDER[db]:2;
+    return ra-rb;
+  });
+  return sorted.map(function(a){
     var full=String(a.name||"PDF").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
     var dt=a.doctype||(typeof guessDoctype==="function"?guessDoctype(a.name):"");
     var useTag=dt&&dt!=="Other";
