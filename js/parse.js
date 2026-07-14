@@ -110,6 +110,16 @@ function parseQuotation(lines){
       q.items.push(lastItem);
       return;
     }
+    /* labour/installation row (Daifuku-style service quotations):
+       "1 3 24 Installation labour: Total 3 people for 24 days $ 36,000.00"
+       No · People · Days · Description · Total — single price, no separate
+       unit-price column, so qty is fixed at 1 and the whole line becomes
+       the item's price. */
+    if((m=line.match(/^(\d{1,3})\s+(\d+)\s+(\d+)\s+(.+?)\s+\$?\s*([\d,]+(?:\.\d+)?)\s*$/))){
+      lastItem={type:"other",name:m[4].trim(),pn:"",qty:1,unitPrice:qpNum(m[5])};
+      q.items.push(lastItem);
+      return;
+    }
     if((m=line.match(/^P\/N\s*:?[,\s]*(.+)$/i))){
       if(lastItem&&!lastItem.pn)lastItem.pn=m[1].trim();
       return;
