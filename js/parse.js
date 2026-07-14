@@ -142,6 +142,22 @@ function parseQuotation(lines){
       awaitingLabourContinuation=true;
       continue;
     }
+    /* recurring-fee row (Daifuku-style maintenance/subscription quotations):
+       "1 50 Monthly maintenance fee per month (billed monthly) for Year 1 coverage $ 23,800.00"
+       No · Unit count · Description · Total — the total already covers ALL
+       units in that row (a per-month fee, not a per-unit price), so qty
+       stays 1 and the unit count is folded into the description instead
+       of being used as a multiplier. */
+    if((m=line.match(/^(\d{1,3})\s+(\d+)\s+(.+?)\s+\$?\s*([\d,]+(?:\.\d+)?)\s*$/))){
+      var feeName=m[3].trim()+" ("+m[2]+" units)";
+      if(typeof awaitingLabourContinuation==="string"&&awaitingLabourContinuation.indexOf("prefix:")===0){
+        feeName=awaitingLabourContinuation.slice(7)+" "+feeName;
+      }
+      lastItem={type:"other",name:feeName,pn:"",qty:1,unitPrice:qpNum(m[4])};
+      q.items.push(lastItem);
+      awaitingLabourContinuation=true;
+      continue;
+    }
     if((m=line.match(/^P\/N\s*:?[,\s]*(.+)$/i))){
       if(lastItem&&!lastItem.pn)lastItem.pn=m[1].trim();
       awaitingLabourContinuation=false;
