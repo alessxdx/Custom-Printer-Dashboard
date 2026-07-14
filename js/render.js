@@ -335,8 +335,8 @@ function renderBuying(){
       "</select>"+
       "<span id='buy-count' style='font-size:11px;color:var(--text-muted)'>"+sorted.length+" / "+BUYING.length+" items</span>"+
     "</div>"+
-    "<table><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th style='text-align:right'>Special price</th><th></th></tr></thead>"+
-    "<tbody id='buy-tbody'>"+(rows||"<tr><td colspan='5' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+"</tbody></table>"+
+    "<div style='overflow-x:auto'><table><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th style='text-align:right'>Special price</th><th></th></tr></thead>"+
+    "<tbody id='buy-tbody'>"+(rows||"<tr><td colspan='5' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+"</tbody></table></div>"+
     "</div>";
   var inp=document.getElementById("buy-search");
   if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
@@ -432,13 +432,13 @@ function renderSpares(){
       "</select>"+
       "<span id='sp-count' style='font-size:11px;color:var(--text-muted)'>"+filtered.length+" / "+SPARES.length+" items</span>"+
     "</div>"+
-    "<table><thead><tr>"+
+    "<div style='overflow-x:auto'><table><thead><tr>"+
       "<th>Part name</th><th>Part number</th><th>Customer ref</th>"+
       "<th style='text-align:right'>Unit price</th><th>Terms</th><th>Note</th><th></th>"+
     "</tr></thead>"+
     "<tbody id='sp-tbody'>"+
       (rows||"<tr><td colspan='7' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+
-    "</tbody></table>"+
+    "</tbody></table></div>"+
     "</div>";
   var inp=document.getElementById("sp-search");
   if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
