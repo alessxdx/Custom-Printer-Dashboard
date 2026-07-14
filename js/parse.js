@@ -75,28 +75,43 @@ function parseQuotation(lines){
   var section="",sectionTag="";
   var lastItem=null,finalTotal=null,sawDap=false,sawExw=false;
   var inCustomerAddress=false; /* country must come from the buyer's address, not the letterhead */
+  /* Labour-row descriptions can wrap across several text lines (a label
+     line before the row, a continuation line after). awaitingLabourContinuation
+     tracks whether trailing lines should still be folded into lastItem.name;
+     it's cleared as soon as any other recognized line type is hit. */
+  var awaitingLabourContinuation=false;
 
-  lines.forEach(function(line){
+  for(var li=0;li<lines.length;li++){
+    var line=lines[li];
     var m;
-    if((m=line.match(/^Ref\s*No\.?\s*:\s*(.+)$/i))){q.ref=m[1].trim();return;}
-    if((m=line.match(/^COMPANY\s*:\s*(.+)$/i))){q.company=m[1].trim();inCustomerAddress=true;return;}
+    if((m=line.match(/^Ref\s*No\.?\s*:\s*(.+)$/i))){q.ref=m[1].trim();continue;}
+    if((m=line.match(/^COMPANY\s*:\s*(.+)$/i))){q.company=m[1].trim();inCustomerAddress=true;continue;}
     if(/^(ATTENTION|DATE)\s*:/i.test(line))inCustomerAddress=false;
     if((m=line.match(/^DATE\s*:\s*(.+)$/i))){
       var d=new Date(m[1].trim());
       q.date=isNaN(d)?m[1].trim():d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]+" "+d.getFullYear();
-      return;
+      continue;
     }
-    if((m=line.match(/^PRODUCTS\s*:\s*(.+)$/i))){q.notes.push("Products: "+m[1].trim());return;}
+    if((m=line.match(/^PRODUCTS\s*:\s*(.+)$/i))){q.notes.push("Products: "+m[1].trim());continue;}
     if(inCustomerAddress&&!q.country){
       for(var c=0;c<QP_COUNTRIES.length;c++){
         if(new RegExp("\\b"+QP_COUNTRIES[c]+"\\b","i").test(line)){q.country=QP_COUNTRIES[c];break;}
       }
     }
-    /* section headers like "Printer ATB & Accessories :" */
+    /* section headers like "Printer ATB & Accessories :" — but a colon-ending
+       line immediately followed by a labour row is actually that row's
+       wrapped description label (e.g. "Overtime labour fee:"), not a section. */
     if(/^[A-Za-z][A-Za-z\s&]+:$/.test(line)&&!/^(Pricing|Delivery|Currency|Payment|Warranty|Validity|Service)/i.test(line)){
+      /* only a wrapped row-prefix (not the table's own top-level heading)
+         when we're already inside an established section */
+      if(section&&li+1<lines.length&&/^\d{1,3}\s+\d+\s+\d+\s+/.test(lines[li+1])){
+        awaitingLabourContinuation="prefix:"+line.trim();
+        continue;
+      }
       section=line.replace(/\s*:$/,"");
       sectionTag=/\bATB\b/i.test(section)?"ATB":(/\bBTP\b/i.test(section)?"BTP":"");
-      return;
+      awaitingLabourContinuation=false;
+      continue;
     }
     /* numbered item row: "1 22 TK180 Metal ARINC (5 years warranty) $ 1,280.00 $ 28,160.00" */
     if((m=line.match(/^(\d{1,3})\s+(\d[\d,]*)\s+(.+?)\s+\$?\s*([\d,]+(?:\.\d+)?)\s+\$?\s*([\d,]+(?:\.\d+)?)\s*$/))){
@@ -108,33 +123,43 @@ function parseQuotation(lines){
       if(isPrinter&&sectionTag)desc+=" ("+sectionTag+")";
       lastItem={type:isPrinter?"printer":"other",name:desc,pn:"",qty:qpNum(m[2]),unitPrice:qpNum(m[4])};
       q.items.push(lastItem);
-      return;
+      awaitingLabourContinuation=false;
+      continue;
     }
     /* labour/installation row (Daifuku-style service quotations):
        "1 3 24 Installation labour: Total 3 people for 24 days $ 36,000.00"
        No · People · Days · Description · Total — single price, no separate
        unit-price column, so qty is fixed at 1 and the whole line becomes
-       the item's price. */
+       the item's price. A wrapped-label prefix picked up above gets
+       prepended, and further wrapped lines get appended below. */
     if((m=line.match(/^(\d{1,3})\s+(\d+)\s+(\d+)\s+(.+?)\s+\$?\s*([\d,]+(?:\.\d+)?)\s*$/))){
-      lastItem={type:"other",name:m[4].trim(),pn:"",qty:1,unitPrice:qpNum(m[5])};
+      var labourName=m[4].trim();
+      if(typeof awaitingLabourContinuation==="string"&&awaitingLabourContinuation.indexOf("prefix:")===0){
+        labourName=awaitingLabourContinuation.slice(7)+" "+labourName;
+      }
+      lastItem={type:"other",name:labourName,pn:"",qty:1,unitPrice:qpNum(m[5])};
       q.items.push(lastItem);
-      return;
+      awaitingLabourContinuation=true;
+      continue;
     }
     if((m=line.match(/^P\/N\s*:?[,\s]*(.+)$/i))){
       if(lastItem&&!lastItem.pn)lastItem.pn=m[1].trim();
-      return;
+      awaitingLabourContinuation=false;
+      continue;
     }
     /* discount: "Goodwill discount : $ (2,100.00)" */
     if((m=line.match(/discount\s*:\s*\$?\s*\(?\s*([\d,]+(?:\.\d+)?)\s*\)?/i))&&!/after/i.test(line)){
       q.items.push({type:"discount",name:line.split(":")[0].trim(),pn:"",qty:1,unitPrice:-qpNum(m[1])});
-      return;
+      awaitingLabourContinuation=false;
+      continue;
     }
     /* DAP charge: "DAP to Bohol Airport : $ 3,240.00" */
     if((m=line.match(/^DAP to (.+?)\s*:\s*\$?\s*([\d,]+(?:\.\d+)?)\s*$/i))){
       sawDap=true;
       if(!q.project)q.project=m[1].trim();
       q.items.push({type:"shipping_adjustment",name:"DAP to "+m[1].trim(),pn:"",qty:1,unitPrice:qpNum(m[2])});
-      return;
+      awaitingLabourContinuation=false;
+      continue;
     }
     /* totals — remember the LAST one as the final quoted total */
     if((m=line.match(/^Total\s.+:\s*\$?\s*([\d,]+(?:\.\d+)?)\s*$/i))){
@@ -145,7 +170,20 @@ function parseQuotation(lines){
         if(pm&&!q.project)q.project=pm[1].trim();
       }
       if(/Ex-?works?/i.test(line))sawExw=true;
-      return;
+      awaitingLabourContinuation=false;
+      continue;
+    }
+    /* a stray wrapped-description line straight after a labour row, e.g.
+       "overtime base on per block basis up to 5 days" — fold it into the
+       last item's name instead of silently dropping it. Stops as soon as
+       a numbered terms clause or another recognized keyword line appears. */
+    if(awaitingLabourContinuation===true){
+      if(/^\d+\.\s/.test(line)||/^(Pricing|Delivery|Currency|Payment|Warranty|Validity|Service)/i.test(line)){
+        awaitingLabourContinuation=false;
+      }else if(line.trim()&&lastItem){
+        lastItem.name=(lastItem.name+" "+line.trim()).replace(/\s+/g," ").trim();
+        continue;
+      }
     }
     if(/Ex-?works?/i.test(line))sawExw=true;
     if(/U\.?S\.?\s*Dollars|USD/i.test(line)&&!q.currency)q.currency="USD";
@@ -154,7 +192,7 @@ function parseQuotation(lines){
     if(/Renminbi|Yuan|RMB/i.test(line)&&!q.currency)q.currency="RMB";
     if(!q.warranty&&(m=line.match(/(\d+)\s*\((?:ONE|TWO|THREE|FOUR|FIVE|TEN)\)\s*YEARS?/i)))q.warranty=m[1]+"Y";
     if((m=line.match(/valid till\s+(.+?)\.?\s*$/i)))q.notes.push("Prices valid till "+m[1].trim());
-  });
+  }
 
   q.terms=sawDap?"DAP":(sawExw?"EXW":"");
   q.totalOverride=finalTotal;
