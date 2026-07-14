@@ -537,11 +537,16 @@ function projectPrinterTotal(projId){
   return LINE_ITEMS.filter(function(li){return li.projectId===projId&&li.type==="printer";})
     .reduce(function(sum,li){return sum+(li.qty*li.unitPrice);},0);
 }
+function projectPrinterQty(projId){
+  return LINE_ITEMS.filter(function(li){return li.projectId===projId&&li.type==="printer"&&!/\bTPH\b/i.test(li.name);})
+    .reduce(function(sum,li){return sum+li.qty;},0);
+}
 function buildProjectBlock(p){
     var lis=LINE_ITEMS.filter(function(li){return li.projectId===p._id;})
       .sort(function(a,b){return a.sortOrder-b.sortOrder;});
     var totalCalc=projectTotal(p._id);
     var printerTot=projectPrinterTotal(p._id);
+    var printerQty=projectPrinterQty(p._id);
     var displayTotal=p.totalOverride||totalCalc;
 
     var lineHtml=lis.map(function(li){
@@ -575,7 +580,7 @@ function buildProjectBlock(p){
         "<div style='display:flex;gap:10px;align-items:flex-start'>"+
           "<span class='pchev"+(expandedProjectItems[p._id]?" open":"")+"' id='pchev-"+p._id+"'>\u25be</span>"+
           "<div>"+
-          "<div style='font-size:11px;color:var(--text-muted);margin-bottom:4px'>"+(p.displayDate||p.date||"")+" \xb7 "+bStatus(p.status)+"</div>"+
+          "<div style='font-size:11px;color:var(--text-muted);margin-bottom:4px'>"+(p.displayDate||p.date||"")+" \xb7 "+bStatus(p.status)+(printerQty?" \xb7 "+printerQty+" printer"+(printerQty!==1?"s":""):"")+"</div>"+
           "<div style='font-size:14px;font-weight:600;color:var(--text-strong)'>"+p.project+"</div>"+
           (p.projectGroup?"<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--badge-group-bg);color:var(--badge-group-fg);border:1px solid var(--badge-group-bd);margin-top:4px'>\ud83d\udd17 "+p.projectGroup+"</div>":"")+
           "<div style='margin-top:6px'>"+
