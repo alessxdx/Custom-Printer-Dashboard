@@ -9,6 +9,7 @@
    ============================================================ */
 var MD_SEL=null;    /* selected "customer__country" key */
 var MD_SEARCH="";
+var MD_GROUP_SEL=null; /* selected project-group name, or null */
 
 function mdEscAttr(s){return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/</g,"&lt;");}
 
@@ -269,6 +270,109 @@ function mdSearchInput(v){
   MD_SEARCH=v;
   var el=document.getElementById("md-list-items");
   if(el)el.innerHTML=buildMdList(mdComputeEntries());
+}
+
+/* ============================================================
+   CONSOLIDATED PROJECT GROUP view.
+   Opened by clicking a "🔗 group name" tag (Bohol/Laguindingan-style
+   combined+split transactions, or Singapore Pools/Airlines-style
+   multi-project groups in the `projects` table). Pulls together every
+   entry across the whole dataset that shares tx.projectGroup /
+   p.projectGroup, regardless of which customer card it normally lives
+   under, and renders it with the exact same entry builders as the
+   customer detail (buildTxEntriesHtml / buildProjectBlock) so all edge
+   cases and PDF chips look identical.
+   ============================================================ */
+function mdGroupTotals(txs,projs){
+  var totals={};
+  txs.forEach(function(t){
+    if(mdIsSplit(t,txs))return;
+    var v=txValueOf(t);
+    totals[t.currency]=(totals[t.currency]||0)+v;
+  });
+  (projs||[]).forEach(function(p){
+    var v=projTotalOf(p);
+    totals[p.currency]=(totals[p.currency]||0)+v;
+  });
+  return totals;
+}
+function buildProjectGroupSection(name,country,txs,projs){
+  var pos=txs.filter(function(t){return t.status==="PO";}).length+projs.filter(function(p){return p.status==="PO";}).length;
+  var qt=txs.filter(function(t){return t.status==="Quotation";}).length+projs.filter(function(p){return p.status==="Quotation";}).length;
+  var totals=mdGroupTotals(txs,projs);
+  return "<div class='md-section' style='margin-bottom:14px'>"+
+    "<div style='display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px'>"+flagImg(country,20)+
+      "<div style='font-size:15px;font-weight:700;color:var(--text-strong)'>"+name+"</div>"+
+      "<div style='font-size:11px;color:var(--text-muted)'>"+pos+" PO"+(pos!==1?"s":"")+" \xb7 "+qt+" quote"+(qt!==1?"s":"")+"</div>"+
+    "</div>"+
+    "<div style='margin-bottom:10px'>"+mdMoneyLines(totals)+"</div>"+
+    "<div class='md-entries-body'>"+
+      buildTxEntriesHtml(txs)+
+      (projs.length?projs.slice().sort(function(a,b){return parseDV(b.date)-parseDV(a.date);}).map(buildProjectBlock).join(""):"")+
+    "</div>"+
+  "</div>";
+}
+function buildProjectGroupView(){
+  var group=MD_GROUP_SEL;
+  var R=resolveDeals();
+  var txs=R.txs.filter(function(t){return t.projectGroup===group;});
+  var projs=R.projs.filter(function(p){return p.projectGroup===group;});
+  if(!txs.length&&!projs.length){
+    return "<div class='pg-view'><button class='md-back' onclick='closeProjectGroup()'>&#8592; All customers</button>"+
+      "<div class='md-empty'>No entries found for project group “"+mdEscAttr(group)+"”.</div></div>";
+  }
+  var byCustomer={},order=[];
+  function ent(customer,country){
+    var k=customer+"__"+country;
+    if(!byCustomer[k]){byCustomer[k]={name:customer,country:country,txs:[],projs:[]};order.push(k);}
+    return byCustomer[k];
+  }
+  txs.forEach(function(t){ent(t.customer,t.country).txs.push(t);});
+  projs.forEach(function(p){ent(p.customer,p.country).projs.push(p);});
+  var ref=txs[0]||projs[0];
+  var overallTotals=mdGroupTotals(txs,projs);
+  var totalPos=txs.filter(function(t){return t.status==="PO";}).length+projs.filter(function(p){return p.status==="PO";}).length;
+  var totalQt=txs.filter(function(t){return t.status==="Quotation";}).length+projs.filter(function(p){return p.status==="Quotation";}).length;
+
+  var body;
+  if(order.length===1){
+    var e=byCustomer[order[0]];
+    body="<div class='md-section md-entries'>"+
+      "<div class='md-section-title'>Projects in this group ("+(txs.length+projs.length)+" entries)</div>"+
+      "<div class='md-entries-body'>"+
+        buildTxEntriesHtml(e.txs)+
+        (e.projs.length?e.projs.slice().sort(function(a,b){return parseDV(b.date)-parseDV(a.date);}).map(buildProjectBlock).join(""):"")+
+      "</div>"+
+    "</div>";
+  } else {
+    body="<div class='md-section-title' style='margin:0 2px 8px'>By customer</div>"+
+      order.map(function(k){var e=byCustomer[k];return buildProjectGroupSection(e.name,e.country,e.txs,e.projs);}).join("");
+  }
+
+  return "<div class='pg-view'>"+
+    "<button class='md-back' onclick='closeProjectGroup()'>&#8592; All customers</button>"+
+    "<div class='md-head'>"+flagImg(ref.country,34)+
+      "<div><div class='md-head-name'>&#128279; "+group+"</div>"+
+      "<div class='md-head-meta'>"+(order.length===1?byCustomer[order[0]].name+" \xb7 ":"")+ref.country+" \xb7 "+totalPos+" PO"+(totalPos!==1?"s":"")+" \xb7 "+totalQt+" open quote"+(totalQt!==1?"s":"")+"</div></div>"+
+    "</div>"+
+    "<div class='md-section'>"+
+      "<div class='md-section-title'>Group total</div>"+
+      mdMoneyLines(overallTotals)+
+    "</div>"+
+    body+
+  "</div>";
+}
+function openProjectGroup(group){
+  MD_GROUP_SEL=group;
+  renderContent();
+  window.scrollTo(0,0);
+}
+function closeProjectGroup(){
+  MD_GROUP_SEL=null;
+  renderContent();
+}
+function renderProjectGroupView(){
+  document.getElementById("content").innerHTML=buildProjectGroupView();
 }
 
 function renderCustomersDetail(){

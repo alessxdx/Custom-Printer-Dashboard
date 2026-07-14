@@ -91,6 +91,11 @@ function fxEqSpan(amount,currency){
   const t=fxUsdText(amount,currency);
   return t?" <span class='fx-usd'>"+t+"</span>":"";
 }
+function projGroupLinkHtml(group){
+  if(!group)return "";
+  var esc=String(group).replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  return "<span class='proj-group-tag clickable' onclick=\"event.stopPropagation();openProjectGroup('"+esc+"')\" title='View consolidated project group'>&#128279; "+group+" <span class='pgt-arrow'>&rarr;</span></span>";
+}
 function attShortName(n){
   var s=String(n||"PDF").replace(/\.pdf$/i,"");
   return s.length>18?s.slice(0,17)+"…":s;
@@ -137,9 +142,8 @@ function buildTxEntriesHtml(txs){
     const grpId=tx.projectGroup?tx.projectGroup.replace(/[^a-zA-Z0-9]/g,"-"):"";
     const groupTag=(()=>{
       if(!tx.projectGroup)return "";
-      if(isCombined)return "<div style='margin-bottom:5px'><button class='expand-btn' onclick='toggleGroup(\""+grpId+"\",this,event)'>\u25bc Show individual model entries</button></div>";
-      if(isSplit)return "<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--badge-group-bg);color:var(--badge-group-fg);border:1px solid var(--badge-group-bd);margin-bottom:5px'>&#128279; Part of: "+tx.projectGroup+"</div>";
-      return "";
+      if(isCombined)return "<div style='margin-bottom:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap'><button class='expand-btn' onclick='toggleGroup(\""+grpId+"\",this,event)'>\u25bc Show individual model entries</button>"+projGroupLinkHtml(tx.projectGroup)+"</div>";
+      return "<div style='margin-bottom:5px'>"+projGroupLinkHtml(tx.projectGroup)+"</div>";
     })();
     const pdfClip=attClipsHtml(tx.attachments);
     const fxNoteLine=(tx.currency!=="USD"&&typeof fxNote==="function"&&fxNote(tx.currency))?"<div class='fx-note'>"+fxNote(tx.currency)+"</div>":"";
@@ -516,6 +520,7 @@ function closeSpareModal(){
 }
 
 function renderContent(){
+  if(typeof MD_GROUP_SEL!=="undefined"&&MD_GROUP_SEL){renderProjectGroupView();return;}
   if(currentTab==="customers")renderCustomers();
   else if(currentTab==="projects")renderProjects();
   else if(currentTab==="model")renderModel();
@@ -582,7 +587,7 @@ function buildProjectBlock(p){
           "<div>"+
           "<div style='font-size:11px;color:var(--text-muted);margin-bottom:4px'>"+(p.displayDate||p.date||"")+" \xb7 "+bStatus(p.status)+(printerQty?" \xb7 "+printerQty+" printer"+(printerQty!==1?"s":""):"")+"</div>"+
           "<div style='font-size:14px;font-weight:600;color:var(--text-strong)'>"+p.project+"</div>"+
-          (p.projectGroup?"<div style='display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--badge-group-bg);color:var(--badge-group-fg);border:1px solid var(--badge-group-bd);margin-top:4px'>\ud83d\udd17 "+p.projectGroup+"</div>":"")+
+          (p.projectGroup?"<div style='margin-top:4px'>"+projGroupLinkHtml(p.projectGroup)+"</div>":"")+
           "<div style='margin-top:6px'>"+
             (p.shippingTerms?bTerm(p.shippingTerms):"")+
             bWarranty(p.warranty)+

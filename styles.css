@@ -381,6 +381,9 @@ body{
   margin-bottom:4px;
 }
 .proj-group-tag svg{width:10px;height:10px}
+.proj-group-tag.clickable{cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.proj-group-tag.clickable:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.proj-group-tag .pgt-arrow{opacity:.65}
 .expand-btn{
   font-size:11px;color:var(--accent-text);
   background:var(--accent-soft);
@@ -714,6 +717,7 @@ tr.exp-detail td{
 .md-entries .md-section-title{padding:14px 16px 0}
 .md-entries-body{border-top:1px solid var(--divider);margin-top:10px}
 .md-entries-body .tx:first-child{border-top:none}
+.pg-view .md-back{display:inline-flex}
 
 /* FX equivalents + rate notes */
 .fx-usd{font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap}

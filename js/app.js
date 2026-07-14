@@ -21,6 +21,7 @@ function setTab(btn){
   document.querySelectorAll(".nav-item[data-tab]").forEach(function(b){b.classList.remove("active");});
   btn.classList.add("active");
   currentTab = btn.dataset.tab;
+  MD_GROUP_SEL = null;
   var title = document.getElementById("page-title");
   if(title) title.textContent = TAB_TITLES[currentTab] || "";
 
@@ -200,7 +201,7 @@ function renderCustomersTable(){
     "<tr class='exp-detail' id='trow-"+idx+"'>"+
       "<td colspan='11'>"+
         (tx.pn ? "<div><strong>PN:</strong> <span class='cell-edit cell-pn' data-tx-idx='"+idx+"' data-field='pn'>"+tx.pn+"</span></div>" : "")+
-        (tx.projectGroup ? "<div style='margin-top:4px'><span class='proj-group-tag'>🔗 "+tx.projectGroup+"</span></div>" : "")+
+        (tx.projectGroup ? "<div style='margin-top:4px'>"+projGroupLinkHtml(tx.projectGroup)+"</div>" : "")+
         (tx.notes && tx.notes.length ? "<div style='margin-top:4px'>"+tx.notes.map(function(n){return "<div>• "+n+"</div>";}).join("")+"</div>" : "")+
       "</td>"+
     "</tr>";
