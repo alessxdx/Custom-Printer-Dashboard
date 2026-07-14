@@ -709,4 +709,8 @@ function openModal(){
   }
 }
 function closeModal(id){document.getElementById(id).classList.remove("open");}
-document.querySelectorAll(".modal-overlay").forEach(el=>{el.addEventListener("click",e=>{if(e.target===el)el.classList.remove("open");});});
+document.querySelectorAll(".modal-overlay").forEach(el=>{
+  let downOnOverlay=false;
+  el.addEventListener("mousedown",e=>{downOnOverlay=(e.target===el);});
+  el.addEventListener("click",e=>{if(downOnOverlay&&e.target===el)el.classList.remove("open");});
+});
