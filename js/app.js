@@ -9,6 +9,7 @@
 /* page title strings per tab */
 var TAB_TITLES = {
   customers: "By Customer",
+  groups: "Project Groups",
   projects: "By Project",
   model: "Model Comparison",
   buying: "Buying Prices",

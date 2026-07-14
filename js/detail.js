@@ -318,7 +318,7 @@ function buildProjectGroupView(){
   var txs=R.txs.filter(function(t){return t.projectGroup===group;});
   var projs=R.projs.filter(function(p){return p.projectGroup===group;});
   if(!txs.length&&!projs.length){
-    return "<div class='pg-view'><button class='md-back' onclick='closeProjectGroup()'>&#8592; All customers</button>"+
+    return "<div class='pg-view'><button class='md-back' onclick='closeProjectGroup()'>&#8592; Back</button>"+
       "<div class='md-empty'>No entries found for project group “"+mdEscAttr(group)+"”.</div></div>";
   }
   var byCustomer={},order=[];
@@ -350,7 +350,7 @@ function buildProjectGroupView(){
   }
 
   return "<div class='pg-view'>"+
-    "<button class='md-back' onclick='closeProjectGroup()'>&#8592; All customers</button>"+
+    "<button class='md-back' onclick='closeProjectGroup()'>&#8592; Back</button>"+
     "<div class='md-head'>"+flagImg(ref.country,34)+
       "<div><div class='md-head-name'>&#128279; "+group+"</div>"+
       "<div class='md-head-meta'>"+(order.length===1?byCustomer[order[0]].name+" \xb7 ":"")+ref.country+" \xb7 "+totalPos+" PO"+(totalPos!==1?"s":"")+" \xb7 "+totalQt+" open quote"+(totalQt!==1?"s":"")+"</div></div>"+
@@ -373,6 +373,76 @@ function closeProjectGroup(){
 }
 function renderProjectGroupView(){
   document.getElementById("content").innerHTML=buildProjectGroupView();
+}
+
+/* ============================================================
+   "Project Groups" workspace — a top-level tab listing every
+   distinct project group across the whole dataset (spanning all
+   customers), so groups can be discovered without having to find
+   a 🔗 badge buried inside a customer's history first. Clicking a
+   row opens the same buildProjectGroupView() consolidated page.
+   ============================================================ */
+var PG_SEARCH="";
+function computeProjectGroups(){
+  var R=resolveDeals();
+  var map={},order=[];
+  function ent(g){
+    if(!map[g]){map[g]={name:g,customers:{},country:"",txs:[],projs:[]};order.push(g);}
+    return map[g];
+  }
+  R.txs.forEach(function(t){if(!t.projectGroup)return;var e=ent(t.projectGroup);e.txs.push(t);e.customers[t.customer]=true;if(!e.country)e.country=t.country;});
+  R.projs.forEach(function(p){if(!p.projectGroup)return;var e=ent(p.projectGroup);e.projs.push(p);e.customers[p.customer]=true;if(!e.country)e.country=p.country;});
+  return order.map(function(g){return map[g];});
+}
+function pgTotalsCompact(totals){
+  var curs=Object.keys(totals);
+  if(!curs.length)return "<span style='color:var(--text-faint);font-size:12px'>—</span>";
+  return curs.sort().map(function(c){
+    return "<div style='font-weight:600;color:var(--accent-text);font-size:13px;white-space:nowrap'>"+totals[c].toLocaleString(undefined,{maximumFractionDigits:0})+" "+c+"</div>";
+  }).join("");
+}
+function pgSearchInput(v){
+  PG_SEARCH=v;
+  renderProjectGroupsList();
+  var el=document.getElementById("pg-search");
+  if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}
+}
+function renderProjectGroupsList(){
+  var all=computeProjectGroups();
+  if(!all.length){
+    document.getElementById("content").innerHTML="<div class='empty'>No project groups yet. Set a “project group” on an entry (Add/Edit) to link related projects together and see them here.</div>";
+    return;
+  }
+  var q=PG_SEARCH.trim().toLowerCase();
+  var groups=all.filter(function(g){
+    if(!q)return true;
+    return g.name.toLowerCase().indexOf(q)!==-1||Object.keys(g.customers).some(function(c){return c.toLowerCase().indexOf(q)!==-1;});
+  });
+  groups.sort(function(a,b){return a.name.localeCompare(b.name);});
+
+  var rows=groups.map(function(g){
+    var totals=mdGroupTotals(g.txs,g.projs);
+    var pos=g.txs.filter(function(t){return t.status==="PO";}).length+g.projs.filter(function(p){return p.status==="PO";}).length;
+    var qt=g.txs.filter(function(t){return t.status==="Quotation";}).length+g.projs.filter(function(p){return p.status==="Quotation";}).length;
+    var custNames=Object.keys(g.customers).sort().join(", ");
+    var entryCount=g.txs.length+g.projs.length;
+    var esc=String(g.name).replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    return "<div class='card'>"+
+      "<div class='card-header' onclick=\"openProjectGroup('"+esc+"')\">"+
+        "<div class='flag-icon'>"+flagImg(g.country,22)+"</div>"+
+        "<div style='flex:1;min-width:0'>"+
+          "<div class='cname'>&#128279; "+g.name+"</div>"+
+          "<div class='cmeta'>"+custNames+" \xb7 "+entryCount+" entr"+(entryCount!==1?"ies":"y")+" \xb7 "+pos+" PO"+(pos!==1?"s":"")+" \xb7 "+qt+" quote"+(qt!==1?"s":"")+"</div>"+
+        "</div>"+
+        "<div style='text-align:right;flex-shrink:0;margin-left:12px'>"+pgTotalsCompact(totals)+"</div>"+
+        "<div class='chevron'>&#8250;</div>"+
+      "</div>"+
+    "</div>";
+  }).join("");
+
+  document.getElementById("content").innerHTML=
+    "<input id='pg-search' class='md-search' type='text' placeholder='Search project groups or customers…' value=\""+mdEscAttr(PG_SEARCH)+"\" oninput='pgSearchInput(this.value)' style='margin-bottom:14px;max-width:360px'>"+
+    "<div id='pg-list-items'>"+(rows||"<div class='empty'>No project groups match your search.</div>")+"</div>";
 }
 
 function renderCustomersDetail(){

@@ -522,6 +522,7 @@ function closeSpareModal(){
 function renderContent(){
   if(typeof MD_GROUP_SEL!=="undefined"&&MD_GROUP_SEL){renderProjectGroupView();return;}
   if(currentTab==="customers")renderCustomers();
+  else if(currentTab==="groups")renderProjectGroupsList();
   else if(currentTab==="projects")renderProjects();
   else if(currentTab==="model")renderModel();
   else if(currentTab==="buying")renderBuying();
