@@ -67,6 +67,22 @@ function mdFilteredResolved(){
      money from combined entries (skip splits), as before.
    - Project-only deals: printer units come from their line items,
      money from the project total (override-aware). */
+function mdAddPrice(m,cur,qty,unitPrice){
+  if(!cur||!(qty>0))return;
+  if(!m.priceByCur)m.priceByCur={};
+  var p=m.priceByCur[cur]||(m.priceByCur[cur]={qty:0,cost:0});
+  p.qty+=qty;p.cost+=qty*unitPrice;
+}
+/* Weighted-average unit price per currency, e.g. "808 SGD" or "808 SGD / 590 USD". */
+function mdUnitPriceDisplay(m){
+  if(!m.priceByCur)return "—";
+  var curs=Object.keys(m.priceByCur);
+  if(!curs.length)return "—";
+  return curs.map(function(c){
+    var pc=m.priceByCur[c],avg=pc.qty>0?pc.cost/pc.qty:0;
+    return avg.toLocaleString(undefined,{maximumFractionDigits:2})+" "+c;
+  }).join(" / ");
+}
 function mdRollup(txs,projs){
   var models={},revenue={},pipeline={},approx=false;
   txs.forEach(function(tx){
@@ -77,6 +93,7 @@ function mdRollup(txs,projs){
         if(tx.status==="PO")m.po+=u;
         else if(tx.status==="Quotation")m.quote+=u;
         else m.lost+=u;
+        mdAddPrice(m,tx.currency,u,tx.price);
       }
     }
     if(!mdIsSplit(tx,txs)){
@@ -96,6 +113,7 @@ function mdRollup(txs,projs){
       if(p.status==="PO")m.po+=li.qty;
       else if(p.status==="Quotation")m.quote+=li.qty;
       else m.lost+=li.qty;
+      mdAddPrice(m,p.currency,li.qty,li.unitPrice);
     });
     var val=mdProjTotal(p);
     if(p.status==="PO")revenue[p.currency]=(revenue[p.currency]||0)+val;
@@ -195,12 +213,12 @@ function buildMdDetail(key){
   var totalPo=0,totalQt=0;
   var modelRows=modelKeys.map(function(m){
     var mm=r.models[m];totalPo+=mm.po;totalQt+=mm.quote;
-    return "<tr><td>"+m+"</td><td class='num'>"+(mm.po||"—")+"</td><td class='num'>"+(mm.quote||"—")+"</td>"+(anyLost?"<td class='num'>"+(mm.lost||"—")+"</td>":"")+"</tr>";
+    return "<tr><td>"+m+"</td><td class='num'>"+(mm.po||"—")+"</td><td class='num'>"+(mm.quote||"—")+"</td><td class='num'>"+mdUnitPriceDisplay(mm)+"</td>"+(anyLost?"<td class='num'>"+(mm.lost||"—")+"</td>":"")+"</tr>";
   }).join("");
   var modelsTable=modelKeys.length?
-    "<table class='md-models-table'><thead><tr><th>Model</th><th class='num'>PO units</th><th class='num'>Quoted</th>"+(anyLost?"<th class='num'>Lost</th>":"")+"</tr></thead>"+
+    "<table class='md-models-table'><thead><tr><th>Model</th><th class='num'>PO units</th><th class='num'>Quoted</th><th class='num'>Unit price</th>"+(anyLost?"<th class='num'>Lost</th>":"")+"</tr></thead>"+
     "<tbody>"+modelRows+"</tbody>"+
-    "<tfoot><tr><td>Total printers</td><td class='num'>"+totalPo+"</td><td class='num'>"+totalQt+"</td>"+(anyLost?"<td></td>":"")+"</tr></tfoot></table>"
+    "<tfoot><tr><td>Total printers</td><td class='num'>"+totalPo+"</td><td class='num'>"+totalQt+"</td><td></td>"+(anyLost?"<td></td>":"")+"</tr></tfoot></table>"
     :"<div class='md-money-none'>No printer quantities recorded.</div>";
 
   var curs=[];txs.forEach(function(t){if(curs.indexOf(t.currency)===-1)curs.push(t.currency);});
