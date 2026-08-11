@@ -791,56 +791,68 @@ tr.exp-detail td{
 .hx-chip.active{background:var(--accent-soft);border-color:var(--border-strong);color:var(--accent-text)}
 .hx-ghead{
   display:flex;align-items:baseline;gap:9px;
-  padding:9px 16px;cursor:pointer;user-select:none;
-  background:var(--bg-soft);border-bottom:1px solid var(--divider);
-}
-.hx-ghead:hover{background:var(--bg-hover)}
-.hx-gchev{font-size:10px;color:var(--text-faint);transition:transform .15s;display:inline-block;flex:none}
-.hx-gchev.open{transform:rotate(90deg)}
-.hx-gyear{font-size:13px;font-weight:700;color:var(--text-strong)}
-.hx-gmeta{font-size:11px;color:var(--text-muted)}
-.hx-gtot{margin-left:auto;font-size:12px;font-weight:600;color:var(--accent-text);white-space:nowrap;font-variant-numeric:tabular-nums}
-.hx-row{
-  display:flex;align-items:center;gap:10px;
-  padding:9px 16px;cursor:pointer;user-select:none;
+  padding:10px 16px 8px;cursor:pointer;user-select:none;
   border-bottom:1px solid var(--divider);
+}
+.hx-group+.hx-group .hx-ghead{margin-top:6px;border-top:1px solid var(--divider)}
+.hx-ghead:hover{background:var(--bg-hover)}
+.hx-gchev{font-size:9px;color:var(--text-faint);transition:transform .15s;display:inline-block;flex:none}
+.hx-gchev.open{transform:rotate(90deg)}
+.hx-gyear{font-size:13px;font-weight:600;color:var(--text)}
+.hx-gmeta{font-size:11px;color:var(--text-faint)}
+.hx-gtot{margin-left:auto;font-size:12px;font-weight:600;color:var(--accent-text);white-space:nowrap;font-variant-numeric:tabular-nums}
+/* Fixed columns, not flex: a variable-width model name shoves every later
+   field out of alignment and the eye loses the column. */
+.hx-row{
+  display:grid;align-items:center;gap:10px;
+  grid-template-columns:50px 40px 132px minmax(0,1fr) 14px minmax(112px,auto) 14px;
+  padding:8px 16px;cursor:pointer;user-select:none;
   transition:background .12s;
 }
-.hx-row:hover{background:var(--bg-hover)}
-.hx-row.open{background:var(--bg-soft)}
-.hx-date{font-size:11.5px;color:var(--text-muted);width:50px;flex:none;font-variant-numeric:tabular-nums}
-.badge.hx-mini{flex:none;width:48px;justify-content:center;margin:0}
-.hx-title{font-size:13px;font-weight:600;color:var(--text-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42%}
-.hx-sub{font-size:12px;color:var(--text-muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hx-icons{flex:none;display:flex;gap:3px;font-size:11px;opacity:.65}
-.hx-val{font-size:13px;font-weight:600;color:var(--text-strong);white-space:nowrap;flex:none;font-variant-numeric:tabular-nums}
-.hx-chev{font-size:11px;color:var(--text-faint);flex:none;width:12px;text-align:center;transition:transform .15s;display:inline-block}
+.hx-item:nth-child(even)>.hx-row{background:var(--bg-row-stripe)}
+.hx-row:hover,.hx-item:nth-child(even)>.hx-row:hover{background:var(--bg-hover)}
+.hx-row.open,.hx-item:nth-child(even)>.hx-row.open{background:var(--bg-accent-soft)}
+.hx-date{font-size:11.5px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.hx-st{font-size:10.5px;font-weight:600;letter-spacing:.03em;white-space:nowrap}
+.hx-st-po{color:var(--badge-po-fg)}
+.hx-st-qt{color:var(--badge-qt-fg)}
+.hx-st-ls{color:var(--badge-ls-fg)}
+.hx-st-mix{color:var(--text-faint)}
+/* One emphasis per row, and it's the money. */
+.hx-title{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hx-sub{font-size:12px;color:var(--text-muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hx-icons{display:flex;gap:3px;font-size:10px;opacity:.45;min-width:12px}
+.hx-val{font-size:13px;font-weight:600;color:var(--text-strong);white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
+.hx-cur{font-size:10.5px;font-weight:400;color:var(--text-faint);margin-left:4px}
+.hx-chev{font-size:10px;color:var(--text-faint);text-align:right;transition:transform .15s;display:inline-block}
 .hx-chev.open{transform:rotate(180deg)}
-.hx-body{border-bottom:1px solid var(--border-strong);background:var(--bg-soft)}
-.hx-body .tx{background:transparent}
+/* The detail reads as an inset of the row above it, not as a second design. */
+.hx-body{
+  background:var(--bg-soft);
+  border-left:2px solid var(--accent);
+  margin:0 0 4px 16px;
+}
+.hx-body .tx{background:transparent;padding:12px 16px}
 .hx-body .tx:hover{background:transparent}
 /* A multi-line PO folded into one parent row. */
 .hx-nest-head .hx-title{color:var(--accent-text)}
-.hx-nest.open>.hx-nest-head{background:var(--bg-soft)}
-.hx-nest-body{border-left:2px solid var(--border-strong);background:var(--bg-soft)}
-.hx-nest-body .hx-row{padding-left:30px;background:var(--bg)}
-.hx-nest-body .hx-row:hover{background:var(--bg-hover)}
-.hx-nest-body .hx-row.open{background:var(--bg-soft)}
-.hx-nest-body>.hx-item:last-child>.hx-row{border-bottom:none}
-.badge.b-mix{background:var(--badge-term-bg);color:var(--badge-term-fg)}
+.hx-nest-body{border-left:2px solid var(--border-strong);margin-left:16px}
+.hx-nest-body .hx-row{grid-template-columns:42px 40px 132px minmax(0,1fr) 14px minmax(112px,auto) 14px;padding-left:12px}
+.hx-nest-body .hx-body{margin-left:12px}
 /* Two tidy lines on phones: identity + money up top, context underneath. */
 @media(max-width:760px){
   .hx-ghead{padding:9px 12px}
   .hx-bar{padding:10px 12px}
   .hx-bar-lbl{display:none} /* chips alone fit one line on a phone */
-  .hx-nest-body .hx-row{padding-left:20px}
-  .hx-row{
+  .hx-nest-body{margin-left:10px}
+  .hx-body{margin-left:10px}
+  .hx-row,.hx-nest-body .hx-row{
     display:grid;gap:3px 8px;padding:10px 12px;align-items:center;
     grid-template-columns:auto auto minmax(0,1fr) auto auto;
     grid-template-areas:"date status title val chev" "sub sub sub icons icons";
   }
   .hx-date{grid-area:date;width:auto}
-  .badge.hx-mini{grid-area:status}
+  .hx-st{grid-area:status}
   .hx-title{grid-area:title;max-width:none;min-width:0}
   .hx-val{grid-area:val}
   .hx-chev{grid-area:chev}

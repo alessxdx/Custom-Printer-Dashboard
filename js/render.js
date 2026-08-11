@@ -227,11 +227,13 @@ function hxShortDate(ts){
   return d.getDate()+" "+HX_MONTHS[d.getMonth()];
 }
 function hxYearOf(ts){return ts?String(new Date(ts).getFullYear()):"Undated";}
+/* Status as plain coloured text, not a filled pill — on a list where most
+   rows share a status, six saturated badges are noise, not information. */
 function hxMiniStatus(s){
-  if(s==="PO")return "<span class='badge b-po hx-mini'>PO</span>";
-  if(s==="Quotation")return "<span class='badge b-qt hx-mini'>Quote</span>";
-  if(s==="Mixed")return "<span class='badge b-mix hx-mini'>Mixed</span>";
-  return "<span class='badge b-ls hx-mini'>Lost</span>";
+  if(s==="PO")return "<span class='hx-st hx-st-po' title='PO confirmed'>PO</span>";
+  if(s==="Quotation")return "<span class='hx-st hx-st-qt' title='Open quotation'>Quote</span>";
+  if(s==="Mixed")return "<span class='hx-st hx-st-mix' title='Mixed statuses'>Mixed</span>";
+  return "<span class='hx-st hx-st-ls' title='Lost quote'>Lost</span>";
 }
 /* PO numbers aren't a column — they live in a "PO 3165001907 - …" note.
    Require a digit so prose like "PO confirmed by email" isn't mistaken
@@ -257,9 +259,11 @@ function hxUsd(v,cur){
   var u=fxToUSD(v,cur);
   return u===null||isNaN(u)?0:u;
 }
+/* Digits carry the weight; the currency code rides along dimmed so a column
+   of amounts reads as numbers rather than as numbers-plus-noise. */
 function hxAmount(v,cur){
-  if(!v)return "—";
-  return v.toLocaleString(undefined,{maximumFractionDigits:0})+" "+cur;
+  if(!v)return "<span class='hx-cur'>—</span>";
+  return v.toLocaleString(undefined,{maximumFractionDigits:0})+"<span class='hx-cur'>"+cur+"</span>";
 }
 function hxTotals(map){
   var curs=Object.keys(map).sort();
@@ -439,8 +443,11 @@ function buildHistoryHtml(txs,projs,scope,opts){
   var groupsHtml=keys.map(function(k,i){
     var g=byKey[k],gk=hxSafe(k)+"-"+i;
     var closed=!!HX_YEAR_CLOSED[gsc+"|"+hxSafe(k)],gid="hx-g-"+gsc+"-"+gk;
-    var meta=g.count+" entr"+(g.count!==1?"ies":"y")+
-      (HX_MODE!=="status"&&g.pos?" \xb7 "+g.pos+" PO"+(g.pos!==1?"s":""):"");
+    /* "all POs" beats "6 POs" next to "6 entries" — it says the group is
+       uniform, which is the thing worth knowing at a glance. */
+    var poBit=(HX_MODE==="status"||!g.pos)?"":
+      (g.pos===g.count&&g.count>1?" \xb7 all POs":" \xb7 "+g.pos+" PO"+(g.pos!==1?"s":""));
+    var meta=g.count+" entr"+(g.count!==1?"ies":"y")+poBit;
     return "<div class='hx-group'>"+
       "<div class='hx-ghead' onclick=\"hxToggleYear('"+gsc+"','"+hxSafe(k)+"','"+gk+"')\">"+
         "<span class='hx-gchev"+(closed?"":" open")+"' id='"+gid+"-chev'>▸</span>"+
