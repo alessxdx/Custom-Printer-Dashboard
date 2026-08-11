@@ -22,18 +22,34 @@ function getFiltered(){
   const fs=document.getElementById("fs").value;
   return TX.filter(t=>(!fc||t.country===fc)&&(!fm||t.model===fm)&&(!fs||t.status===fs));
 }
+/* Deals live in two tables and either one can be empty — a fully migrated DB
+   has no transactions at all — so every option list unions both sources. */
+function allDealCountries(){
+  return [...new Set([...TX.map(t=>t.country),...PROJECTS.map(p=>p.country)].filter(Boolean))];
+}
+function allDealCustomers(){
+  return [...new Set([...TX.map(t=>t.customer),...PROJECTS.map(p=>p.customer)].filter(Boolean))];
+}
+/* Models come from tx.model and from printer line items. */
+function allDealModels(){
+  var li=(typeof LINE_ITEMS!=="undefined"?LINE_ITEMS:[]).filter(l=>l.type==="printer").map(l=>l.name);
+  return [...new Set([...TX.map(t=>t.model),...li].filter(Boolean))];
+}
+function allDealGroups(){
+  return [...new Set([...TX.map(t=>t.projectGroup),...PROJECTS.map(p=>p.projectGroup)].filter(Boolean))];
+}
 function refreshFilterOptions(){
   const fc=document.getElementById("fc"),fm=document.getElementById("fm");
   const fcV=fc.value,fmV=fm.value;
   fc.innerHTML='<option value="">All countries</option>';
   fm.innerHTML='<option value="">All models</option>';
-  [...new Set(TX.map(t=>t.country))].sort().forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;if(c===fcV)o.selected=true;fc.appendChild(o);});
-  [...new Set(TX.map(t=>t.model))].sort().forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=m;if(m===fmV)o.selected=true;fm.appendChild(o);});
+  allDealCountries().sort().forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;if(c===fcV)o.selected=true;fc.appendChild(o);});
+  allDealModels().sort().forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=m;if(m===fmV)o.selected=true;fm.appendChild(o);});
   const cl=document.getElementById("customer-list"),ml=document.getElementById("model-list"),cntl=document.getElementById("country-list");
-  if(cl)cl.innerHTML=[...new Set(TX.map(t=>t.customer))].sort().map(c=>`<option value="${c}">`).join("");
+  if(cl)cl.innerHTML=allDealCustomers().sort().map(c=>`<option value="${c}">`).join("");
   if(ml){
     var stdModels=getModelList();
-    var txModels=[...new Set(TX.map(t=>t.model))].filter(function(m){return !m.includes("+");});
+    var txModels=allDealModels().filter(function(m){return !m.includes("+");});
     var allModels=[...new Set([...stdModels,...txModels])].sort();
     var curVal=ml.tagName==="SELECT"?ml.value:"";
     if(ml.tagName==="SELECT"){
@@ -42,8 +58,8 @@ function refreshFilterOptions(){
       ml.innerHTML=allModels.map(function(m){return "<option value='"+m+"'>";}).join("");
     }
   }
-  if(cntl)cntl.innerHTML=[...new Set(TX.map(t=>t.country))].sort().map(c=>`<option value="${c}">`).join("");
-  var pgl=document.getElementById("project-group-list");if(pgl)pgl.innerHTML=[...new Set(TX.map(t=>t.projectGroup).filter(Boolean))].sort().map(p=>`<option value="${p}">`).join("");
+  if(cntl)cntl.innerHTML=allDealCountries().sort().map(c=>`<option value="${c}">`).join("");
+  var pgl=document.getElementById("project-group-list");if(pgl)pgl.innerHTML=allDealGroups().sort().map(p=>`<option value="${p}">`).join("");
 }
 /* A deal is identified by customer+country+project. To give By Customer a
    complete, non-double-counted overview that also spans By-Project data,
@@ -424,6 +440,10 @@ function hxCountLabel(rows,entryCount){
      (n===1?"lost quote":"lost quotes"));
   return n+" "+noun+(entryCount>n?" \xb7 "+entryCount+" records":"");
 }
+function hxOrderLabel(txs,projs){
+  var n=hxOrderCount(txs,projs);
+  return n+" order"+(n!==1?"s":"");
+}
 /* Same unit as hxCountLabel, but cheap — no entry bodies built. */
 function hxOrderCount(txs,projs){
   var combined=combinedGroupsOf(txs||[]),seen={},n=0;
@@ -601,11 +621,24 @@ function renderModel(){
     "TK180 Metal Cutter":["TK180 Metal Cutter","TK180 Metal Cutter ARINC"],
     "TK180 Metal Non Cutter":["TK180 Metal Non Cutter","TK180 Metal Non Cutter ARINC"],
   };
-  const allModels=[...new Set(TX.map(t=>t.displayModel||t.model))];
+  /* Comparable rows come from both tables: a flat transaction is one row, and
+     so is each printer line item on a project. Without this the tab empties
+     out the moment a customer is migrated off `transactions`. */
+  const projRows=(typeof LINE_ITEMS!=="undefined"?LINE_ITEMS:[]).filter(li=>li.type==="printer").map(function(li){
+    const p=PROJECTS.filter(x=>x._id===li.projectId)[0];
+    if(!p)return null;
+    return {displayModel:li.displayModel||li.name,model:li.name,customer:p.customer,country:p.country,
+      date:p.date,displayDate:p.displayDate,status:p.status,project:p.project,pn:li.pn||"",
+      qty:li.qty+" unit"+(li.qty!==1?"s":""),price:li.unitPrice,currency:p.currency,
+      terms:p.shippingTerms?[p.shippingTerms]:[],warranty:p.warranty||"",bp:li.buyingPrice||null,
+      notes:p.notes||[]};
+  }).filter(Boolean);
+  const cmpAll=TX.concat(projRows);
+  const allModels=[...new Set(cmpAll.map(t=>t.displayModel||t.model))];
   const models=allModels.filter(m=>!Object.values(MODEL_GROUPS).flat().includes(m)||Object.keys(MODEL_GROUPS).includes(m)).sort();
   const sel=document.getElementById("model-sel"),current=sel?sel.value:models[0];
   const groupModels=MODEL_GROUPS[current]||[current];
-  const txs=TX.filter(t=>groupModels.includes(t.displayModel||t.model)&&t.model!=="TK180 Metal Cutter ARINC (ATB) + TK180 Metal Non Cutter ARINC (BTP)").sort((a,b)=>parseDV(b.date)-parseDV(a.date));
+  const txs=cmpAll.filter(t=>groupModels.includes(t.displayModel||t.model)&&t.model!=="TK180 Metal Cutter ARINC (ATB) + TK180 Metal Non Cutter ARINC (BTP)").sort((a,b)=>parseDV(b.date)-parseDV(a.date));
   const opts=models.map(m=>`<option value="${m}"${m===current?" selected":""}>${m}</option>`).join("");
   let rows="";
   txs.forEach((tx,i)=>{

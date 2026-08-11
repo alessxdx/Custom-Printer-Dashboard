@@ -128,8 +128,13 @@ async function loadFromDB(){
 
     if(txRows&&txRows.length>0){
       TX.length=0;txRows.forEach(function(r){TX.push(dbToTx(r));});
+    } else if(projRows&&projRows.length>0){
+      // Empty transactions but populated projects — deals have been migrated
+      // off the flat table. That's a legitimately empty table, NOT a fresh
+      // DB, so seeding here would resurrect 25 sample rows as phantom deals.
+      TX.length=0;
     } else {
-      // Empty table — bootstrap with the sample rows
+      // Genuinely fresh DB — bootstrap with the sample rows
       showLoad("Seeding transactions ("+TX_CODE_COUNT+" entries)...");
       await fetch(SB_URL+"/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
       TX.length=0;

@@ -249,7 +249,7 @@ function buildMdDetail(key){
     "</div>"+
     fxBlock+
     "<div class='md-section md-entries'>"+
-      "<div class='md-section-title'>History — quotations &amp; POs ("+hxOrderCount(txs,projs)+" orders)</div>"+
+      "<div class='md-section-title'>History — quotations &amp; POs ("+hxOrderLabel(txs,projs)+")</div>"+
       "<div class='md-entries-body'>"+buildHistoryHtml(txs,projs,"cust-"+key)+"</div>"+
     "</div>";
 }
@@ -332,7 +332,7 @@ function buildProjectGroupView(){
   if(order.length===1){
     var e=byCustomer[order[0]];
     body="<div class='md-section md-entries'>"+
-      "<div class='md-section-title'>Projects in this group ("+hxOrderCount(e.txs,e.projs)+" orders)</div>"+
+      "<div class='md-section-title'>Projects in this group ("+hxOrderLabel(e.txs,e.projs)+")</div>"+
       "<div class='md-entries-body'>"+buildHistoryHtml(e.txs,e.projs,"pg-"+group)+"</div>"+
     "</div>";
   } else {
