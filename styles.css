@@ -777,6 +777,77 @@ tr.exp-detail td{
   .pj-row .pj-name{grid-column:1/-1}
 }
 
+/* ==========  HISTORY: collapsed rows, grouped + PO-nested  ========== */
+.hx-none{padding:16px;font-size:13px;color:var(--text-faint)}
+.hx-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--divider)}
+.hx-bar-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-faint);margin-right:2px}
+.hx-chip{
+  font-family:'Montserrat',sans-serif;font-size:11.5px;font-weight:600;
+  color:var(--text-muted);background:transparent;
+  border:1px solid var(--border);border-radius:7px;
+  padding:4px 11px;cursor:pointer;transition:all .12s;
+}
+.hx-chip:hover{background:var(--bg-hover);color:var(--text)}
+.hx-chip.active{background:var(--accent-soft);border-color:var(--border-strong);color:var(--accent-text)}
+.hx-ghead{
+  display:flex;align-items:baseline;gap:9px;
+  padding:9px 16px;cursor:pointer;user-select:none;
+  background:var(--bg-soft);border-bottom:1px solid var(--divider);
+}
+.hx-ghead:hover{background:var(--bg-hover)}
+.hx-gchev{font-size:10px;color:var(--text-faint);transition:transform .15s;display:inline-block;flex:none}
+.hx-gchev.open{transform:rotate(90deg)}
+.hx-gyear{font-size:13px;font-weight:700;color:var(--text-strong)}
+.hx-gmeta{font-size:11px;color:var(--text-muted)}
+.hx-gtot{margin-left:auto;font-size:12px;font-weight:600;color:var(--accent-text);white-space:nowrap;font-variant-numeric:tabular-nums}
+.hx-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 16px;cursor:pointer;user-select:none;
+  border-bottom:1px solid var(--divider);
+  transition:background .12s;
+}
+.hx-row:hover{background:var(--bg-hover)}
+.hx-row.open{background:var(--bg-soft)}
+.hx-date{font-size:11.5px;color:var(--text-muted);width:50px;flex:none;font-variant-numeric:tabular-nums}
+.badge.hx-mini{flex:none;width:48px;justify-content:center;margin:0}
+.hx-title{font-size:13px;font-weight:600;color:var(--text-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42%}
+.hx-sub{font-size:12px;color:var(--text-muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hx-icons{flex:none;display:flex;gap:3px;font-size:11px;opacity:.65}
+.hx-val{font-size:13px;font-weight:600;color:var(--text-strong);white-space:nowrap;flex:none;font-variant-numeric:tabular-nums}
+.hx-chev{font-size:11px;color:var(--text-faint);flex:none;width:12px;text-align:center;transition:transform .15s;display:inline-block}
+.hx-chev.open{transform:rotate(180deg)}
+.hx-body{border-bottom:1px solid var(--border-strong);background:var(--bg-soft)}
+.hx-body .tx{background:transparent}
+.hx-body .tx:hover{background:transparent}
+/* A multi-line PO folded into one parent row. */
+.hx-nest-head .hx-title{color:var(--accent-text)}
+.hx-nest.open>.hx-nest-head{background:var(--bg-soft)}
+.hx-nest-body{border-left:2px solid var(--border-strong);background:var(--bg-soft)}
+.hx-nest-body .hx-row{padding-left:30px;background:var(--bg)}
+.hx-nest-body .hx-row:hover{background:var(--bg-hover)}
+.hx-nest-body .hx-row.open{background:var(--bg-soft)}
+.hx-nest-body>.hx-item:last-child>.hx-row{border-bottom:none}
+.badge.b-mix{background:var(--badge-term-bg);color:var(--badge-term-fg)}
+/* Two tidy lines on phones: identity + money up top, context underneath. */
+@media(max-width:760px){
+  .hx-ghead{padding:9px 12px}
+  .hx-bar{padding:10px 12px}
+  .hx-bar-lbl{display:none} /* chips alone fit one line on a phone */
+  .hx-nest-body .hx-row{padding-left:20px}
+  .hx-row{
+    display:grid;gap:3px 8px;padding:10px 12px;align-items:center;
+    grid-template-columns:auto auto minmax(0,1fr) auto auto;
+    grid-template-areas:"date status title val chev" "sub sub sub icons icons";
+  }
+  .hx-date{grid-area:date;width:auto}
+  .badge.hx-mini{grid-area:status}
+  .hx-title{grid-area:title;max-width:none;min-width:0}
+  .hx-val{grid-area:val}
+  .hx-chev{grid-area:chev}
+  .hx-sub{grid-area:sub}
+  .hx-icons{grid-area:icons;justify-self:end}
+}
+
 /* Attachment chips inside modals */
 .att-item{display:inline-flex;align-items:center;gap:4px;margin:4px 8px 0 0;font-size:11px;color:var(--text-muted);background:var(--bg-soft);border:1px solid var(--border);border-radius:6px;padding:3px 8px}
 .att-item a{color:var(--accent-text);text-decoration:none}

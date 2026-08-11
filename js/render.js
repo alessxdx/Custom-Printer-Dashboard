@@ -119,26 +119,41 @@ function attClipsHtml(list){
     return "<a class='pdf-clip"+cls+"' href='"+a.url+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title=\""+full+"\">&#128206; "+label+"</a>";
   }).join(" ");
 }
-function buildTxEntriesHtml(txs){
-  /* Which project groups still have a combined "ATB + BTP" summary entry?
-     Split rows are only hidden behind that entry's toggle; if the combined
-     entry was deleted, the orphaned splits must show on their own. */
+/* Which project groups still have a combined "ATB + BTP" summary entry?
+   Split rows are only hidden behind that entry's toggle; if the combined
+   entry was deleted, the orphaned splits must show on their own. */
+function combinedGroupsOf(txs){
   const combinedGroups={};
   txs.forEach(function(t){if(t.projectGroup&&t.model&&t.model.includes("+"))combinedGroups[t.projectGroup]=true;});
-  const sorted=[...txs].sort((a,b)=>{
-      const aCombined=a.projectGroup&&a.model&&a.model.includes("+");
-      const bCombined=b.projectGroup&&b.model&&b.model.includes("+");
-      if(a.projectGroup&&b.projectGroup&&a.projectGroup===b.projectGroup){
-        if(aCombined&&!bCombined)return -1;
-        if(!aCombined&&bCombined)return 1;
-      }
-      return parseDV(b.date)-parseDV(a.date);
-    });
-  return sorted.map(tx=>{
+  return combinedGroups;
+}
+function txEntrySort(a,b){
+  const aCombined=a.projectGroup&&a.model&&a.model.includes("+");
+  const bCombined=b.projectGroup&&b.model&&b.model.includes("+");
+  if(a.projectGroup&&b.projectGroup&&a.projectGroup===b.projectGroup){
+    if(aCombined&&!bCombined)return -1;
+    if(!aCombined&&bCombined)return 1;
+  }
+  return parseDV(b.date)-parseDV(a.date);
+}
+function buildTxEntriesHtml(txs){
+  const combinedGroups=combinedGroupsOf(txs);
+  return [...txs].sort(txEntrySort).map(function(tx){
+    const inner=buildTxEntryHtml(tx);
+    const isSplit=tx.projectGroup&&tx.project&&(tx.project.includes("— ATB")||tx.project.includes("— BTP"));
+    const grpId=tx.projectGroup?tx.projectGroup.replace(/[^a-zA-Z0-9]/g,"-"):"";
+    return (isSplit&&combinedGroups[tx.projectGroup])
+      ?"<div class='grp-entry' data-group='"+grpId+"' style='display:none'>"+inner+"</div>"
+      :inner;
+  }).join("");
+}
+/* One history entry, fully expanded. Returned bare (no grp-entry wrapper) so
+   both the flat list and the collapsed-row list can place it themselves. */
+function buildTxEntryHtml(tx){
+  {
     const margin=tx.bp&&tx.currency==="USD"?tx.price-tx.bp:null;
     const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
     const isCombined=tx.projectGroup&&tx.model&&tx.model.includes("+");
-    const isSplit=tx.projectGroup&&tx.project&&(tx.project.includes("\u2014 ATB")||tx.project.includes("\u2014 BTP"));
     const grpId=tx.projectGroup?tx.projectGroup.replace(/[^a-zA-Z0-9]/g,"-"):"";
     const groupTag=(()=>{
       if(!tx.projectGroup)return "";
@@ -183,10 +198,286 @@ function buildTxEntriesHtml(txs){
         "<button class='edit-btn' onclick='editTx("+TX.indexOf(tx)+",event)'>Edit</button>"+
       "</div>"+
     "</div></div>";
-    const hiddenSplit=isSplit&&combinedGroups[tx.projectGroup];
-    return hiddenSplit?"<div class='grp-entry' data-group='"+grpId+"' style='display:none'>"+inner+"</div>":inner;
-  }).join("");
+    return inner;
+  }
 }
+/* ============================================================
+   HISTORY LIST — one collapsed line per entry, grouped by date /
+   model / project / status. A row expands into the exact block the
+   history used to render inline (buildTxEntryHtml / buildProjectBlock),
+   so every edge case — combined ATB+BTP toggles, dual pricing,
+   overrides, PDF chips — looks identical once opened. Groups carry a
+   per-currency subtotal, and entries sharing a PO number nest under a
+   single parent row so a multi-line PO reads as the one order it is.
+   ============================================================ */
+var HX_OPEN={};        /* rowId -> true when its detail block is open */
+var HX_YEAR_CLOSED={}; /* "groupScope|key" -> true when the group is collapsed */
+var HX_YEAR_INIT={};   /* groupScope -> true once the open/closed defaults were applied */
+var HX_MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var HX_AUTO_OPEN_ROWS=12; /* open groups top-down until this many rows show */
+var HX_MODES=[{k:"date",label:"Date"},{k:"model",label:"Model"},{k:"project",label:"Project"},{k:"status",label:"Status"}];
+var HX_MODE=(function(){try{return localStorage.getItem("cpd_hxgroup")||"date";}catch(e){return "date";}})();
+var HX_STATUS_RANK={PO:0,Quotation:1,Lose:2};
+
+function hxSafe(s){return String(s==null?"":s).replace(/[^a-zA-Z0-9]/g,"-");}
+function hxAttr(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+function hxShortDate(ts){
+  if(!ts)return "—";
+  var d=new Date(ts);
+  return d.getDate()+" "+HX_MONTHS[d.getMonth()];
+}
+function hxYearOf(ts){return ts?String(new Date(ts).getFullYear()):"Undated";}
+function hxMiniStatus(s){
+  if(s==="PO")return "<span class='badge b-po hx-mini'>PO</span>";
+  if(s==="Quotation")return "<span class='badge b-qt hx-mini'>Quote</span>";
+  if(s==="Mixed")return "<span class='badge b-mix hx-mini'>Mixed</span>";
+  return "<span class='badge b-ls hx-mini'>Lost</span>";
+}
+/* PO numbers aren't a column — they live in a "PO 3165001907 - …" note.
+   Require a digit so prose like "PO confirmed by email" isn't mistaken
+   for an order number. */
+function hxPoNumber(notes){
+  for(var i=0;i<(notes||[]).length;i++){
+    var m=/^PO[\s#:]*([A-Za-z0-9][A-Za-z0-9\/_-]*)/i.exec(String(notes[i]).trim());
+    if(m&&/\d/.test(m[1]))return m[1].replace(/[.,;-]+$/,"");
+  }
+  return null;
+}
+/* A project has no single model field — derive one from its printer lines. */
+function hxProjModel(pid){
+  var names=[];
+  (typeof LINE_ITEMS!=="undefined"?LINE_ITEMS:[]).forEach(function(li){
+    if(li.projectId===pid&&li.type==="printer"&&names.indexOf(li.name)===-1)names.push(li.name);
+  });
+  if(!names.length)return "Other";
+  return names.length===1?names[0]:"Multiple models";
+}
+function hxUsd(v,cur){
+  if(typeof fxToUSD!=="function")return 0;
+  var u=fxToUSD(v,cur);
+  return u===null||isNaN(u)?0:u;
+}
+function hxAmount(v,cur){
+  if(!v)return "—";
+  return v.toLocaleString(undefined,{maximumFractionDigits:0})+" "+cur;
+}
+function hxTotals(map){
+  var curs=Object.keys(map).sort();
+  if(!curs.length)return "";
+  return curs.map(function(c){return hxAmount(map[c],c);}).join(" \xb7 ");
+}
+
+/* Flatten transactions + project-only deals into one sortable row model. */
+function hxItems(txs,projs){
+  var combined=combinedGroupsOf(txs);
+  var items=txs.map(function(tx){
+    var isCombined=!!(tx.projectGroup&&tx.model&&tx.model.indexOf("+")!==-1);
+    var isSplit=!!(tx.projectGroup&&tx.project&&(tx.project.indexOf("— ATB")!==-1||tx.project.indexOf("— BTP")!==-1));
+    return {
+      id:"t"+TX.indexOf(tx),ts:parseDV(tx.date),status:tx.status,
+      title:tx.model,sub:[tx.project,tx.qty].filter(Boolean).join(" \xb7 "),
+      value:txValueOf(tx),currency:tx.currency,
+      atts:tx.attachments,group:tx.projectGroup,
+      model:tx.model,project:tx.project,po:hxPoNumber(tx.notes),
+      combined:isCombined,hidden:isSplit&&!!combined[tx.projectGroup],
+      body:buildTxEntryHtml(tx)
+    };
+  });
+  (projs||[]).forEach(function(p){
+    var q=projectPrinterQty(p._id);
+    items.push({
+      id:"p"+hxSafe(p._id),ts:parseDV(p.date),status:p.status,
+      title:p.project,sub:q?q+" printer"+(q!==1?"s":""):"—",
+      value:projTotalOf(p),currency:p.currency,
+      atts:p.attachments,group:p.projectGroup,
+      model:hxProjModel(p._id),project:p.project,po:hxPoNumber(p.notes),
+      combined:false,hidden:false,
+      body:buildProjectBlock(p)
+    });
+  });
+  /* Newest first, but a combined entry always sits directly above the split
+     rows it hides, so revealing them keeps them next to their parent. */
+  items.sort(function(a,b){
+    if(a.group&&b.group&&a.group===b.group){
+      if(a.combined&&!b.combined)return -1;
+      if(!a.combined&&b.combined)return 1;
+    }
+    return b.ts-a.ts;
+  });
+  return items;
+}
+
+function hxRowHtml(it,sc){
+  var rid=sc+"-"+it.id,open=!!HX_OPEN[rid];
+  var icons="";
+  if(it.atts&&it.atts.length)icons+="<span class='hx-ico' title='"+it.atts.length+" attachment"+(it.atts.length!==1?"s":"")+"'>&#128206;</span>";
+  if(it.group)icons+="<span class='hx-ico' title=\"Project group: "+hxAttr(it.group)+"\">&#128279;</span>";
+  var row="<div class='hx-row"+(open?" open":"")+"' onclick=\"hxToggleRow('"+rid+"')\">"+
+      "<span class='hx-date'>"+hxShortDate(it.ts)+"</span>"+
+      hxMiniStatus(it.status)+
+      "<span class='hx-title'>"+it.title+"</span>"+
+      "<span class='hx-sub'>"+it.sub+"</span>"+
+      "<span class='hx-icons'>"+icons+"</span>"+
+      "<span class='hx-val'>"+hxAmount(it.value,it.currency)+"</span>"+
+      "<span class='hx-chev"+(open?" open":"")+"' id='hx-c-"+rid+"'>▾</span>"+
+    "</div>"+
+    "<div class='hx-body' id='hx-b-"+rid+"'"+(open?"":" style='display:none'")+">"+it.body+"</div>";
+  return it.hidden
+    ?"<div class='hx-item grp-entry' data-group='"+hxSafe(it.group)+"' style='display:none'>"+row+"</div>"
+    :"<div class='hx-item'>"+row+"</div>";
+}
+
+/* Which bucket an entry falls into under the active grouping mode. */
+function hxGroupLabel(it,mode){
+  if(mode==="model")return it.model||"Other";
+  if(mode==="project")return it.group||it.project||"Other";
+  if(mode==="status")return it.status==="PO"?"Confirmed POs":(it.status==="Quotation"?"Open quotations":"Lost quotes");
+  return hxYearOf(it.ts);
+}
+/* Collapse entries that share a PO number into one parent row. Only worth it
+   at 2+ lines; hidden split rows stay in the flat flow (they're display:none
+   until their combined parent reveals them). */
+function hxNest(items){
+  var counts={};
+  items.forEach(function(it){if(it.po&&!it.hidden)counts[it.po]=(counts[it.po]||0)+1;});
+  var out=[],seen={};
+  items.forEach(function(it){
+    if(!it.po||it.hidden||counts[it.po]<2){out.push(it);return;}
+    if(seen[it.po])return;
+    seen[it.po]=true;
+    out.push({nest:true,po:it.po,children:items.filter(function(o){return o.po===it.po&&!o.hidden;})});
+  });
+  return out;
+}
+function hxNestHtml(n,sc){
+  var nid=sc+"-po-"+hxSafe(n.po),open=!!HX_OPEN[nid];
+  var totals={},atts=0,ts=0,status=null,mixed=false,projects=[];
+  n.children.forEach(function(c){
+    if(c.currency&&c.value)totals[c.currency]=(totals[c.currency]||0)+c.value;
+    atts+=(c.atts||[]).length;
+    if(c.ts>ts)ts=c.ts;
+    if(status===null)status=c.status;else if(status!==c.status)mixed=true;
+    if(c.project&&projects.indexOf(c.project)===-1)projects.push(c.project);
+  });
+  var icons=atts?"<span class='hx-ico' title='"+atts+" attachment"+(atts!==1?"s":"")+"'>&#128206;</span>":"";
+  var sub=n.children.length+" lines"+(projects.length?" \xb7 "+projects.join(", "):"");
+  return "<div class='hx-item hx-nest"+(open?" open":"")+"'>"+
+    "<div class='hx-row hx-nest-head"+(open?" open":"")+"' onclick=\"hxToggleRow('"+nid+"')\">"+
+      "<span class='hx-date'>"+hxShortDate(ts)+"</span>"+
+      hxMiniStatus(mixed?"Mixed":status)+
+      "<span class='hx-title'>PO "+n.po+"</span>"+
+      "<span class='hx-sub'>"+sub+"</span>"+
+      "<span class='hx-icons'>"+icons+"</span>"+
+      "<span class='hx-val'>"+hxTotals(totals)+"</span>"+
+      "<span class='hx-chev"+(open?" open":"")+"' id='hx-c-"+nid+"'>▾</span>"+
+    "</div>"+
+    "<div class='hx-nest-body' id='hx-b-"+nid+"'"+(open?"":" style='display:none'")+">"+
+      n.children.map(function(c){return hxRowHtml(c,sc);}).join("")+
+    "</div>"+
+  "</div>";
+}
+function hxToolbar(){
+  return "<div class='hx-bar'><span class='hx-bar-lbl'>Group by</span>"+
+    HX_MODES.map(function(m){
+      return "<button class='hx-chip"+(HX_MODE===m.k?" active":"")+"' onclick=\"hxSetMode('"+m.k+"')\">"+m.label+"</button>";
+    }).join("")+
+  "</div>";
+}
+function hxSetMode(m){
+  if(HX_MODE===m)return;
+  HX_MODE=m;
+  try{localStorage.setItem("cpd_hxgroup",m);}catch(e){}
+  renderContent();
+}
+
+function buildHistoryHtml(txs,projs,scope,opts){
+  var showBar=!opts||opts.toolbar!==false;
+  var items=hxItems(txs,projs);
+  if(!items.length)return (showBar?hxToolbar():"")+"<div class='hx-none'>No entries.</div>";
+  /* Row state is keyed without the mode so expanded rows survive a regroup;
+     group state is keyed with it, since the buckets themselves change. */
+  var sc=hxSafe(scope||"hx"),gsc=sc+"--"+HX_MODE;
+  var keys=[],byKey={};
+  items.forEach(function(it){
+    var label=hxGroupLabel(it,HX_MODE);
+    if(!byKey[label]){byKey[label]={label:label,items:[],count:0,pos:0,totals:{},usd:0,ts:0};keys.push(label);}
+    var g=byKey[label];
+    g.items.push(it);
+    if(it.hidden)return; /* split rows would double-count their combined parent */
+    g.count++;
+    if(it.status==="PO")g.pos++;
+    if(it.ts>g.ts)g.ts=it.ts;
+    if(it.currency&&it.value){
+      g.totals[it.currency]=(g.totals[it.currency]||0)+it.value;
+      g.usd+=hxUsd(it.value,it.currency);
+    }
+  });
+  /* Date keeps the newest-first order the items already have; status uses a
+     fixed pipeline order; model/project lead with the biggest money. */
+  if(HX_MODE==="status"){
+    keys.sort(function(a,b){
+      function rank(l){return l==="Confirmed POs"?0:(l==="Open quotations"?1:2);}
+      return rank(a)-rank(b);
+    });
+  }else if(HX_MODE==="model"||HX_MODE==="project"){
+    keys.sort(function(a,b){
+      var d=byKey[b].usd-byKey[a].usd;
+      if(d)return d;
+      d=byKey[b].count-byKey[a].count;
+      return d||a.localeCompare(b);
+    });
+  }
+  if(!HX_YEAR_INIT[gsc]){
+    HX_YEAR_INIT[gsc]=true;
+    var shown=0,closing=false;
+    keys.forEach(function(k){
+      var n=byKey[k].count;
+      if(closing||(shown>0&&shown+n>HX_AUTO_OPEN_ROWS)){closing=true;HX_YEAR_CLOSED[gsc+"|"+hxSafe(k)]=true;}
+      else shown+=n;
+    });
+  }
+  var groupsHtml=keys.map(function(k,i){
+    var g=byKey[k],gk=hxSafe(k)+"-"+i;
+    var closed=!!HX_YEAR_CLOSED[gsc+"|"+hxSafe(k)],gid="hx-g-"+gsc+"-"+gk;
+    var meta=g.count+" entr"+(g.count!==1?"ies":"y")+
+      (HX_MODE!=="status"&&g.pos?" \xb7 "+g.pos+" PO"+(g.pos!==1?"s":""):"");
+    return "<div class='hx-group'>"+
+      "<div class='hx-ghead' onclick=\"hxToggleYear('"+gsc+"','"+hxSafe(k)+"','"+gk+"')\">"+
+        "<span class='hx-gchev"+(closed?"":" open")+"' id='"+gid+"-chev'>▸</span>"+
+        "<span class='hx-gyear'>"+g.label+"</span>"+
+        "<span class='hx-gmeta'>"+meta+"</span>"+
+        "<span class='hx-gtot'>"+hxTotals(g.totals)+"</span>"+
+      "</div>"+
+      "<div class='hx-gbody' id='"+gid+"'"+(closed?" style='display:none'":"")+">"+
+        hxNest(g.items).map(function(row){return row.nest?hxNestHtml(row,sc):hxRowHtml(row,sc);}).join("")+
+      "</div>"+
+    "</div>";
+  }).join("");
+  return (showBar?hxToolbar():"")+groupsHtml;
+}
+
+function hxToggleRow(rid){
+  HX_OPEN[rid]=!HX_OPEN[rid];
+  var b=document.getElementById("hx-b-"+rid);
+  if(b){
+    b.style.display=HX_OPEN[rid]?"":"none";
+    if(b.parentNode&&b.parentNode.classList.contains("hx-nest"))b.parentNode.classList.toggle("open",HX_OPEN[rid]);
+  }
+  var c=document.getElementById("hx-c-"+rid);
+  if(c){
+    c.classList.toggle("open",HX_OPEN[rid]);
+    if(c.parentNode)c.parentNode.classList.toggle("open",HX_OPEN[rid]);
+  }
+}
+function hxToggleYear(gsc,key,gk){
+  var k=gsc+"|"+key;
+  HX_YEAR_CLOSED[k]=!HX_YEAR_CLOSED[k];
+  var b=document.getElementById("hx-g-"+gsc+"-"+gk);
+  if(b)b.style.display=HX_YEAR_CLOSED[k]?"none":"";
+  var c=document.getElementById("hx-g-"+gsc+"-"+gk+"-chev");
+  if(c)c.classList.toggle("open",!HX_YEAR_CLOSED[k]);
+}
+
 function buildCustomerCard(name,txs){
   const country=txs[0].country,flagIcon=FLAGS[country]||"\u{1F310}";
   const cardKey=name+"__"+country,isOpen=expandedCards[cardKey];

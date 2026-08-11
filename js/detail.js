@@ -250,10 +250,7 @@ function buildMdDetail(key){
     fxBlock+
     "<div class='md-section md-entries'>"+
       "<div class='md-section-title'>History — quotations &amp; POs ("+(txs.length+projs.length)+" entries)</div>"+
-      "<div class='md-entries-body'>"+
-        buildTxEntriesHtml(txs)+
-        (projs.length?projs.slice().sort(function(a,b){return parseDV(b.date)-parseDV(a.date);}).map(buildProjectBlock).join(""):"")+
-      "</div>"+
+      "<div class='md-entries-body'>"+buildHistoryHtml(txs,projs,"cust-"+key)+"</div>"+
     "</div>";
 }
 
@@ -306,10 +303,7 @@ function buildProjectGroupSection(name,country,txs,projs){
       "<div style='font-size:11px;color:var(--text-muted)'>"+pos+" PO"+(pos!==1?"s":"")+" \xb7 "+qt+" quote"+(qt!==1?"s":"")+"</div>"+
     "</div>"+
     "<div style='margin-bottom:10px'>"+mdMoneyLines(totals)+"</div>"+
-    "<div class='md-entries-body'>"+
-      buildTxEntriesHtml(txs)+
-      (projs.length?projs.slice().sort(function(a,b){return parseDV(b.date)-parseDV(a.date);}).map(buildProjectBlock).join(""):"")+
-    "</div>"+
+    "<div class='md-entries-body'>"+buildHistoryHtml(txs,projs,"pgc-"+name+"-"+country,{toolbar:false})+"</div>"+
   "</div>";
 }
 function buildProjectGroupView(){
@@ -339,10 +333,7 @@ function buildProjectGroupView(){
     var e=byCustomer[order[0]];
     body="<div class='md-section md-entries'>"+
       "<div class='md-section-title'>Projects in this group ("+(txs.length+projs.length)+" entries)</div>"+
-      "<div class='md-entries-body'>"+
-        buildTxEntriesHtml(e.txs)+
-        (e.projs.length?e.projs.slice().sort(function(a,b){return parseDV(b.date)-parseDV(a.date);}).map(buildProjectBlock).join(""):"")+
-      "</div>"+
+      "<div class='md-entries-body'>"+buildHistoryHtml(e.txs,e.projs,"pg-"+group)+"</div>"+
     "</div>";
   } else {
     body="<div class='md-section-title' style='margin:0 2px 8px'>By customer</div>"+
