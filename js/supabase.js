@@ -117,34 +117,18 @@ async function loadFromDB(){
     if(projRows){PROJECTS.length=0;projRows.forEach(function(r){PROJECTS.push(dbToProject(r));});}
     if(liRows){LINE_ITEMS.length=0;liRows.forEach(function(r){LINE_ITEMS.push(dbToLineItem(r));});}
 
-    // Seed the built-in sample rows ONLY into a genuinely empty table
-    // (first-time bootstrap). Once a table has any rows we always trust
-    // the DB, so the user's own edits and deletions are never reverted.
-    // (Use reseedDB() manually if a full reset back to the code data is
-    // ever wanted.)
-    var TX_CODE_COUNT=TX_SEED.length;
+    // Seed the built-in reference rows ONLY into a genuinely empty table
+    // (first-time bootstrap). Once a table has any rows we always trust the
+    // DB, so the user's own edits and deletions are never reverted. Deals
+    // are never seeded — they only ever come from the database.
     var BUYING_CODE_COUNT=BUYING_SEED.length;
     var OTHERS_CODE_COUNT=OTHERS_SEED.length;
 
-    if(txRows&&txRows.length>0){
-      TX.length=0;txRows.forEach(function(r){TX.push(dbToTx(r));});
-    } else if(projRows&&projRows.length>0){
-      // Empty transactions but populated projects — deals have been migrated
-      // off the flat table. That's a legitimately empty table, NOT a fresh
-      // DB, so seeding here would resurrect 25 sample rows as phantom deals.
-      TX.length=0;
-    } else {
-      // Genuinely fresh DB — bootstrap with the sample rows
-      showLoad("Seeding transactions ("+TX_CODE_COUNT+" entries)...");
-      await fetch(SB_URL+"/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
-      TX.length=0;
-      for(var i=0;i<TX_SEED.length;i++){
-        var t=Object.assign({},TX_SEED[i]);delete t._id;
-        var r=await sbInsert("transactions",txToDb(t));
-        if(r&&r[0])t._id=r[0].id;
-        TX.push(t);
-      }
-    }
+    // Legacy flat deals. Nothing writes to this table any more — every deal
+    // is a project + line items — but existing rows are still rendered and
+    // reconciled by resolveDeals() if any are ever restored.
+    TX.length=0;
+    if(txRows)txRows.forEach(function(r){TX.push(dbToTx(r));});
 
     if(buyRows&&buyRows.length>0){
       BUYING.length=0;buyRows.forEach(function(r){BUYING.push(dbToB(r));});
@@ -205,42 +189,6 @@ async function loadFromDB(){
   hideLoad();refreshFilterOptions();renderStats();renderCustomers();
 }
 
-async function reseedDB(){
-  if(!confirm("This will DELETE all data in the database and re-insert the hardcoded entries from the code.\n\nAny entries you added manually will be lost.\n\nContinue?"))return;
-  showLoad("Clearing database...");
-  try{
-    // Delete all rows from each table
-    await fetch(SB_URL+"/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
-    await fetch(SB_URL+"/rest/v1/buying_prices?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
-    await fetch(SB_URL+"/rest/v1/others?id=neq.00000000-0000-0000-0000-000000000000",{method:"DELETE",headers:sbH()});
-    showLoad("Seeding transactions...");
-    var freshTX=TX_SEED.map(function(t){return Object.assign({},t);});
-    TX.length=0;
-    for(var i=0;i<freshTX.length;i++){
-      var r=await sbInsert("transactions",txToDb(freshTX[i]));
-      if(r&&r[0])freshTX[i]._id=r[0].id;
-      TX.push(freshTX[i]);
-    }
-    showLoad("Seeding buying prices...");
-    var freshB=BUYING_SEED.map(function(b){return Object.assign({},b);});
-    BUYING.length=0;
-    for(var j=0;j<freshB.length;j++){
-      var rb=await sbInsert("buying_prices",bToDb(freshB[j]));
-      if(rb&&rb[0])freshB[j]._id=rb[0].id;
-      BUYING.push(freshB[j]);
-    }
-    showLoad("Seeding notes...");
-    var freshO=OTHERS_SEED.map(function(o){return Object.assign({},o);});
-    OTHERS.length=0;
-    for(var k=0;k<freshO.length;k++){
-      var ro=await sbInsert("others",oToDb(freshO[k]));
-      if(ro&&ro[0])freshO[k]._id=ro[0].id;
-      OTHERS.push(freshO[k]);
-    }
-    alert("Re-seed complete! "+TX.length+" transactions, "+BUYING.length+" buying prices, "+OTHERS.length+" notes loaded.");
-  }catch(err){console.error(err);alert("Re-seed failed: "+err.message);}
-  hideLoad();refreshFilterOptions();renderStats();renderContent();
-}
 
 var CUSTOM_MODELS=JSON.parse(localStorage.getItem("cpd_models")||"null");
 function getModelList(){
