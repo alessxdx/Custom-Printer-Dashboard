@@ -245,6 +245,33 @@ function hxPoNumber(notes){
   }
   return null;
 }
+/* Now that a PO is one project per site, the PO number lives in the project
+   name ("Bali — PO 3165001907"). Inside a nest that already announces the PO,
+   the suffix is noise. */
+function hxStripPo(name,po){
+  if(!po)return name;
+  return String(name).replace(new RegExp("\\s*[—-]\\s*PO\\s*"+po+"\\s*$","i"),"")||name;
+}
+/* What's actually in a project, aggregated by item name so a PO with two
+   lines of the same model reads as one figure. */
+function hxProjSummary(pid){
+  var order=[],byName={};
+  (typeof LINE_ITEMS!=="undefined"?LINE_ITEMS:[])
+    .filter(function(li){return li.projectId===pid&&li.type!=="discount";})
+    /* Printers lead — they're what the deal is about; accessories follow. */
+    .sort(function(a,b){
+      var pa=a.type==="printer"?0:1,pb=b.type==="printer"?0:1;
+      return pa-pb||a.sortOrder-b.sortOrder;
+    })
+    .forEach(function(li){
+      if(!byName[li.name]){byName[li.name]=0;order.push(li.name);}
+      byName[li.name]+=li.qty;
+    });
+  if(!order.length)return "—";
+  var shown=order.slice(0,2).map(function(n){return n+" \xd7"+byName[n];});
+  if(order.length>2)shown.push("+"+(order.length-2)+" more");
+  return shown.join(" \xb7 ");
+}
 /* A project has no single model field — derive one from its printer lines. */
 function hxProjModel(pid){
   var names=[];
@@ -288,10 +315,9 @@ function hxItems(txs,projs){
     };
   });
   (projs||[]).forEach(function(p){
-    var q=projectPrinterQty(p._id);
     items.push({
       id:"p"+hxSafe(p._id),ts:parseDV(p.date),status:p.status,
-      title:p.project,sub:q?q+" printer"+(q!==1?"s":""):"—",
+      title:p.project,sub:hxProjSummary(p._id),lineCount:(typeof LINE_ITEMS!=="undefined"?LINE_ITEMS:[]).filter(function(l){return l.projectId===p._id;}).length,
       value:projTotalOf(p),currency:p.currency,
       atts:p.attachments,group:p.projectGroup,
       model:hxProjModel(p._id),project:p.project,po:hxPoNumber(p.notes),
@@ -311,15 +337,16 @@ function hxItems(txs,projs){
   return items;
 }
 
-function hxRowHtml(it,sc){
+function hxRowHtml(it,sc,parentPo){
   var rid=sc+"-"+it.id,open=!!HX_OPEN[rid];
+  var title=parentPo?hxStripPo(it.title,parentPo):it.title;
   var icons="";
   if(it.atts&&it.atts.length)icons+="<span class='hx-ico' title='"+it.atts.length+" attachment"+(it.atts.length!==1?"s":"")+"'>&#128206;</span>";
   if(it.group)icons+="<span class='hx-ico' title=\"Project group: "+hxAttr(it.group)+"\">&#128279;</span>";
   var row="<div class='hx-row"+(open?" open":"")+"' onclick=\"hxToggleRow('"+rid+"')\">"+
       "<span class='hx-date'>"+hxShortDate(it.ts)+"</span>"+
       hxMiniStatus(it.status)+
-      "<span class='hx-title'>"+it.title+"</span>"+
+      "<span class='hx-title'>"+title+"</span>"+
       "<span class='hx-sub'>"+it.sub+"</span>"+
       "<span class='hx-icons'>"+icons+"</span>"+
       "<span class='hx-val'>"+hxAmount(it.value,it.currency)+"</span>"+
@@ -355,16 +382,18 @@ function hxNest(items){
 }
 function hxNestHtml(n,sc){
   var nid=sc+"-po-"+hxSafe(n.po),open=!!HX_OPEN[nid];
-  var totals={},atts=0,ts=0,status=null,mixed=false,projects=[];
+  var totals={},atts=0,ts=0,status=null,mixed=false,sites=[],lines=0;
   n.children.forEach(function(c){
     if(c.currency&&c.value)totals[c.currency]=(totals[c.currency]||0)+c.value;
     atts+=(c.atts||[]).length;
     if(c.ts>ts)ts=c.ts;
     if(status===null)status=c.status;else if(status!==c.status)mixed=true;
-    if(c.project&&projects.indexOf(c.project)===-1)projects.push(c.project);
+    lines+=c.lineCount||1;
+    var site=hxStripPo(c.project||"",n.po);
+    if(site&&sites.indexOf(site)===-1)sites.push(site);
   });
   var icons=atts?"<span class='hx-ico' title='"+atts+" attachment"+(atts!==1?"s":"")+"'>&#128206;</span>":"";
-  var sub=n.children.length+" lines"+(projects.length?" \xb7 "+projects.join(", "):"");
+  var sub=lines+" line"+(lines!==1?"s":"")+(sites.length?" \xb7 "+sites.join(", "):"");
   return "<div class='hx-item hx-nest"+(open?" open":"")+"'>"+
     "<div class='hx-row hx-nest-head"+(open?" open":"")+"' onclick=\"hxToggleRow('"+nid+"')\">"+
       "<span class='hx-date'>"+hxShortDate(ts)+"</span>"+
@@ -376,9 +405,39 @@ function hxNestHtml(n,sc){
       "<span class='hx-chev"+(open?" open":"")+"' id='hx-c-"+nid+"'>▾</span>"+
     "</div>"+
     "<div class='hx-nest-body' id='hx-b-"+nid+"'"+(open?"":" style='display:none'")+">"+
-      n.children.map(function(c){return hxRowHtml(c,sc);}).join("")+
+      n.children.map(function(c){return hxRowHtml(c,sc,n.po);}).join("")+
     "</div>"+
   "</div>";
+}
+/* Count orders, not records. A PO split across two sites is one order, so
+   "3 POs" is the honest headline where "4 entries" counted rows. */
+function hxCountLabel(rows,entryCount){
+  var n=rows.length,st=null,mixed=false;
+  rows.forEach(function(r){
+    (r.nest?r.children:[r]).forEach(function(c){
+      if(st===null)st=c.status;else if(st!==c.status)mixed=true;
+    });
+  });
+  var noun=mixed?(n===1?"order":"orders"):
+    (st==="PO"?(n===1?"PO":"POs"):
+     st==="Quotation"?(n===1?"quotation":"quotations"):
+     (n===1?"lost quote":"lost quotes"));
+  return n+" "+noun+(entryCount>n?" \xb7 "+entryCount+" records":"");
+}
+/* Same unit as hxCountLabel, but cheap — no entry bodies built. */
+function hxOrderCount(txs,projs){
+  var combined=combinedGroupsOf(txs||[]),seen={},n=0;
+  function add(po,hidden){
+    if(hidden)return;
+    if(po){if(seen[po])return;seen[po]=true;}
+    n++;
+  }
+  (txs||[]).forEach(function(t){
+    var isSplit=!!(t.projectGroup&&t.project&&(t.project.indexOf("— ATB")!==-1||t.project.indexOf("— BTP")!==-1));
+    add(hxPoNumber(t.notes),isSplit&&!!combined[t.projectGroup]);
+  });
+  (projs||[]).forEach(function(p){add(hxPoNumber(p.notes),false);});
+  return n;
 }
 function hxToolbar(){
   return "<div class='hx-bar'><span class='hx-bar-lbl'>Group by</span>"+
@@ -416,6 +475,9 @@ function buildHistoryHtml(txs,projs,scope,opts){
       g.usd+=hxUsd(it.value,it.currency);
     }
   });
+  /* Nest before measuring: an order is the unit a group counts, and the
+     auto-open budget is spent in rows, not records. */
+  keys.forEach(function(k){var g=byKey[k];g.rows=hxNest(g.items);g.orders=g.rows.length;});
   /* Date keeps the newest-first order the items already have; status uses a
      fixed pipeline order; model/project lead with the biggest money. */
   if(HX_MODE==="status"){
@@ -435,7 +497,7 @@ function buildHistoryHtml(txs,projs,scope,opts){
     HX_YEAR_INIT[gsc]=true;
     var shown=0,closing=false;
     keys.forEach(function(k){
-      var n=byKey[k].count;
+      var n=byKey[k].orders;
       if(closing||(shown>0&&shown+n>HX_AUTO_OPEN_ROWS)){closing=true;HX_YEAR_CLOSED[gsc+"|"+hxSafe(k)]=true;}
       else shown+=n;
     });
@@ -443,11 +505,7 @@ function buildHistoryHtml(txs,projs,scope,opts){
   var groupsHtml=keys.map(function(k,i){
     var g=byKey[k],gk=hxSafe(k)+"-"+i;
     var closed=!!HX_YEAR_CLOSED[gsc+"|"+hxSafe(k)],gid="hx-g-"+gsc+"-"+gk;
-    /* "all POs" beats "6 POs" next to "6 entries" — it says the group is
-       uniform, which is the thing worth knowing at a glance. */
-    var poBit=(HX_MODE==="status"||!g.pos)?"":
-      (g.pos===g.count&&g.count>1?" \xb7 all POs":" \xb7 "+g.pos+" PO"+(g.pos!==1?"s":""));
-    var meta=g.count+" entr"+(g.count!==1?"ies":"y")+poBit;
+    var meta=hxCountLabel(g.rows,g.count);
     return "<div class='hx-group'>"+
       "<div class='hx-ghead' onclick=\"hxToggleYear('"+gsc+"','"+hxSafe(k)+"','"+gk+"')\">"+
         "<span class='hx-gchev"+(closed?"":" open")+"' id='"+gid+"-chev'>▸</span>"+
@@ -456,7 +514,7 @@ function buildHistoryHtml(txs,projs,scope,opts){
         "<span class='hx-gtot'>"+hxTotals(g.totals)+"</span>"+
       "</div>"+
       "<div class='hx-gbody' id='"+gid+"'"+(closed?" style='display:none'":"")+">"+
-        hxNest(g.items).map(function(row){return row.nest?hxNestHtml(row,sc):hxRowHtml(row,sc);}).join("")+
+        g.rows.map(function(row){return row.nest?hxNestHtml(row,sc):hxRowHtml(row,sc);}).join("")+
       "</div>"+
     "</div>";
   }).join("");
