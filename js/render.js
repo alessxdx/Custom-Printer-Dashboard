@@ -237,10 +237,13 @@ var HX_STATUS_RANK={PO:0,Quotation:1,Lose:2};
 
 function hxSafe(s){return String(s==null?"":s).replace(/[^a-zA-Z0-9]/g,"-");}
 function hxAttr(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+/* Grouping by date puts the year in the group header, so the rows leave it
+   out. Every other grouping has no year anywhere — carry it on the row. */
+function hxShowYear(){return HX_MODE!=="date";}
 function hxShortDate(ts){
   if(!ts)return "—";
   var d=new Date(ts);
-  return d.getDate()+" "+HX_MONTHS[d.getMonth()];
+  return d.getDate()+" "+HX_MONTHS[d.getMonth()]+(hxShowYear()?" "+d.getFullYear():"");
 }
 function hxYearOf(ts){return ts?String(new Date(ts).getFullYear()):"Undated";}
 /* Status as plain coloured text, not a filled pill — on a list where most

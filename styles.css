@@ -811,7 +811,7 @@ tr.exp-detail td{
    field out of alignment and the eye loses the column. */
 .hx-row{
   display:grid;align-items:center;gap:10px;
-  grid-template-columns:50px 48px minmax(120px,1.4fr) minmax(0,1.1fr) 22px minmax(112px,auto) 14px;
+  grid-template-columns:minmax(50px,auto) 48px minmax(120px,1.4fr) minmax(0,1.1fr) 22px minmax(112px,auto) 14px;
   padding:8px 16px;cursor:pointer;user-select:none;
   transition:background .12s;
 }
@@ -866,7 +866,7 @@ tr.exp-detail td{
 .hx-nest-head .hx-title{color:var(--accent-text);font-weight:600}
 .hx-nest>.hx-nest-head,.hx-item:nth-child(even)>.hx-nest-head{background:var(--bg-accent-soft)}
 .hx-nest-body{border-left:2px solid var(--accent);margin-left:16px}
-.hx-nest-body .hx-row{grid-template-columns:42px 48px minmax(120px,1.4fr) minmax(0,1.1fr) 22px minmax(112px,auto) 14px;padding-left:12px}
+.hx-nest-body .hx-row{grid-template-columns:minmax(42px,auto) 48px minmax(120px,1.4fr) minmax(0,1.1fr) 22px minmax(112px,auto) 14px;padding-left:12px}
 .hx-nest-body .hx-body{margin-left:12px}
 /* Two tidy lines on phones: identity + money up top, context underneath. */
 @media(max-width:760px){
