@@ -379,7 +379,7 @@ function hxAttLink(atts){
   return "<a class='hx-ico hx-att' href='"+pick.url+"' target='_blank' rel='noopener'"+
     " onclick='event.stopPropagation()' title=\"Open "+hxAttr(pick.name)+"\">"+label+"</a>";
 }
-function hxRowHtml(it,sc,parentPo){
+function hxRowHtml(it,sc,parentPo,groupNamed){
   var rid=sc+"-"+it.id,open=!!HX_OPEN[rid];
   var title=parentPo?hxStripPo(it.title,parentPo):it.title;
   var icons=hxAttLink(it.atts);
@@ -394,7 +394,7 @@ function hxRowHtml(it,sc,parentPo){
       "<span class='hx-chev"+(open?" open":"")+"' id='hx-c-"+rid+"'>▾</span>"+
     "</div>"+
     "<div class='hx-body' id='hx-b-"+rid+"'"+(open?"":" style='display:none'")+">"+
-      it.body({hideGroupTag:!!parentPo})+
+      it.body({hideGroupTag:!!parentPo||!!groupNamed})+
     "</div>";
   return it.hidden
     ?"<div class='hx-item grp-entry' data-group='"+hxSafe(it.group)+"' style='display:none'>"+row+"</div>"
@@ -571,15 +571,24 @@ function buildHistoryHtml(txs,projs,scope,opts){
         g.rows.map(function(row){return row.nest?hxNestHtml(row,sc):hxRowHtml(row,sc);}).join("")+
       "</div>";
     }
+    /* When this header IS the project group, the deals under it shouldn't each
+       repeat it as a 🔗 tag — but the jump to the consolidated view has to go
+       somewhere, so it moves onto the header. */
+    var isGroupHeader=HX_MODE==="project"&&g.items.some(function(it){return it.group===g.label;});
+    var jump=isGroupHeader
+      ?"<span class='hx-glink' title='View consolidated project group' onclick=\"event.stopPropagation();openProjectGroup('"+
+         String(g.label).replace(/\\/g,"\\\\").replace(/'/g,"\\'")+"')\">&#128279; view group &rarr;</span>"
+      :"";
     return "<div class='hx-group'>"+
       "<div class='hx-ghead' onclick=\"hxToggleYear('"+gsc+"','"+hxSafe(k)+"','"+gk+"')\">"+
         "<span class='hx-gchev"+(closed?"":" open")+"' id='"+gid+"-chev'>▸</span>"+
         "<span class='hx-gyear'>"+g.label+"</span>"+
         "<span class='hx-gmeta'>"+meta+"</span>"+
+        jump+
         "<span class='hx-gtot'>"+hxTotals(g.totals)+"</span>"+
       "</div>"+
       "<div class='hx-gbody' id='"+gid+"'"+(closed?" style='display:none'":"")+">"+
-        g.rows.map(function(row){return row.nest?hxNestHtml(row,sc):hxRowHtml(row,sc);}).join("")+
+        g.rows.map(function(row){return row.nest?hxNestHtml(row,sc):hxRowHtml(row,sc,null,isGroupHeader);}).join("")+
       "</div>"+
     "</div>";
   }).join("");

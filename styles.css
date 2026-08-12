@@ -806,6 +806,12 @@ tr.exp-detail td{
 .hx-gchev.open{transform:rotate(90deg)}
 .hx-gyear{font-size:13.5px;font-weight:700;color:var(--accent-text);letter-spacing:.01em}
 .hx-gmeta{font-size:11px;color:var(--text-muted)}
+.hx-glink{
+  font-size:10.5px;font-weight:600;white-space:nowrap;cursor:pointer;
+  background:var(--badge-group-bg);color:var(--badge-group-fg);
+  border:1px solid var(--badge-group-bd);border-radius:5px;padding:1px 7px;
+}
+.hx-glink:hover{filter:brightness(1.1)}
 .hx-gtot{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--accent-text);white-space:nowrap;font-variant-numeric:tabular-nums}
 /* Fixed columns, not flex: a variable-width model name shoves every later
    field out of alignment and the eye loses the column. */
