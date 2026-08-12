@@ -339,6 +339,7 @@ function hxItems(txs,projs){
       value:txValueOf(tx),currency:tx.currency,
       atts:tx.attachments,group:tx.projectGroup,
       model:tx.model,project:tx.project,po:hxPoNumber(tx.notes),
+      cust:tx.customer+"__"+tx.country,
       combined:isCombined,hidden:isSplit&&!!combined[tx.projectGroup],
       /* Built lazily: the block renders differently depending on what the row
          above it already says, which isn't known until nesting is resolved. */
@@ -353,6 +354,7 @@ function hxItems(txs,projs){
       value:projTotalOf(p),currency:p.currency,
       atts:p.attachments,group:p.projectGroup,
       model:hxProjModel(p._id),project:p.project,po:hxPoNumber(p.notes),
+      cust:p.customer+"__"+p.country,
       combined:false,hidden:false,
       body:function(o){return buildProjectBlock(p,{compact:true,hideGroupTag:!!(o&&o.hideGroupTag)});}
     });
@@ -496,6 +498,22 @@ function hxGroupRestatesRow(g){
   var title=r.nest?("PO "+r.po):(r.title||"");
   return String(g.label).trim().toLowerCase()===String(title).trim().toLowerCase();
 }
+/* Customers carrying this project group who aren't represented in the rows
+   on screen. Empty means the consolidated view would show nothing new. */
+function hxGroupElsewhere(g){
+  var here={},names={};
+  g.items.forEach(function(it){if(it.cust)here[it.cust]=1;});
+  function scan(list){
+    (list||[]).forEach(function(r){
+      if(r.projectGroup!==g.label)return;
+      var k=r.customer+"__"+r.country;
+      if(!here[k])names[k]=r.customer;
+    });
+  }
+  scan(typeof PROJECTS!=="undefined"?PROJECTS:[]);
+  scan(typeof TX!=="undefined"?TX:[]);
+  return Object.keys(names).map(function(k){return names[k];});
+}
 function hxToolbar(){
   return "<div class='hx-bar'><span class='hx-bar-lbl'>Group by</span>"+
     HX_MODES.map(function(m){
@@ -572,12 +590,16 @@ function buildHistoryHtml(txs,projs,scope,opts){
       "</div>";
     }
     /* When this header IS the project group, the deals under it shouldn't each
-       repeat it as a 🔗 tag — but the jump to the consolidated view has to go
-       somewhere, so it moves onto the header. */
+       repeat it as a 🔗 tag. */
     var isGroupHeader=HX_MODE==="project"&&g.items.some(function(it){return it.group===g.label;});
-    var jump=isGroupHeader
-      ?"<span class='hx-glink' title='View consolidated project group' onclick=\"event.stopPropagation();openProjectGroup('"+
-         String(g.label).replace(/\\/g,"\\\\").replace(/'/g,"\\'")+"')\">&#128279; view group &rarr;</span>"
+    /* The jump only earns its place when the group reaches customers that
+       aren't already on screen — otherwise the consolidated view shows exactly
+       these same rows. Naming who else is in it makes that concrete. */
+    var elsewhere=isGroupHeader?hxGroupElsewhere(g):[];
+    var jump=(isGroupHeader&&elsewhere.length&&!(typeof MD_GROUP_SEL!=="undefined"&&MD_GROUP_SEL))
+      ?"<span class='hx-glink' title='Also covers "+hxAttr(elsewhere.join(", "))+"' onclick=\"event.stopPropagation();openProjectGroup('"+
+         String(g.label).replace(/\\/g,"\\\\").replace(/'/g,"\\'")+"')\">&#128279; also at "+
+         elsewhere[0]+(elsewhere.length>1?" +"+(elsewhere.length-1):"")+" &rarr;</span>"
       :"";
     return "<div class='hx-group'>"+
       "<div class='hx-ghead' onclick=\"hxToggleYear('"+gsc+"','"+hxSafe(k)+"','"+gk+"')\">"+
