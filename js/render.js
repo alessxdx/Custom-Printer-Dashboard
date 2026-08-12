@@ -280,14 +280,23 @@ function hxProjSummary(pid){
       return pa-pb||a.sortOrder-b.sortOrder;
     })
     .forEach(function(li){
-      if(!byName[li.name]){byName[li.name]=0;order.push(li.name);}
-      byName[li.name]+=li.qty;
+      if(!byName[li.name]){byName[li.name]={qty:0,prices:[]};order.push(li.name);}
+      var e=byName[li.name];
+      e.qty+=li.qty;
+      if(e.prices.indexOf(li.unitPrice)===-1)e.prices.push(li.unitPrice);
     });
   if(!order.length)return "—";
-  var shown=order.slice(0,2).map(function(n){return n+" \xd7"+byName[n];});
+  /* Unit price rides along so pricing is comparable without opening the deal;
+     a product bought at two price points shows the range. */
+  var shown=order.slice(0,2).map(function(n){
+    var e=byName[n],p=e.prices.slice().sort(function(a,b){return a-b;});
+    var price=p.length===1?hxNum(p[0]):hxNum(p[0])+"–"+hxNum(p[p.length-1]);
+    return n+" \xd7"+e.qty+" @ "+price;
+  });
   if(order.length>2)shown.push("+"+(order.length-2)+" more");
   return shown.join(" \xb7 ");
 }
+function hxNum(v){return Number(v).toLocaleString(undefined,{maximumFractionDigits:2});}
 /* A project has no single model field — derive one from its printer lines. */
 function hxProjModel(pid){
   var names=[];
@@ -338,7 +347,7 @@ function hxItems(txs,projs){
       atts:p.attachments,group:p.projectGroup,
       model:hxProjModel(p._id),project:p.project,po:hxPoNumber(p.notes),
       combined:false,hidden:false,
-      body:buildProjectBlock(p)
+      body:buildProjectBlock(p,{compact:true})
     });
   });
   /* Newest first, but a combined entry always sits directly above the split
@@ -353,17 +362,26 @@ function hxItems(txs,projs){
   return items;
 }
 
+/* The paperclip is a real link to the document, not a passive marker. Prefers
+   the PO over a quotation when a deal carries both. stopPropagation keeps the
+   click from toggling the row open underneath it. */
+function hxAttLink(atts){
+  if(!atts||!atts.length)return "";
+  var pick=atts.filter(function(a){return (a.doctype||"")==="PO";})[0]||atts[0];
+  var label=atts.length>1?"&#128206;<sup>"+atts.length+"</sup>":"&#128206;";
+  return "<a class='hx-ico hx-att' href='"+pick.url+"' target='_blank' rel='noopener'"+
+    " onclick='event.stopPropagation()' title=\"Open "+hxAttr(pick.name)+"\">"+label+"</a>";
+}
 function hxRowHtml(it,sc,parentPo){
   var rid=sc+"-"+it.id,open=!!HX_OPEN[rid];
   var title=parentPo?hxStripPo(it.title,parentPo):it.title;
-  var icons="";
-  if(it.atts&&it.atts.length)icons+="<span class='hx-ico' title='"+it.atts.length+" attachment"+(it.atts.length!==1?"s":"")+"'>&#128206;</span>";
+  var icons=hxAttLink(it.atts);
   if(it.group)icons+="<span class='hx-ico' title=\"Project group: "+hxAttr(it.group)+"\">&#128279;</span>";
   var row="<div class='hx-row"+(open?" open":"")+"' onclick=\"hxToggleRow('"+rid+"')\">"+
       "<span class='hx-date'>"+hxShortDate(it.ts)+"</span>"+
       hxMiniStatus(it.status)+
-      "<span class='hx-title'>"+title+"</span>"+
-      "<span class='hx-sub'>"+it.sub+"</span>"+
+      "<span class='hx-title' title=\""+hxAttr(title)+"\">"+title+"</span>"+
+      "<span class='hx-sub' title=\""+hxAttr(it.sub)+"\">"+it.sub+"</span>"+
       "<span class='hx-icons'>"+icons+"</span>"+
       "<span class='hx-val'>"+hxAmount(it.value,it.currency)+"</span>"+
       "<span class='hx-chev"+(open?" open":"")+"' id='hx-c-"+rid+"'>▾</span>"+
@@ -398,17 +416,18 @@ function hxNest(items){
 }
 function hxNestHtml(n,sc){
   var nid=sc+"-po-"+hxSafe(n.po),open=!!HX_OPEN[nid];
-  var totals={},atts=0,ts=0,status=null,mixed=false,sites=[],lines=0;
+  var totals={},firstAtts=null,ts=0,status=null,mixed=false,sites=[],lines=0;
   n.children.forEach(function(c){
     if(c.currency&&c.value)totals[c.currency]=(totals[c.currency]||0)+c.value;
-    atts+=(c.atts||[]).length;
+    /* The lines of one PO share one document — link it once, not per line. */
+    if(!firstAtts&&(c.atts||[]).length)firstAtts=c.atts;
     if(c.ts>ts)ts=c.ts;
     if(status===null)status=c.status;else if(status!==c.status)mixed=true;
     lines+=c.lineCount||1;
     var site=hxStripPo(c.project||"",n.po);
     if(site&&sites.indexOf(site)===-1)sites.push(site);
   });
-  var icons=atts?"<span class='hx-ico' title='"+atts+" attachment"+(atts!==1?"s":"")+"'>&#128206;</span>":"";
+  var icons=hxAttLink(firstAtts);
   var sub=lines+" line"+(lines!==1?"s":"")+(sites.length?" \xb7 "+sites.join(", "):"");
   return "<div class='hx-item hx-nest"+(open?" open":"")+"'>"+
     "<div class='hx-row hx-nest-head"+(open?" open":"")+"' onclick=\"hxToggleRow('"+nid+"')\">"+
@@ -458,6 +477,15 @@ function hxOrderCount(txs,projs){
   });
   (projs||[]).forEach(function(p){add(hxPoNumber(p.notes),false);});
   return n;
+}
+/* True when a group holds one row whose own title already says what the group
+   header says — e.g. group "Bali — PO 3165001891" over a row of the same name,
+   or group "PO 3165001907" over the nest for that PO. */
+function hxGroupRestatesRow(g){
+  if(g.rows.length!==1)return false;
+  var r=g.rows[0];
+  var title=r.nest?("PO "+r.po):(r.title||"");
+  return String(g.label).trim().toLowerCase()===String(title).trim().toLowerCase();
 }
 function hxToolbar(){
   return "<div class='hx-bar'><span class='hx-bar-lbl'>Group by</span>"+
@@ -526,6 +554,14 @@ function buildHistoryHtml(txs,projs,scope,opts){
     var g=byKey[k],gk=hxSafe(k)+"-"+i;
     var closed=!!HX_YEAR_CLOSED[gsc+"|"+hxSafe(k)],gid="hx-g-"+gsc+"-"+gk;
     var meta=hxCountLabel(g.rows,g.count);
+    /* A header that just restates its only row is a wasted line — grouping by
+       project makes almost every group a group of one. Drop the header and let
+       the row speak; the year/status/model headers never match, so they stay. */
+    if(hxGroupRestatesRow(g)){
+      return "<div class='hx-group hx-group-bare'>"+
+        g.rows.map(function(row){return row.nest?hxNestHtml(row,sc):hxRowHtml(row,sc);}).join("")+
+      "</div>";
+    }
     return "<div class='hx-group'>"+
       "<div class='hx-ghead' onclick=\"hxToggleYear('"+gsc+"','"+hxSafe(k)+"','"+gk+"')\">"+
         "<span class='hx-gchev"+(closed?"":" open")+"' id='"+gid+"-chev'>▸</span>"+
@@ -936,7 +972,11 @@ function projectPrinterQty(projId){
   return LINE_ITEMS.filter(function(li){return li.projectId===projId&&li.type==="printer"&&!/\bTPH\b/i.test(li.name);})
     .reduce(function(sum,li){return sum+li.qty;},0);
 }
-function buildProjectBlock(p){
+/* opts.compact: rendered underneath a history row that already shows the date,
+   status, title and total — so drop that header and lead with the line items,
+   which are the only thing the click was for. */
+function buildProjectBlock(p,opts){
+    var compact=!!(opts&&opts.compact);
     var lis=LINE_ITEMS.filter(function(li){return li.projectId===p._id;})
       .sort(function(a,b){return a.sortOrder-b.sortOrder;});
     var totalCalc=projectTotal(p._id);
@@ -970,28 +1010,43 @@ function buildProjectBlock(p){
       "</div>";
     }).join("");
 
-    return "<div style='padding:18px;border-bottom:3px solid var(--border-strong);background:var(--bg)'>"+
-      "<div onclick='toggleProjItems(\""+p._id+"\")' style='display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;cursor:pointer'>"+
-        "<div style='display:flex;gap:10px;align-items:flex-start'>"+
-          "<span class='pchev"+(expandedProjectItems[p._id]?" open":"")+"' id='pchev-"+p._id+"'>\u25be</span>"+
-          "<div>"+
-          "<div style='font-size:11px;color:var(--text-muted);margin-bottom:4px'>"+(p.displayDate||p.date||"")+" \xb7 "+bStatus(p.status)+(printerQty?" \xb7 "+printerQty+" printer"+(printerQty!==1?"s":""):"")+"</div>"+
-          "<div style='font-size:14px;font-weight:600;color:var(--text-strong)'>"+p.project+"</div>"+
-          (p.projectGroup?"<div style='margin-top:4px'>"+projGroupLinkHtml(p.projectGroup)+"</div>":"")+
-          "<div style='margin-top:6px'>"+
-            (p.shippingTerms?bTerm(p.shippingTerms):"")+
-            bWarranty(p.warranty)+
+    /* Line items are the payload: open by default, and only collapsible in the
+       standalone card where the header above them carries the summary. */
+    var itemsOpen=compact?expandedProjectItems[p._id]!==false:!!expandedProjectItems[p._id];
+
+    var header=compact
+      ? "<div class='pj-compact-head'>"+
+          (p.projectGroup?projGroupLinkHtml(p.projectGroup):"")+
+          (p.shippingTerms?bTerm(p.shippingTerms):"")+bWarranty(p.warranty)+
+          "<span class='pj-compact-tot'>"+
+            (printerTot!==totalCalc&&printerTot>0?"<span class='pj-compact-sub'>Printers "+printerTot.toLocaleString()+" "+p.currency+"</span>":"")+
+            "Total <strong>"+displayTotal.toLocaleString()+" "+p.currency+"</strong>"+fxEqSpan(displayTotal,p.currency)+
+          "</span>"+
+        "</div>"
+      : "<div onclick='toggleProjItems(\""+p._id+"\")' style='display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;cursor:pointer'>"+
+          "<div style='display:flex;gap:10px;align-items:flex-start'>"+
+            "<span class='pchev"+(itemsOpen?" open":"")+"' id='pchev-"+p._id+"'>\u25be</span>"+
+            "<div>"+
+            "<div style='font-size:11px;color:var(--text-muted);margin-bottom:4px'>"+(p.displayDate||p.date||"")+" \xb7 "+bStatus(p.status)+(printerQty?" \xb7 "+printerQty+" printer"+(printerQty!==1?"s":""):"")+"</div>"+
+            "<div style='font-size:14px;font-weight:600;color:var(--text-strong)'>"+p.project+"</div>"+
+            (p.projectGroup?"<div style='margin-top:4px'>"+projGroupLinkHtml(p.projectGroup)+"</div>":"")+
+            "<div style='margin-top:6px'>"+
+              (p.shippingTerms?bTerm(p.shippingTerms):"")+
+              bWarranty(p.warranty)+
+            "</div>"+
+            "</div>"+
           "</div>"+
+          "<div style='text-align:right'>"+
+            (printerTot!==totalCalc&&printerTot>0?"<div style='font-size:11px;color:var(--text-muted)'>Printer subtotal: "+printerTot.toLocaleString()+" "+p.currency+fxEqSpan(printerTot,p.currency)+"</div>":"")+
+            "<div style='font-size:15px;font-weight:600;color:var(--accent-text);margin-top:3px'>Project Total: "+displayTotal.toLocaleString()+" "+p.currency+fxEqSpan(displayTotal,p.currency)+"</div>"+
+            (p.currency!=="USD"&&typeof fxNote==="function"&&fxNote(p.currency)?"<div class='fx-note'>"+fxNote(p.currency)+"</div>":"")+
           "</div>"+
-        "</div>"+
-        "<div style='text-align:right'>"+
-          (printerTot!==totalCalc&&printerTot>0?"<div style='font-size:11px;color:var(--text-muted)'>Printer subtotal: "+printerTot.toLocaleString()+" "+p.currency+fxEqSpan(printerTot,p.currency)+"</div>":"")+
-          "<div style='font-size:15px;font-weight:600;color:var(--accent-text);margin-top:3px'>Project Total: "+displayTotal.toLocaleString()+" "+p.currency+fxEqSpan(displayTotal,p.currency)+"</div>"+
-          (p.currency!=="USD"&&typeof fxNote==="function"&&fxNote(p.currency)?"<div class='fx-note'>"+fxNote(p.currency)+"</div>":"")+
-        "</div>"+
-      "</div>"+
-      "<div id='pitems-"+p._id+"' style='"+(expandedProjectItems[p._id]?"":"display:none;")+"'>"+
-        (lineHtml?"<div style='background:var(--bg-soft);border:1px solid var(--divider);border-radius:8px;padding:6px 14px;margin-top:10px'>"+lineHtml+"</div>":"<div style='font-size:12px;color:#aaa;font-style:italic;padding:8px 0'>No line items</div>")+
+        "</div>";
+
+    return "<div class='"+(compact?"pj-block pj-compact":"pj-block")+"'>"+
+      header+
+      "<div id='pitems-"+p._id+"' style='"+(itemsOpen?"":"display:none;")+"'>"+
+        (lineHtml?"<div class='pj-items'>"+lineHtml+"</div>":"<div style='font-size:12px;color:#aaa;font-style:italic;padding:8px 0'>No line items</div>")+
         (p.notes&&p.notes.length?"<div style='margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.6'>"+p.notes.map(function(n){return "<div>\u2022 "+n+"</div>";}).join("")+"</div>":"")+
       "</div>"+
       "<div style='display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:10px'>"+
