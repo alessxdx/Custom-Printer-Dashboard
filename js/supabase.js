@@ -14,9 +14,11 @@ function attNameFromUrl(url){
   }catch(e){return "PDF";}
 }
 var DOCTYPES=["Quotation","PO","Invoice","Other"];
-/* Best-guess document type from a filename. */
+/* Best-guess document type from a filename. Underscores are normalised to
+   spaces first: \b treats _ as a word character, so "PO_4415000186.pdf" had
+   no boundary after "po" and fell through to Other. */
 function guessDoctype(name){
-  var s=String(name||"").toLowerCase();
+  var s=String(name||"").toLowerCase().replace(/_/g," ");
   if(/invoice|\btax\b|\bti[-_ ]/.test(s))return "Invoice";
   if(/\bp\.?o\.?\b|purchase[\s_-]?order/.test(s))return "PO";
   if(/quotation|\bquote\b|(^|[^a-z])q\d/.test(s))return "Quotation";
