@@ -276,6 +276,9 @@ async function pjParseAttachment(e,i,pre){
   var att=(typeof PJ_ATT!=="undefined")&&PJ_ATT[i];
   if(!att)return;
   return pjParseInto(function(){
+    /* Just-picked files are still local — read them directly rather than
+       waiting for a save/upload round trip. */
+    if(att.file)return pdfFileToLines(att.file);
     return fetch(att.url).then(function(r){if(!r.ok)throw new Error("could not download the PDF");return r.blob();}).then(function(b){return pdfFileToLines(new File([b],att.name,{type:"application/pdf"}));});
   },att.name,pre);
 }
@@ -283,14 +286,13 @@ async function pjParseAttachment(e,i,pre){
    attachment (telling the user it auto-picked), else guide them to the
    per-PDF ⚡ button. */
 async function pjImportFromPdf(){
-  var input=document.getElementById("p-pdf");
-  if(input&&input.files&&input.files[0]){
-    var f=input.files[0];
-    return pjParseInto(function(){return pdfFileToLines(f);},f.name);
-  }
+  /* Anything sitting in the picker is staged first, so the list below is
+     always the full set of documents on this deal. */
+  if(typeof attStageFiles==="function")attStageFiles("p-pdf",PJ_ATT,renderPjAttList);
   var atts=(typeof PJ_ATT!=="undefined"&&PJ_ATT)?PJ_ATT:[];
+  if(!atts.length){alert("Add a PDF first — click “Choose files” above, then Fill again.");return;}
+  if(atts.length===1)return pjParseAttachment(null,0);
   var quotes=atts.map(function(a,i){return{a:a,i:i};}).filter(function(x){return (x.a.doctype||"")==="Quotation";});
-  if(quotes.length===1)return pjParseAttachment(null,quotes[0].i,"No file was picked in “Choose files”, so this reads the attached PDF tagged “Quotation”. (To read a different one, click the ⚡ next to it.)");
-  if(atts.length){alert("You have more than one PDF here. Click the ⚡ button next to the specific PDF you want to read (e.g. the Quotation).");return;}
-  alert("First choose the quotation PDF in the “PDF documents” field above, then click Fill again.");
+  if(quotes.length===1)return pjParseAttachment(null,quotes[0].i,"Read the document tagged “Quotation”. To use a different one, click the ⚡ beside it.");
+  alert("You have "+atts.length+" documents attached"+(quotes.length>1?", "+quotes.length+" of them tagged Quotation":"")+". Click the ⚡ beside the specific one you want to read.");
 }

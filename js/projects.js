@@ -116,6 +116,7 @@ function renderPjAttList(){
   var el=document.getElementById("p-pdf-current");
   if(el)el.innerHTML=attListHtml(PJ_ATT,"pjRemoveAttachment","pjSetDoctype","p-pdf","pjParseAttachment");
 }
+function pjAddFiles(){attStageFiles("p-pdf",PJ_ATT,renderPjAttList);}
 function pjRemoveAttachment(e,i){
   if(e)e.preventDefault();
   PJ_ATT.splice(i,1);

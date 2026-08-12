@@ -46,21 +46,18 @@ async function sbUploadPdf(file){
   if(!r.ok)throw new Error("upload failed (HTTP "+r.status+")");
   return SB_URL+"/storage/v1/object/public/documents/"+path;
 }
-/* Uploads every file selected in the given <input type=file multiple>
-   and appends {name,url} entries to `current`. Throws on non-PDFs. */
+/* Uploads any staged entries (those carrying a File instead of a url) in
+   place, preserving the doctype the user chose. Also drains the input in case
+   files were picked without the change handler having staged them. */
 async function sbUploadAttachments(inputId,current){
-  var input=document.getElementById(inputId);
-  var files=input&&input.files?Array.prototype.slice.call(input.files):[];
-  for(var i=0;i<files.length;i++){
-    var f=files[i];
-    if(f.type&&f.type!=="application/pdf"&&!/\.pdf$/i.test(f.name||"")){
-      throw new Error("\""+f.name+"\" is not a PDF");
-    }
-    showLoad("Uploading PDF "+(i+1)+" of "+files.length+"...");
-    var url=await sbUploadPdf(f);
-    current.push({name:f.name||"document.pdf",url:url,doctype:guessDoctype(f.name)});
+  attStageFiles(inputId,current);
+  var pending=current.filter(function(a){return a.file&&!a.url;});
+  for(var i=0;i<pending.length;i++){
+    var a=pending[i];
+    showLoad("Uploading PDF "+(i+1)+" of "+pending.length+"...");
+    a.url=await sbUploadPdf(a.file);
+    delete a.file;
   }
-  if(input)input.value="";
   return current;
 }
 function attEscName(n){return String(n||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
@@ -69,19 +66,38 @@ function docTypeSelect(cur,setFn,i){
     DOCTYPES.map(function(t){return "<option"+(t===cur?" selected":"")+">"+t+"</option>";}).join("")+
   "</select>";
 }
+/* Every attachment — already uploaded or just picked — renders the same way:
+   a doctype dropdown, the filename, a ⚡ to parse that specific document, and
+   a remove. Picked-but-unsaved files used to render as an inert label with no
+   dropdown and no ⚡, so you couldn't set a type or parse from them until
+   after saving. */
 function attListHtml(list,removeFn,setFn,inputId,parseFn){
   var html=list.map(function(a,i){
     var parseBtn=parseFn?" <a href='#' class='att-parse' title='Fill the form from this PDF' onclick='"+parseFn+"(event,"+i+")'>&#9889;</a>":"";
-    return "<span class='att-item'>"+docTypeSelect(a.doctype||guessDoctype(a.name),setFn,i)+" &#128206; <a href='"+a.url+"' target='_blank' rel='noopener'>"+attEscName(a.name)+"</a>"+parseBtn+" <a href='#' class='att-remove' title='Remove' onclick='"+removeFn+"(event,"+i+")'>&#10005;</a></span>";
+    var name=a.url
+      ?"<a href='"+a.url+"' target='_blank' rel='noopener'>"+attEscName(a.name)+"</a>"
+      :attEscName(a.name)+" <em>(uploads on save)</em>";
+    return "<span class='att-item"+(a.url?"":" att-pending")+"'>"+
+      docTypeSelect(a.doctype||guessDoctype(a.name),setFn,i)+" &#128206; "+name+parseBtn+
+      " <a href='#' class='att-remove' title='Remove' onclick='"+removeFn+"(event,"+i+")'>&#10005;</a></span>";
   }).join("");
-  /* files picked but not yet saved */
-  var input=inputId?document.getElementById(inputId):null;
-  if(input&&input.files&&input.files.length){
-    html+=Array.prototype.map.call(input.files,function(f){
-      return "<span class='att-item att-pending'>&#128206; "+attEscName(f.name)+" <em>("+guessDoctype(f.name)+", uploads on save)</em></span>";
-    }).join("");
-  }
   return html||"No PDFs attached yet.";
+}
+/* Move whatever is sitting in the file input into `list` and clear the input,
+   so a second "Choose files" adds to the set instead of replacing it. */
+function attStageFiles(inputId,list,rerender){
+  var input=document.getElementById(inputId);
+  var files=input&&input.files?Array.prototype.slice.call(input.files):[];
+  for(var i=0;i<files.length;i++){
+    var f=files[i];
+    if(f.type&&f.type!=="application/pdf"&&!/\.pdf$/i.test(f.name||"")){
+      alert("\""+f.name+"\" is not a PDF — skipped.");
+      continue;
+    }
+    list.push({name:f.name||"document.pdf",file:f,doctype:guessDoctype(f.name)});
+  }
+  if(input)input.value="";
+  if(rerender)rerender();
 }
 /* Attachment state for the transaction modal */
 var TX_ATT=[];
@@ -89,6 +105,7 @@ function renderTxAttList(){
   var el=document.getElementById("f-pdf-current");
   if(el)el.innerHTML=attListHtml(TX_ATT,"txRemoveAttachment","txSetDoctype","f-pdf");
 }
+function txAddFiles(){attStageFiles("f-pdf",TX_ATT,renderTxAttList);}
 function txRemoveAttachment(e,i){
   if(e)e.preventDefault();
   TX_ATT.splice(i,1);
