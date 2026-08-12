@@ -285,16 +285,17 @@ function hxProjSummary(pid){
       e.qty+=li.qty;
       if(e.prices.indexOf(li.unitPrice)===-1)e.prices.push(li.unitPrice);
     });
-  if(!order.length)return "—";
-  /* Unit price rides along so pricing is comparable without opening the deal;
-     a product bought at two price points shows the range. */
-  var shown=order.slice(0,2).map(function(n){
-    var e=byName[n],p=e.prices.slice().sort(function(a,b){return a-b;});
-    var price=p.length===1?hxNum(p[0]):hxNum(p[0])+"–"+hxNum(p[p.length-1]);
-    return n+" \xd7"+e.qty+" @ "+price;
-  });
-  if(order.length>2)shown.push("+"+(order.length-2)+" more");
-  return shown.join(" \xb7 ");
+  if(!order.length)return {html:"—",text:"—"};
+  /* One product, and the qty/price kept in a non-shrinking span so a long
+     model name clips instead of the number the row exists to show. A product
+     bought at two price points shows the range. */
+  var n=order[0],e=byName[n],p=e.prices.slice().sort(function(a,b){return a-b;});
+  var price=p.length===1?hxNum(p[0]):hxNum(p[0])+"–"+hxNum(p[p.length-1]);
+  var tail="\xd7"+e.qty+" @ "+price+(order.length>1?" \xb7 +"+(order.length-1)+" more":"");
+  return {
+    html:"<span class='hx-sub-name'>"+n+"</span><span class='hx-sub-price'>"+tail+"</span>",
+    text:n+" "+tail
+  };
 }
 function hxNum(v){return Number(v).toLocaleString(undefined,{maximumFractionDigits:2});}
 /* A project has no single model field — derive one from its printer lines. */
@@ -336,18 +337,21 @@ function hxItems(txs,projs){
       atts:tx.attachments,group:tx.projectGroup,
       model:tx.model,project:tx.project,po:hxPoNumber(tx.notes),
       combined:isCombined,hidden:isSplit&&!!combined[tx.projectGroup],
-      body:buildTxEntryHtml(tx)
+      /* Built lazily: the block renders differently depending on what the row
+         above it already says, which isn't known until nesting is resolved. */
+      body:function(){return buildTxEntryHtml(tx);}
     };
   });
   (projs||[]).forEach(function(p){
+    var sum=hxProjSummary(p._id);
     items.push({
       id:"p"+hxSafe(p._id),ts:parseDV(p.date),status:p.status,
-      title:p.project,sub:hxProjSummary(p._id),lineCount:(typeof LINE_ITEMS!=="undefined"?LINE_ITEMS:[]).filter(function(l){return l.projectId===p._id;}).length,
+      title:p.project,sub:sum.html,subText:sum.text,lineCount:(typeof LINE_ITEMS!=="undefined"?LINE_ITEMS:[]).filter(function(l){return l.projectId===p._id;}).length,
       value:projTotalOf(p),currency:p.currency,
       atts:p.attachments,group:p.projectGroup,
       model:hxProjModel(p._id),project:p.project,po:hxPoNumber(p.notes),
       combined:false,hidden:false,
-      body:buildProjectBlock(p,{compact:true})
+      body:function(o){return buildProjectBlock(p,{compact:true,hideGroupTag:!!(o&&o.hideGroupTag)});}
     });
   });
   /* Newest first, but a combined entry always sits directly above the split
@@ -381,12 +385,14 @@ function hxRowHtml(it,sc,parentPo){
       "<span class='hx-date'>"+hxShortDate(it.ts)+"</span>"+
       hxMiniStatus(it.status)+
       "<span class='hx-title' title=\""+hxAttr(title)+"\">"+title+"</span>"+
-      "<span class='hx-sub' title=\""+hxAttr(it.sub)+"\">"+it.sub+"</span>"+
+      "<span class='hx-sub' title=\""+hxAttr(it.subText||it.sub)+"\">"+it.sub+"</span>"+
       "<span class='hx-icons'>"+icons+"</span>"+
       "<span class='hx-val'>"+hxAmount(it.value,it.currency)+"</span>"+
       "<span class='hx-chev"+(open?" open":"")+"' id='hx-c-"+rid+"'>▾</span>"+
     "</div>"+
-    "<div class='hx-body' id='hx-b-"+rid+"'"+(open?"":" style='display:none'")+">"+it.body+"</div>";
+    "<div class='hx-body' id='hx-b-"+rid+"'"+(open?"":" style='display:none'")+">"+
+      it.body({hideGroupTag:!!parentPo})+
+    "</div>";
   return it.hidden
     ?"<div class='hx-item grp-entry' data-group='"+hxSafe(it.group)+"' style='display:none'>"+row+"</div>"
     :"<div class='hx-item'>"+row+"</div>";
@@ -1016,7 +1022,8 @@ function buildProjectBlock(p,opts){
 
     var header=compact
       ? "<div class='pj-compact-head'>"+
-          (p.projectGroup?projGroupLinkHtml(p.projectGroup):"")+
+          /* The nest header above already names the PO — don't say it twice. */
+          (p.projectGroup&&!(opts&&opts.hideGroupTag)?projGroupLinkHtml(p.projectGroup):"")+
           (p.shippingTerms?bTerm(p.shippingTerms):"")+bWarranty(p.warranty)+
           "<span class='pj-compact-tot'>"+
             (printerTot!==totalCalc&&printerTot>0?"<span class='pj-compact-sub'>Printers "+printerTot.toLocaleString()+" "+p.currency+"</span>":"")+

@@ -811,7 +811,7 @@ tr.exp-detail td{
    field out of alignment and the eye loses the column. */
 .hx-row{
   display:grid;align-items:center;gap:10px;
-  grid-template-columns:50px 48px minmax(120px,1.35fr) minmax(0,1.15fr) 22px minmax(112px,auto) 14px;
+  grid-template-columns:50px 48px minmax(120px,1.4fr) minmax(0,1.1fr) 22px minmax(112px,auto) 14px;
   padding:8px 16px;cursor:pointer;user-select:none;
   transition:background .12s;
 }
@@ -831,7 +831,10 @@ tr.exp-detail td{
 .hx-st-mix{background:var(--badge-term-bg);color:var(--badge-term-fg)}
 /* One emphasis per row, and it's the money. */
 .hx-title{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hx-sub{font-size:12px;color:var(--text-muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hx-sub{font-size:12px;color:var(--text-muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;gap:6px;align-items:baseline}
+/* The name gives way; the number never does. */
+.hx-sub-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hx-sub-price{flex:none;color:var(--text-faint);font-variant-numeric:tabular-nums}
 .hx-icons{display:flex;gap:3px;font-size:11px;align-items:center}
 .hx-att{text-decoration:none;opacity:.55;transition:opacity .12s}
 .hx-att:hover{opacity:1}
@@ -863,7 +866,7 @@ tr.exp-detail td{
 .hx-nest-head .hx-title{color:var(--accent-text);font-weight:600}
 .hx-nest>.hx-nest-head,.hx-item:nth-child(even)>.hx-nest-head{background:var(--bg-accent-soft)}
 .hx-nest-body{border-left:2px solid var(--accent);margin-left:16px}
-.hx-nest-body .hx-row{grid-template-columns:42px 48px minmax(120px,1.35fr) minmax(0,1.15fr) 22px minmax(112px,auto) 14px;padding-left:12px}
+.hx-nest-body .hx-row{grid-template-columns:42px 48px minmax(120px,1.4fr) minmax(0,1.1fr) 22px minmax(112px,auto) 14px;padding-left:12px}
 .hx-nest-body .hx-body{margin-left:12px}
 /* Two tidy lines on phones: identity + money up top, context underneath. */
 @media(max-width:760px){
