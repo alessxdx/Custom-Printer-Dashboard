@@ -83,7 +83,7 @@ function attListHtml(list,removeFn,setFn,inputId,parseFn){
       docTypeSelect(a.doctype||guessDoctype(a.name),setFn,i)+" &#128206; "+name+parseBtn+
       " <a href='#' class='att-remove' title='Remove' onclick='"+removeFn+"(event,"+i+")'>&#10005;</a></span>";
   }).join("");
-  return html||"No PDFs attached yet.";
+  return html||"<span class='att-empty'>No documents yet. Add the quotation, PO or tax invoice — you can tag each one and choose which to read.</span>";
 }
 /* Move whatever is sitting in the file input into `list` and clear the input,
    so a second "Choose files" adds to the set instead of replacing it. */
