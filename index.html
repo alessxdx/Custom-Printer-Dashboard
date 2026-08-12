@@ -7,7 +7,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<script>
+/* Cache busting. This site has no build step, so asset URLs carry a version
+   query. On localhost that version is the current time, making every reload
+   fetch fresh files (the browser otherwise serves stale js/*.js for a long
+   while after an edit). Anywhere else it is APP_VERSION, so files cache
+   normally and change only when a deploy bumps the constant.
+   BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
+var APP_VERSION="2026-08-12.1";
+var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
+  ?Date.now():APP_VERSION;
+document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
+</script>
+<noscript><link rel="stylesheet" href="styles.css"></noscript>
 </head>
 <body data-theme="light">
 
@@ -275,14 +287,10 @@
   <div style="width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div>
   <span style="color:#fff;font-size:14px;font-weight:500;font-family:Montserrat,sans-serif">Loading...</span>
 </div>
-<script src="js/config.js"></script>
-<script src="js/data.js"></script>
-<script src="js/render.js"></script>
-<script src="js/fx.js"></script>
-<script src="js/detail.js"></script>
-<script src="js/supabase.js"></script>
-<script src="js/projects.js"></script>
-<script src="js/parse.js"></script>
-<script src="js/app.js"></script>
+<script>
+/* document.write keeps classic scripts executing in listed order. */
+["js/config.js","js/data.js","js/render.js","js/fx.js","js/detail.js","js/supabase.js","js/projects.js","js/parse.js","js/app.js"]
+  .forEach(function(src){document.write('<script src="'+src+'?v='+ASSET_V+'"><\/script>');});
+</script>
 </body>
 </html>
