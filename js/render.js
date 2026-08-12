@@ -688,7 +688,7 @@ function renderModel(){
     const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
     const f=flagImg(tx.country,18);
     rows+=`<tr class="clickable" onclick="toggleRow(${i})">
-      <td style="color:var(--text-faint);white-space:nowrap;font-size:12px">${dDisplay(tx)||"\u2014"}</td>
+      <td style="color:var(--text-muted);white-space:nowrap;font-size:12px">${dDisplay(tx)||"\u2014"}</td>
       <td style="font-weight:600;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Montserrat',sans-serif">${f} ${tx.customer}</td>
       <td style="color:var(--text-muted);font-size:12px">${tx.project||"\u2014"}</td>
       <td style="color:var(--text-muted)">${tx.country}</td>
@@ -1000,13 +1000,13 @@ function buildProjectBlock(p,opts){
       if(li.type==="printer"&&li.buyingPrice&&p.currency==="USD"){
         var m=li.unitPrice-li.buyingPrice;
         var mPct=(m/li.unitPrice*100).toFixed(1);
-        marginInfo="<span style='font-size:10px;color:var(--text-faint);margin-left:8px'>(margin $"+m.toFixed(0)+", "+mPct+"%)</span>";
+        marginInfo="<span style='font-size:10px;color:var(--text-muted);margin-left:8px'>(margin $"+m.toFixed(0)+", "+mPct+"%)</span>";
       }
       return "<div style='display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--divider)'>"+
         "<div style='flex:1'>"+
           "<span style='font-size:10px;font-weight:600;text-transform:uppercase;background:"+typeBg+";color:"+typeColor+";padding:2px 6px;border-radius:3px;margin-right:8px'>"+li.type+"</span>"+
           "<span style='font-size:13px;color:var(--text);font-weight:500'>"+li.name+"</span>"+
-          (li.pn?"<span style='font-size:10px;color:var(--text-faint);font-family:monospace;margin-left:8px'>"+li.pn+"</span>":"")+
+          (li.pn?"<span style='font-size:10px;color:var(--text-muted);font-family:monospace;margin-left:8px'>"+li.pn+"</span>":"")+
           marginInfo+
         "</div>"+
         "<div style='text-align:right;white-space:nowrap;font-size:13px'>"+

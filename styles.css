@@ -370,7 +370,7 @@ body{
 .tx-notes{margin-top:8px}
 .tx-note{font-size:12px;color:var(--text-muted);line-height:1.6;padding:1px 0}
 .tx-price{font-size:14px;font-weight:600;color:var(--text-strong);text-align:right;white-space:nowrap}
-.tx-margin{font-size:11px;color:var(--text-faint);text-align:right;margin-top:3px}
+.tx-margin{font-size:11px;color:var(--text-muted);text-align:right;margin-top:3px}
 
 .proj-group-tag{
   display:inline-flex;align-items:center;gap:4px;
@@ -473,7 +473,7 @@ tr.exp-detail td{
 }
 .others-row:last-child{border-bottom:none}
 .others-row:hover{background:var(--bg-hover)}
-.others-date{font-size:11px;color:var(--text-faint);margin-bottom:3px}
+.others-date{font-size:11px;color:var(--text-muted);margin-bottom:3px}
 .others-desc{font-size:13px;font-weight:500;color:var(--text-strong)}
 .others-sub{font-size:12px;color:var(--text-muted);margin-top:4px;line-height:1.6;max-width:600px}
 .others-val{font-size:13px;font-weight:600;color:var(--text-strong);white-space:nowrap;text-align:right;flex-shrink:0}
@@ -518,7 +518,7 @@ tr.exp-detail td{
 .tx-table .cell-mut{color:var(--text-muted);font-size:12px}
 .tx-table .cell-pn{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted)}
 .tx-table .cell-money{font-weight:600;color:var(--text-strong)}
-.tx-table .cell-margin{font-size:11px;color:var(--text-faint)}
+.tx-table .cell-margin{font-size:11px;color:var(--text-muted)}
 
 /* Inline-editable cell */
 .cell-edit{
@@ -743,7 +743,7 @@ tr.exp-detail td{
 
 /* FX equivalents + rate notes */
 .fx-usd{font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap}
-.fx-note{font-size:10.5px;color:var(--text-faint);margin-top:4px;text-align:right}
+.fx-note{font-size:10.5px;color:var(--text-muted);margin-top:4px;text-align:right}
 .md-fx-notes .fx-note{text-align:left;line-height:1.7}
 
 /* PDF clip affordance */
@@ -834,14 +834,14 @@ tr.exp-detail td{
 .hx-sub{font-size:12px;color:var(--text-muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;gap:6px;align-items:baseline}
 /* The name gives way; the number never does. */
 .hx-sub-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hx-sub-price{flex:none;color:var(--text-faint);font-variant-numeric:tabular-nums}
+.hx-sub-price{flex:none;color:var(--text-muted);font-variant-numeric:tabular-nums}
 .hx-icons{display:flex;gap:3px;font-size:11px;align-items:center}
 .hx-att{text-decoration:none;opacity:.55;transition:opacity .12s}
 .hx-att:hover{opacity:1}
 .hx-att sup{font-size:8px;font-weight:700;color:var(--accent-text)}
 .hx-icons>span{opacity:.45}
 .hx-val{font-size:13px;font-weight:600;color:var(--text-strong);white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
-.hx-cur{font-size:10.5px;font-weight:400;color:var(--text-faint);margin-left:4px}
+.hx-cur{font-size:10.5px;font-weight:500;color:var(--text-muted);margin-left:4px}
 .hx-chev{font-size:10px;color:var(--text-faint);text-align:right;transition:transform .15s;display:inline-block}
 .hx-chev.open{transform:rotate(180deg)}
 /* The detail reads as an inset of the row above it, not as a second design. */
@@ -860,7 +860,7 @@ tr.exp-detail td{
 .pj-compact-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .pj-compact-tot{margin-left:auto;font-size:12.5px;color:var(--text-muted);white-space:nowrap}
 .pj-compact-tot strong{color:var(--accent-text);font-size:13.5px}
-.pj-compact-sub{color:var(--text-faint);font-size:11px;margin-right:10px}
+.pj-compact-sub{color:var(--text-muted);font-size:11px;margin-right:10px}
 
 /* A multi-line PO folded into one parent row. */
 .hx-nest-head .hx-title{color:var(--accent-text);font-weight:600}
