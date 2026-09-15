@@ -252,8 +252,18 @@ function trkViewFile(a){
   trkOpenViewer(a.getAttribute("href"),a.getAttribute("data-name")||"");
   return false; /* cancel the default navigation/download */
 }
+function trkToggleViewSize(){
+  var mm=document.querySelector("#modal-trk-view .modal");
+  var full=mm.classList.toggle("trk-view-full");
+  document.getElementById("trk-view-expand").textContent=full?"Shrink":"Expand";
+}
 function trkOpenViewer(url,name){
   var m=document.getElementById("modal-trk-view");
+  /* each file starts at the normal size */
+  var mm=m.querySelector(".modal");
+  if(mm)mm.classList.remove("trk-view-full");
+  var ex=document.getElementById("trk-view-expand");
+  if(ex)ex.textContent="Expand";
   document.getElementById("trk-view-title").textContent=name;
   document.getElementById("trk-view-open").href=url;
   document.getElementById("trk-view-tabs").innerHTML="";
@@ -394,6 +404,9 @@ function trkShowSheet(i){
           else if(cell&&cell.t==="n")st+="text-align:right;";
         }else if(cell&&cell.t==="n")st+="text-align:right;";
       }catch(e){/* style of one cell failing shouldn't kill the table */}
+      /* freeze the first column so row labels stay visible while
+         scrolling right through the price columns */
+      if(c===range.s.c)attrs+=" class='trk-sticky-col'";
       html+="<td"+attrs+(st?" style='"+st+"'":"")+">"+trkEsc(text)+"</td>";
     }
     html+="</tr>";
