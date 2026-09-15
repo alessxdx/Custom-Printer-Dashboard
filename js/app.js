@@ -10,6 +10,7 @@
 var TAB_TITLES = {
   customers: "By Customer",
   groups: "Project Groups",
+  tracker: "Project Tracker",
   projects: "By Project",
   model: "Model Comparison",
   buying: "Buying Prices",
@@ -23,6 +24,10 @@ function setTab(btn){
   btn.classList.add("active");
   currentTab = btn.dataset.tab;
   MD_GROUP_SEL = null;
+  /* Re-clicking the tracker tab returns to its list view; leaving it
+     restores the customer stat row the tracker replaced. */
+  if(typeof TRK_SEL !== "undefined") TRK_SEL = null;
+  if(currentTab !== "tracker" && typeof renderStats === "function") renderStats();
   var title = document.getElementById("page-title");
   if(title) title.textContent = TAB_TITLES[currentTab] || "";
 

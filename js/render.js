@@ -989,6 +989,7 @@ function renderContent(){
   if(currentTab==="customers")renderCustomers();
   else if(currentTab==="groups")renderProjectGroupsList();
   else if(currentTab==="projects")renderProjects();
+  else if(currentTab==="tracker")renderTracker();
   else if(currentTab==="model")renderModel();
   else if(currentTab==="buying")renderBuying();
   else if(currentTab==="spares")renderSpares();
@@ -1198,6 +1199,10 @@ function openModal(){
     var spcl=document.getElementById("sp-customer-list");
     if(spcl)spcl.innerHTML=[...new Set(SPARES.map(function(s){return s.customer;}).filter(Boolean))].sort().map(function(c){return "<option value='"+c+"'>";}).join("");
     document.getElementById("modal-spares").classList.add("open");
+  }
+  else if(currentTab==="tracker"){
+    /* list view → new tracker project; detail view → new timeline entry */
+    trkOpenAdd();
   }
   else if(currentTab==="others"){
     closeOtherModal();
