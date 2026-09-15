@@ -14,7 +14,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-09-15.1";
+var APP_VERSION="2026-09-15.2";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -294,16 +294,16 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
   <div class="modal">
     <div class="modal-title" id="trk-project-modal-title">Add project</div>
     <div class="form-grid">
-      <div class="form-group form-full"><label>Project name *</label><input id="tp-name" placeholder="e.g. Dhaka Airport boarding pass printers"></div>
-      <div class="form-group"><label>Customer</label><input id="tp-customer" placeholder="e.g. Biman Bangladesh" list="customer-list"></div>
-      <div class="form-group"><label>Country</label><input id="tp-country" placeholder="e.g. Bangladesh" list="country-list"></div>
+      <div class="form-group form-full"><label>Project name *</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-name" placeholder="e.g. Dhaka Airport boarding pass printers"></div>
+      <div class="form-group"><label>Customer</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-customer" placeholder="e.g. Biman Bangladesh" list="customer-list"></div>
+      <div class="form-group"><label>Country</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-country" placeholder="e.g. Bangladesh" list="country-list"></div>
       <div class="form-group"><label>Handling office</label><select id="tp-office"><option value="">&mdash;</option><option>Singapore</option><option>Indonesia</option><option>China</option></select></div>
       <div class="form-group"><label>Status *</label><select id="tp-status"><option>Enquiry</option><option>Quoted</option><option>Negotiation</option><option>Won</option><option>Lost</option><option>On hold</option></select></div>
-      <div class="form-group"><label>Estimated value</label><input id="tp-value" type="number" step="any" placeholder="e.g. 50000"></div>
+      <div class="form-group"><label>Estimated value</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-value" type="number" step="any" placeholder="e.g. 50000"></div>
       <div class="form-group"><label>Currency</label><select id="tp-currency"><option value="USD">USD</option><option value="SGD">SGD</option><option value="RMB">RMB</option><option value="IDR">IDR</option><option value="EUR">EUR</option></select></div>
-      <div class="form-group"><label>Expected close</label><input id="tp-date" type="date"></div>
-      <div class="form-group"><label>Contact person</label><input id="tp-contact" placeholder="e.g. Mr. Rahman"></div>
-      <div class="form-group form-full"><label>Contact info <span style="font-size:10px;color:#aaa;font-weight:400">(email / phone)</span></label><input id="tp-contact-info" placeholder="e.g. rahman@example.com, +880 ..."></div>
+      <div class="form-group"><label>Expected close</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-date" type="date"></div>
+      <div class="form-group"><label>Contact person</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-contact" placeholder="e.g. Mr. Rahman"></div>
+      <div class="form-group form-full"><label>Contact info <span style="font-size:10px;color:#aaa;font-weight:400">(email / phone)</span></label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-contact-info" placeholder="e.g. rahman@example.com, +880 ..."></div>
       <div class="form-group form-full"><label>Notes</label><textarea id="tp-notes" placeholder="Background, requirements, competitors&hellip;"></textarea></div>
     </div>
     <div class="modal-actions">
@@ -317,9 +317,9 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
   <div class="modal">
     <div class="modal-title" id="trk-entry-modal-title">Add timeline entry</div>
     <div class="form-grid">
-      <div class="form-group"><label>Date *</label><input id="te-date" type="date"></div>
+      <div class="form-group"><label>Date *</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="te-date" type="date"></div>
       <div class="form-group"><label>Type *</label><select id="te-type"><option>Meeting</option><option>Quotation</option><option>Call</option><option>Email</option><option>Site visit</option><option>Note</option></select></div>
-      <div class="form-group form-full"><label>Title</label><input id="te-title" placeholder="e.g. Meeting with China office re: Dhaka enquiry"></div>
+      <div class="form-group form-full"><label>Title</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="te-title" placeholder="e.g. Meeting with China office re: Dhaka enquiry"></div>
       <div class="form-group form-full"><label>Details / minutes</label><textarea id="te-details" style="min-height:120px" placeholder="Meeting minutes, quotation summary, agreed next steps&hellip;"></textarea></div>
       <div class="form-group form-full"><label>Attachments <span style="font-size:10px;color:#aaa;font-weight:400">(PDF, Excel, Word, images&hellip;)</span></label>
         <input id="te-files" type="file" multiple accept=".pdf,.xls,.xlsx,.xlsm,.csv,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg" onchange="trkAddFiles()" class="att-file-input">
