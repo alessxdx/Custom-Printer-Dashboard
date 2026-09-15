@@ -24,6 +24,7 @@ create table if not exists tracker_projects (
 
 -- Added 2026-09-15 after the initial setup ran; harmless to re-run.
 alter table tracker_projects add column if not exists products jsonb;
+alter table tracker_projects add column if not exists contact_position text;
 
 create table if not exists tracker_entries (
   id uuid primary key default gen_random_uuid(),

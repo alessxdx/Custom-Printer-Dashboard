@@ -20,8 +20,8 @@ var TRK_STATUS_RANK={"Enquiry":0,"Quoted":1,"Negotiation":2,"On hold":3,"Won":4,
 var TRK_OFFICES=["China","Indonesia","Singapore"];
 
 /* ===== converters ===== */
-function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",contactName:r.contact_name||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
-function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,contact_name:p.contactName||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
+function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
+function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
 function dbToTrkE(r){return{_id:r.id,projectId:r.project_id,date:r.entry_date||"",type:r.entry_type||"Note",title:r.title||"",details:r.details||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
 function trkEToDb(e){return{project_id:e.projectId,entry_date:e.date||null,entry_type:e.type,title:e.title||null,details:e.details||null,attachments:e.attachments||[]};}
 
@@ -63,6 +63,17 @@ function trkFileIcon(name){
   if(/\.pdf$/.test(n))return "&#128196;";                    /* 📄 */
   if(/\.(png|jpe?g|gif|webp)$/.test(n))return "&#128247;";   /* 📷 */
   return "&#128206;";                                        /* 📎 */
+}
+
+/* Insert that surfaces the server's reason on failure — a bare "insert
+   failed" told the user nothing when a column was missing. */
+async function trkInsert(table,row){
+  var r=await fetch(SB_URL+"/rest/v1/"+table,{method:"POST",headers:sbH(),body:JSON.stringify(row)});
+  if(!r.ok){
+    var detail="";try{detail=(await r.text()).slice(0,300);}catch(e){}
+    throw new Error("HTTP "+r.status+(detail?" — "+detail:""));
+  }
+  return r.json();
 }
 
 /* ===== data load (lazy, on first tab open) ===== */
@@ -202,7 +213,9 @@ function trkRenderDetail(){
         infoRow("Products of interest",trkProductChips(p))+
         infoRow("Estimated value",p.estValue!==null?trkValueHtml(p):"")+
         infoRow("Expected close",p.expectedDate?trkFmtDate(p.expectedDate):"")+
-        infoRow("Contact",trkEsc(p.contactName)+(p.contactInfo?" <span class='trk-value-usd'>"+trkEsc(p.contactInfo)+"</span>":""))+
+        infoRow("Contact",trkEsc(p.contactName)+
+          (p.contactPosition?" <span class='trk-contact-pos'>&middot; "+trkEsc(p.contactPosition)+"</span>":"")+
+          (p.contactInfo?" <span class='trk-value-usd'>"+trkEsc(p.contactInfo)+"</span>":""))+
       "</div>"+
       (p.notes?"<div class='trk-notes'>"+trkEsc(p.notes).replace(/\n/g,"<br>")+"</div>":"")+
     "</div>";
@@ -366,6 +379,7 @@ function trkEditProject(){
   document.getElementById("tp-currency").value=p.currency||"USD";
   document.getElementById("tp-date").value=p.expectedDate?String(p.expectedDate).slice(0,10):"";
   document.getElementById("tp-contact").value=p.contactName;
+  document.getElementById("tp-position").value=p.contactPosition;
   document.getElementById("tp-contact-info").value=p.contactInfo;
   document.getElementById("tp-notes").value=p.notes;
   m.classList.add("open");
@@ -392,6 +406,7 @@ async function trkSaveProject(){
     currency:document.getElementById("tp-currency").value,
     expectedDate:document.getElementById("tp-date").value,
     contactName:document.getElementById("tp-contact").value.trim(),
+    contactPosition:document.getElementById("tp-position").value.trim(),
     contactInfo:document.getElementById("tp-contact-info").value.trim(),
     notes:document.getElementById("tp-notes").value.trim()
   };
@@ -405,7 +420,7 @@ async function trkSaveProject(){
       var idx=TRK_PROJECTS.findIndex(function(x){return x._id===editId;});
       if(idx>-1){p._id=editId;p.createdAt=TRK_PROJECTS[idx].createdAt;TRK_PROJECTS[idx]=p;}
     }else{
-      var r=await sbInsert("tracker_projects",trkPToDb(p));
+      var r=await trkInsert("tracker_projects",trkPToDb(p));
       if(!r||!r[0])throw new Error("insert failed");
       p._id=r[0].id;p.createdAt=r[0].created_at;
       TRK_PROJECTS.push(p);
@@ -531,7 +546,7 @@ async function trkSaveEntry(){
       var idx=TRK_ENTRIES.findIndex(function(x){return x._id===editId;});
       if(idx>-1){entry._id=editId;entry.createdAt=TRK_ENTRIES[idx].createdAt;TRK_ENTRIES[idx]=entry;}
     }else{
-      var r=await sbInsert("tracker_entries",trkEToDb(entry));
+      var r=await trkInsert("tracker_entries",trkEToDb(entry));
       if(!r||!r[0])throw new Error("insert failed");
       entry._id=r[0].id;entry.createdAt=r[0].created_at;
       TRK_ENTRIES.push(entry);
