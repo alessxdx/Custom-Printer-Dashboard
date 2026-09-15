@@ -17,7 +17,7 @@ var TRK_ATT=[];              /* entry-modal attachment staging */
 var TRK_STATUSES=["Enquiry","Quoted","Negotiation","Won","Lost","On hold"];
 var TRK_ACTIVE_STATUSES=["Enquiry","Quoted","Negotiation"];
 var TRK_STATUS_RANK={"Enquiry":0,"Quoted":1,"Negotiation":2,"On hold":3,"Won":4,"Lost":5};
-var TRK_OFFICES=["Singapore","Indonesia","China"];
+var TRK_OFFICES=["China","Indonesia","Singapore"];
 
 /* ===== converters ===== */
 function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",contactName:r.contact_name||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
@@ -234,12 +234,54 @@ function trkOpenAdd(){
 }
 
 /* ===== project modal ===== */
+/* Customer/Country are clean selects (no browser datalist/autofill popups),
+   populated alphabetically from every value already in the DB, with a
+   "+ Add new…" option that reveals a plain text input. */
+function trkAlpha(a,b){return a.localeCompare(b,undefined,{sensitivity:"base"});}
+function trkComboValues(field){
+  var vals=TRK_PROJECTS.map(function(p){return p[field];});
+  if(field==="customer"&&typeof allDealCustomers==="function")vals=vals.concat(allDealCustomers());
+  if(field==="country"&&typeof allDealCountries==="function")vals=vals.concat(allDealCountries());
+  var seen={},out=[];
+  vals.forEach(function(v){
+    v=String(v||"").trim();
+    if(!v||seen[v.toLowerCase()])return;
+    seen[v.toLowerCase()]=1;out.push(v);
+  });
+  return out.sort(trkAlpha);
+}
+function trkFillCombo(selId,newId,field,current){
+  var vals=trkComboValues(field);
+  current=String(current||"").trim();
+  if(current&&vals.map(function(v){return v.toLowerCase();}).indexOf(current.toLowerCase())===-1){
+    vals.push(current);vals.sort(trkAlpha);
+  }
+  document.getElementById(selId).innerHTML=
+    "<option value=''>&mdash;</option>"+
+    vals.map(function(v){return "<option value=\""+trkEsc(v)+"\""+(v===current?" selected":"")+">"+trkEsc(v)+"</option>";}).join("")+
+    "<option value='__new__'>&#43; Add new&hellip;</option>";
+  var inp=document.getElementById(newId);
+  inp.style.display="none";inp.value="";
+}
+function trkNewOptToggle(sel,newId){
+  var inp=document.getElementById(newId);
+  var show=sel.value==="__new__";
+  inp.style.display=show?"block":"none";
+  if(show)inp.focus();
+}
+function trkComboValue(selId,newId){
+  var sel=document.getElementById(selId);
+  if(sel.value==="__new__")return document.getElementById(newId).value.trim();
+  return sel.value;
+}
 function trkOpenProjectModal(){
   var m=document.getElementById("modal-trk-project");
   m.removeAttribute("data-edit-id");
   document.getElementById("trk-project-modal-title").textContent="Add project";
   document.getElementById("btn-delete-trk-project").style.display="none";
   m.querySelectorAll("input,textarea").forEach(function(el){el.value="";});
+  trkFillCombo("tp-customer","tp-customer-new","customer","");
+  trkFillCombo("tp-country","tp-country-new","country","");
   document.getElementById("tp-office").value="";
   document.getElementById("tp-status").value="Enquiry";
   document.getElementById("tp-currency").value="USD";
@@ -253,8 +295,8 @@ function trkEditProject(){
   document.getElementById("trk-project-modal-title").textContent="Edit project";
   document.getElementById("btn-delete-trk-project").style.display="inline-flex";
   document.getElementById("tp-name").value=p.name;
-  document.getElementById("tp-customer").value=p.customer;
-  document.getElementById("tp-country").value=p.country;
+  trkFillCombo("tp-customer","tp-customer-new","customer",p.customer);
+  trkFillCombo("tp-country","tp-country-new","country",p.country);
   document.getElementById("tp-office").value=p.office||"";
   document.getElementById("tp-status").value=p.status;
   document.getElementById("tp-value").value=p.estValue===null?"":p.estValue;
@@ -271,8 +313,8 @@ async function trkSaveProject(){
   var valRaw=document.getElementById("tp-value").value;
   var p={
     name:name,
-    customer:document.getElementById("tp-customer").value.trim(),
-    country:document.getElementById("tp-country").value.trim(),
+    customer:trkComboValue("tp-customer","tp-customer-new"),
+    country:trkComboValue("tp-country","tp-country-new"),
     office:document.getElementById("tp-office").value,
     status:document.getElementById("tp-status").value,
     estValue:valRaw===""?null:parseFloat(valRaw),
