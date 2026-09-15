@@ -14,7 +14,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-09-15.12";
+var APP_VERSION="2026-09-15.13";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -349,10 +349,10 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
       <div class="form-group"><label>Type *</label><select id="te-type"><option>Meeting</option><option>Quotation</option><option>Call</option><option>Email</option><option>Site visit</option><option>Note</option></select></div>
       <div class="form-group form-full"><label>Title</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="te-title" placeholder="e.g. Meeting with China office re: Dhaka enquiry"></div>
       <div class="form-group form-full"><label>Details / minutes</label><textarea id="te-details" style="min-height:120px" placeholder="Meeting minutes, quotation summary, agreed next steps&hellip;"></textarea></div>
-      <div class="form-group form-full"><label>Attachments <span style="font-size:10px;color:#aaa;font-weight:400">(PDF, Excel, Word, images&hellip;)</span></label>
+      <div class="form-group form-full" id="te-drop"><label>Attachments <span style="font-size:10px;color:#aaa;font-weight:400">(PDF, Excel, Word, images&hellip;)</span></label>
         <input id="te-files" type="file" multiple accept=".pdf,.xls,.xlsx,.xlsm,.csv,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg" onchange="trkAddFiles()" class="att-file-input">
         <div class="att-list" id="te-att-list"></div>
-        <button type="button" class="att-add" onclick="document.getElementById('te-files').click()">&#43; Add file</button>
+        <button type="button" class="att-add" onclick="document.getElementById('te-files').click()">&#43; Add file &mdash; or drag &amp; drop anywhere here</button>
       </div>
     </div>
     <div class="modal-actions">

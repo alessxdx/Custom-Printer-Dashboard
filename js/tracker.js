@@ -738,6 +738,34 @@ function trkRemoveAtt(e,i){
   TRK_ATT.splice(i,1);
   trkRenderAttList();
 }
+/* Drag & drop onto the open entry modal stages files exactly like the
+   file picker. The overlay covers the screen while open, so a drop
+   anywhere lands here instead of the browser opening the file. */
+(function trkInitDrop(){
+  var zone=document.getElementById("modal-trk-entry");
+  var box=document.getElementById("te-drop");
+  if(!zone)return;
+  ["dragenter","dragover"].forEach(function(ev){
+    zone.addEventListener(ev,function(e){
+      if(!zone.classList.contains("open"))return;
+      e.preventDefault();e.stopPropagation();
+      if(box)box.classList.add("trk-dragover");
+    });
+  });
+  zone.addEventListener("dragleave",function(e){
+    if(!zone.classList.contains("open"))return;
+    e.preventDefault();
+    if(box&&(!e.relatedTarget||!zone.contains(e.relatedTarget)))box.classList.remove("trk-dragover");
+  });
+  zone.addEventListener("drop",function(e){
+    if(!zone.classList.contains("open"))return;
+    e.preventDefault();e.stopPropagation();
+    if(box)box.classList.remove("trk-dragover");
+    var files=(e.dataTransfer&&e.dataTransfer.files)?Array.prototype.slice.call(e.dataTransfer.files):[];
+    files.forEach(function(f){TRK_ATT.push({name:f.name||"file",file:f});});
+    if(files.length)trkRenderAttList();
+  });
+})();
 async function trkUploadFile(file){
   var safe=(file.name||"file").replace(/[^a-zA-Z0-9._-]/g,"_");
   var path="tracker/"+Date.now()+"-"+safe;
