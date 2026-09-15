@@ -14,7 +14,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-09-15.4";
+var APP_VERSION="2026-09-15.5";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -295,16 +295,15 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
     <div class="modal-title" id="trk-project-modal-title">Add project / enquiry</div>
     <div class="form-grid">
       <div class="form-group form-full"><label>Project name <span style="font-size:10px;color:#aaa;font-weight:400">(optional &mdash; left blank, it's named from the customer, e.g. "Biman enquiry &mdash; 15 Sep 2026")</span></label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-name" placeholder="e.g. Dhaka Airport boarding pass printers"></div>
-      <div class="form-group"><label>Customer</label><select id="tp-customer" onchange="trkNewOptToggle(this,'tp-customer-new')"></select><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-customer-new" placeholder="Type the new customer name" style="display:none;margin-top:6px"></div>
-      <div class="form-group"><label>Country</label><select id="tp-country" onchange="trkNewOptToggle(this,'tp-country-new')"></select><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-country-new" placeholder="Type the new country" style="display:none;margin-top:6px"></div>
+      <div class="form-group"><label>Customer</label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-customer" placeholder="Type — existing customers pop up" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-customer-suggest"></div></div></div>
+      <div class="form-group"><label>Country</label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-country" placeholder="Type — existing countries pop up" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-country-suggest"></div></div></div>
       <div class="form-group"><label>Handling office</label><select id="tp-office"><option value="">&mdash;</option><option>China</option><option>Indonesia</option><option>Singapore</option></select></div>
       <div class="form-group"><label>Status *</label><select id="tp-status"><option>Enquiry</option><option>Quoted</option><option>Negotiation</option><option>Won</option><option>Lost</option><option>On hold</option></select></div>
-      <div class="form-group form-full"><label>Products of interest <span style="font-size:10px;color:#aaa;font-weight:400">(add as many as they asked about)</span></label>
+      <div class="form-group form-full"><label>Products of interest <span style="font-size:10px;color:#aaa;font-weight:400">(type &mdash; your models pop up; Enter or &#43; Add; as many as they asked about)</span></label>
         <div style="display:flex;gap:8px;align-items:flex-start">
-          <select id="tp-product-sel" style="flex:1" onchange="trkNewOptToggle(this,'tp-product-new')"></select>
+          <div class="trk-suggest" style="flex:1"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-product" placeholder="e.g. TK180" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-product-suggest"></div></div>
           <button type="button" class="att-add" style="white-space:nowrap" onclick="trkAddProduct()">&#43; Add</button>
         </div>
-        <input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-product-new" placeholder="Type the product / model name" style="display:none;margin-top:6px">
         <div class="att-list" id="tp-products"></div>
       </div>
       <div class="form-group"><label>Estimated value</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-value" type="number" step="any" placeholder="e.g. 50000"></div>

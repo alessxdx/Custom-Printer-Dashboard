@@ -236,9 +236,6 @@ function trkOpenAdd(){
 }
 
 /* ===== project modal ===== */
-/* Customer/Country are clean selects (no browser datalist/autofill popups),
-   populated alphabetically from every value already in the DB, with a
-   "+ Add new…" option that reveals a plain text input. */
 function trkAlpha(a,b){return a.localeCompare(b,undefined,{sensitivity:"base"});}
 function trkComboValues(field){
   var vals=TRK_PROJECTS.map(function(p){return p[field];});
@@ -252,50 +249,78 @@ function trkComboValues(field){
   });
   return out.sort(trkAlpha);
 }
-function trkFillCombo(selId,newId,field,current){
-  var vals=trkComboValues(field);
-  current=String(current||"").trim();
-  if(current&&vals.map(function(v){return v.toLowerCase();}).indexOf(current.toLowerCase())===-1){
-    vals.push(current);vals.sort(trkAlpha);
+/* Type-ahead: plain text input + an app-styled suggestion panel of existing
+   values. Replaces both the browser's native datalist dropdown (ugly, and it
+   attracted the password manager) and the "+ Add new…" select — typing a
+   brand-new value just works. With onPick (multi-value mode, e.g. products),
+   choosing or pressing Enter hands the value to onPick instead of filling
+   the input. Safe to call repeatedly; wires each input once. */
+function trkSuggestInit(inputId,getValues,onPick){
+  var inp=document.getElementById(inputId);
+  var panel=document.getElementById(inputId+"-suggest");
+  if(!inp||!panel||inp._trkSuggest)return;
+  inp._trkSuggest=true;
+  var idx=-1,items=[];
+  function close(){panel.style.display="none";idx=-1;}
+  function pick(v){
+    if(onPick)onPick(v);else inp.value=v;
+    close();
   }
-  document.getElementById(selId).innerHTML=
-    "<option value=''>&mdash;</option>"+
-    vals.map(function(v){return "<option value=\""+trkEsc(v)+"\""+(v===current?" selected":"")+">"+trkEsc(v)+"</option>";}).join("")+
-    "<option value='__new__'>&#43; Add new&hellip;</option>";
-  var inp=document.getElementById(newId);
-  inp.style.display="none";inp.value="";
+  function render(){
+    var q=inp.value.trim().toLowerCase();
+    items=getValues().filter(function(v){return !q||v.toLowerCase().indexOf(q)>-1;});
+    if(idx>items.length-1)idx=items.length-1;
+    /* nothing to suggest, or the input already IS the only match */
+    if(!items.length||(!onPick&&items.length===1&&items[0].toLowerCase()===q)){close();return;}
+    panel.innerHTML=items.map(function(v,i){
+      return "<div class='trk-suggest-item"+(i===idx?" active":"")+"' data-i='"+i+"'>"+trkEsc(v)+"</div>";
+    }).join("");
+    panel.style.display="block";
+    var act=panel.querySelector(".trk-suggest-item.active");
+    if(act)act.scrollIntoView({block:"nearest"});
+  }
+  inp.addEventListener("focus",function(){idx=-1;render();});
+  inp.addEventListener("input",function(){idx=-1;render();});
+  inp.addEventListener("keydown",function(e){
+    var open=panel.style.display!=="none";
+    if(e.key==="ArrowDown"&&open){idx=Math.min(idx+1,items.length-1);render();e.preventDefault();}
+    else if(e.key==="ArrowUp"&&open){idx=Math.max(idx-1,0);render();e.preventDefault();}
+    else if(e.key==="Enter"){
+      if(open&&idx>-1){pick(items[idx]);e.preventDefault();}
+      else if(onPick&&inp.value.trim()){pick(inp.value.trim());e.preventDefault();}
+    }
+    else if(e.key==="Escape"&&open){close();}
+  });
+  inp.addEventListener("blur",function(){setTimeout(close,150);});
+  panel.addEventListener("mousedown",function(e){
+    var t=e.target.closest(".trk-suggest-item");
+    if(!t)return;
+    e.preventDefault();
+    pick(items[parseInt(t.dataset.i,10)]);
+  });
 }
-function trkNewOptToggle(sel,newId){
-  var inp=document.getElementById(newId);
-  var show=sel.value==="__new__";
-  inp.style.display=show?"block":"none";
-  if(show)inp.focus();
-}
-function trkComboValue(selId,newId){
-  var sel=document.getElementById(selId);
-  if(sel.value==="__new__")return document.getElementById(newId).value.trim();
-  return sel.value;
+function trkInitProjectSuggests(){
+  trkSuggestInit("tp-customer",function(){return trkComboValues("customer");});
+  trkSuggestInit("tp-country",function(){return trkComboValues("country");});
+  trkSuggestInit("tp-product",function(){
+    var models=(typeof getModelList==="function"?getModelList():[]).slice().sort(trkAlpha);
+    var have=TRK_PROD.map(function(p){return p.toLowerCase();});
+    return models.filter(function(m){return have.indexOf(m.toLowerCase())===-1;});
+  },function(v){trkAddProduct(v);});
 }
 /* Products of interest — staged chips, saved as a jsonb string array */
 var TRK_PROD=[];
-function trkFillProductSel(){
-  var models=(typeof getModelList==="function"?getModelList():[]).slice().sort(trkAlpha);
-  document.getElementById("tp-product-sel").innerHTML=
-    "<option value=''>&mdash; choose a product &mdash;</option>"+
-    models.map(function(m){return "<option value=\""+trkEsc(m)+"\">"+trkEsc(m)+"</option>";}).join("")+
-    "<option value='__new__'>&#43; Other / type your own&hellip;</option>";
-}
 function trkRenderProducts(){
   document.getElementById("tp-products").innerHTML=TRK_PROD.map(function(pr,i){
     return "<span class='att-item'>"+trkEsc(pr)+" <a href='#' class='att-remove' title='Remove' onclick='trkRemoveProduct(event,"+i+")'>&#10005;</a></span>";
   }).join("")||"<span class='att-empty'>Nothing added yet.</span>";
 }
-function trkAddProduct(){
-  var v=trkComboValue("tp-product-sel","tp-product-new");
+function trkAddProduct(v){
+  var inp=document.getElementById("tp-product");
+  v=String(v!==undefined?v:inp.value).trim();
   if(!v)return;
   if(TRK_PROD.map(function(p){return p.toLowerCase();}).indexOf(v.toLowerCase())===-1)TRK_PROD.push(v);
-  document.getElementById("tp-product-sel").value="";
-  var inp=document.getElementById("tp-product-new");inp.value="";inp.style.display="none";
+  inp.value="";
   trkRenderProducts();
 }
 function trkRemoveProduct(e,i){
@@ -316,10 +341,8 @@ function trkOpenProjectModal(){
   document.getElementById("trk-project-modal-title").textContent="Add project";
   document.getElementById("btn-delete-trk-project").style.display="none";
   m.querySelectorAll("input,textarea").forEach(function(el){el.value="";});
-  trkFillCombo("tp-customer","tp-customer-new","customer","");
-  trkFillCombo("tp-country","tp-country-new","country","");
-  trkFillProductSel();TRK_PROD=[];trkRenderProducts();
-  document.getElementById("tp-product-new").style.display="none";
+  trkInitProjectSuggests();
+  TRK_PROD=[];trkRenderProducts();
   document.getElementById("tp-office").value="";
   document.getElementById("tp-status").value="Enquiry";
   document.getElementById("tp-currency").value="USD";
@@ -333,10 +356,10 @@ function trkEditProject(){
   document.getElementById("trk-project-modal-title").textContent="Edit project";
   document.getElementById("btn-delete-trk-project").style.display="inline-flex";
   document.getElementById("tp-name").value=p.name;
-  trkFillCombo("tp-customer","tp-customer-new","customer",p.customer);
-  trkFillCombo("tp-country","tp-country-new","country",p.country);
-  trkFillProductSel();TRK_PROD=(p.products||[]).slice();trkRenderProducts();
-  document.getElementById("tp-product-new").style.display="none";
+  trkInitProjectSuggests();
+  document.getElementById("tp-customer").value=p.customer;
+  document.getElementById("tp-country").value=p.country;
+  TRK_PROD=(p.products||[]).slice();trkRenderProducts();
   document.getElementById("tp-office").value=p.office||"";
   document.getElementById("tp-status").value=p.status;
   document.getElementById("tp-value").value=p.estValue===null?"":p.estValue;
@@ -349,7 +372,9 @@ function trkEditProject(){
 }
 async function trkSaveProject(){
   var name=document.getElementById("tp-name").value.trim();
-  var customer=trkComboValue("tp-customer","tp-customer-new");
+  var customer=document.getElementById("tp-customer").value.trim();
+  /* a product typed but never added shouldn't be lost */
+  if(document.getElementById("tp-product").value.trim())trkAddProduct();
   if(!name){
     /* Just an enquiry — auto-name it so nothing is required up front. */
     if(!customer){alert("Please pick a customer or give the project a name.");return;}
@@ -359,7 +384,7 @@ async function trkSaveProject(){
   var p={
     name:name,
     customer:customer,
-    country:trkComboValue("tp-country","tp-country-new"),
+    country:document.getElementById("tp-country").value.trim(),
     office:document.getElementById("tp-office").value,
     status:document.getElementById("tp-status").value,
     products:TRK_PROD.slice(),
