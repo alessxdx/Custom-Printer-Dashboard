@@ -114,6 +114,23 @@ function trkRenderStats(){
     "<div class='stat'><div class='stat-label'>Won</div><div class='stat-value'>"+won.length+"</div><div class='stat-sub'>"+(wonVal?(typeof fxFormatUSD==="function"?fxFormatUSD(wonVal):"$"+wonVal.toLocaleString())+" USD equivalent":"projects closed")+"</div></div>";
 }
 
+/* The global toolbar "+ Add entry" button doubles as the tracker's add
+   button. On the tracker list it creates a project, so relabel it; in the
+   detail view the Timeline has its own button, so hide the global one. */
+var TRK_BTN_HTML=null;
+function trkSyncToolbar(){
+  var btn=document.querySelector("#toolbar .btn-add");
+  if(!btn)return;
+  if(TRK_BTN_HTML===null)TRK_BTN_HTML=btn.innerHTML;
+  if(currentTab==="tracker"){
+    if(TRK_SEL){btn.style.display="none";}
+    else{btn.style.display="";btn.innerHTML=TRK_BTN_HTML.replace("Add entry","Add project");}
+  }else{
+    btn.style.display="";
+    btn.innerHTML=TRK_BTN_HTML;
+  }
+}
+
 /* ===== main render ===== */
 function renderTracker(){
   var content=document.getElementById("content");
@@ -131,8 +148,9 @@ function renderTracker(){
     return;
   }
   trkRenderStats();
-  if(TRK_SEL&&TRK_PROJECTS.some(function(p){return p._id===TRK_SEL;})){trkRenderDetail();return;}
-  TRK_SEL=null;
+  if(TRK_SEL&&!TRK_PROJECTS.some(function(p){return p._id===TRK_SEL;}))TRK_SEL=null;
+  trkSyncToolbar();
+  if(TRK_SEL){trkRenderDetail();return;}
   trkRenderList();
 }
 

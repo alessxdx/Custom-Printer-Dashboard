@@ -28,6 +28,8 @@ function setTab(btn){
      restores the customer stat row the tracker replaced. */
   if(typeof TRK_SEL !== "undefined") TRK_SEL = null;
   if(currentTab !== "tracker" && typeof renderStats === "function") renderStats();
+  /* restore the toolbar add button's label/visibility when leaving tracker */
+  if(typeof trkSyncToolbar === "function") trkSyncToolbar();
   var title = document.getElementById("page-title");
   if(title) title.textContent = TAB_TITLES[currentTab] || "";
 
