@@ -267,6 +267,7 @@ function trkOpenViewer(url,name){
   document.getElementById("trk-view-title").textContent=name;
   document.getElementById("trk-view-open").href=url;
   document.getElementById("trk-view-tabs").innerHTML="";
+  document.getElementById("trk-view-fzctl").style.display=/\.(xlsx|xlsm|xls|csv)$/i.test(String(name))?"flex":"none";
   var body=document.getElementById("trk-view-body");
   var n=String(name).toLowerCase();
   m.classList.add("open");
@@ -357,9 +358,79 @@ function trkCellColor(c){
   if(c.theme!==undefined)return trkThemeColor(c.theme,c.tint||0);
   return null;
 }
-function trkShowSheet(i){
+/* ---- freeze panes ----
+   Priority: the freeze the file's author set in Excel; otherwise a guess
+   (leading mostly-text columns = labels, leading number-free rows =
+   titles/headers); the +/- controls override either for the open sheet. */
+var TRK_VIEW_SHEET=0,TRK_VIEW_FZ={cols:1,rows:0};
+function trkGuessFreeze(ws,range,es){
+  if(es&&es.views&&es.views[0]&&es.views[0].state==="frozen"){
+    return {cols:es.views[0].xSplit||0,rows:es.views[0].ySplit||0};
+  }
+  var maxR=Math.min(range.e.r,range.s.r+80);
+  var cols=0;
+  for(var c=range.s.c;c<=Math.min(range.s.c+3,range.e.c);c++){
+    var num=0,txt=0;
+    for(var r=range.s.r;r<=maxR;r++){
+      var cell=ws[XLSX.utils.encode_cell({r:r,c:c})];
+      if(!cell||cell.v==null||cell.v==="")continue;
+      if(cell.t==="n")num++;else txt++;
+    }
+    if(txt>num&&txt>0)cols++;else break;
+  }
+  var rows=0;
+  for(var r2=range.s.r;r2<=Math.min(range.e.r,range.s.r+4);r2++){
+    var hasNum=false,hasAny=false;
+    for(var c2=range.s.c;c2<=Math.min(range.e.c,range.s.c+59);c2++){
+      var cl=ws[XLSX.utils.encode_cell({r:r2,c:c2})];
+      if(cl&&cl.v!=null&&cl.v!==""){hasAny=true;if(cl.t==="n"){hasNum=true;break;}}
+    }
+    if(hasNum)break;
+    rows++;
+    if(!hasAny&&rows>2)break; /* stop drifting through blank space */
+  }
+  return {cols:Math.max(1,Math.min(cols,3)),rows:Math.min(rows,4)};
+}
+function trkFreezeLabels(){
+  var ec=document.getElementById("trk-fz-cols"),er=document.getElementById("trk-fz-rows");
+  if(ec)ec.textContent=TRK_VIEW_FZ.cols;
+  if(er)er.textContent=TRK_VIEW_FZ.rows;
+}
+function trkFreezeAdj(which,d){
+  TRK_VIEW_FZ[which]=Math.max(0,Math.min(6,TRK_VIEW_FZ[which]+d));
+  trkFreezeLabels();
+  trkShowSheet(TRK_VIEW_SHEET,true);
+}
+/* Sticky offsets need real cell widths/heights, so they're measured after
+   the table is in the DOM: each frozen column/row cell gets left/top from
+   the column's rendered position. */
+function trkApplyFreezeOffsets(holder){
+  var table=holder.querySelector("table");
+  if(!table)return;
+  holder.scrollLeft=0;holder.scrollTop=0;
+  /* sticky cells are "positioned", so offsetTop/Left would measure from the
+     modal, not the table — use rect differences instead */
+  var tRect=table.getBoundingClientRect();
+  var lefts={},tops={};
+  table.querySelectorAll("td[data-fc]").forEach(function(td){
+    var j=td.getAttribute("data-fc");
+    if(lefts[j]===undefined)lefts[j]=td.getBoundingClientRect().left-tRect.left;
+  });
+  table.querySelectorAll("td[data-fc]").forEach(function(td){
+    td.style.left=(lefts[td.getAttribute("data-fc")]||0)+"px";
+  });
+  table.querySelectorAll("td[data-fr]").forEach(function(td){
+    var j=td.getAttribute("data-fr");
+    if(tops[j]===undefined)tops[j]=td.getBoundingClientRect().top-tRect.top;
+  });
+  table.querySelectorAll("td[data-fr]").forEach(function(td){
+    td.style.top=(tops[td.getAttribute("data-fr")]||0)+"px";
+  });
+}
+function trkShowSheet(i,keepFreeze){
   var wb=TRK_VIEW_SJS;
   if(!wb)return;
+  TRK_VIEW_SHEET=i;
   document.querySelectorAll("#trk-view-tabs .trk-chip").forEach(function(b){
     b.classList.toggle("active",Number(b.dataset.sheet)===i);
   });
@@ -375,6 +446,9 @@ function trkShowSheet(i){
       if(r!==m.s.r||c!==m.s.c)covered[r+"_"+c]=1;
   });
   var es=TRK_VIEW_EJS?TRK_VIEW_EJS.getWorksheet(name):null;
+  if(!keepFreeze)TRK_VIEW_FZ=trkGuessFreeze(ws,range,es);
+  trkFreezeLabels();
+  var fzC=range.s.c+TRK_VIEW_FZ.cols,fzR=range.s.r+TRK_VIEW_FZ.rows;
   var html="<table>";
   for(var r=range.s.r;r<=maxR;r++){
     html+="<tr>";
@@ -404,9 +478,10 @@ function trkShowSheet(i){
           else if(cell&&cell.t==="n")st+="text-align:right;";
         }else if(cell&&cell.t==="n")st+="text-align:right;";
       }catch(e){/* style of one cell failing shouldn't kill the table */}
-      /* freeze the first column so row labels stay visible while
-         scrolling right through the price columns */
-      if(c===range.s.c)attrs+=" class='trk-sticky-col'";
+      var cls=[];
+      if(c<fzC){cls.push("trk-fz-col");attrs+=" data-fc='"+(c-range.s.c)+"'";}
+      if(r<fzR){cls.push("trk-fz-row");attrs+=" data-fr='"+(r-range.s.r)+"'";}
+      if(cls.length)attrs+=" class='"+cls.join(" ")+"'";
       html+="<td"+attrs+(st?" style='"+st+"'":"")+">"+trkEsc(text)+"</td>";
     }
     html+="</tr>";
@@ -414,6 +489,7 @@ function trkShowSheet(i){
   html+="</table>";
   if(range.e.r>maxR||range.e.c>maxC)html+="<div class='empty'>Large sheet — preview truncated. Use &quot;Open in new tab&quot; for the full file.</div>";
   body.innerHTML="<div class='trk-sheet-holder'>"+html+"</div>";
+  trkApplyFreezeOffsets(body);
 }
 
 /* ===== global "+ Add entry" button (toolbar) ===== */

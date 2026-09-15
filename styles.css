@@ -1067,6 +1067,14 @@ tr.exp-detail td{
 .trk-sheet-holder td{border:1px solid var(--border);padding:4px 9px;color:var(--text);white-space:nowrap;max-width:420px;overflow:hidden;text-overflow:ellipsis}
 
 /* Tracker viewer: frozen first column + expand toggle */
-.trk-sheet-holder td.trk-sticky-col{position:sticky;left:0;z-index:2;background:var(--bg-modal);box-shadow:1px 0 0 var(--border-strong)}
 .trk-view-modal.trk-view-full{width:98vw;max-width:98vw;height:94vh;max-height:94vh;display:flex;flex-direction:column}
 .trk-view-full .trk-view-body{max-height:none;flex:1}
+
+/* Tracker viewer: freeze panes (columns AND rows) + controls */
+.trk-sheet-holder td.trk-fz-col{position:sticky;z-index:2;background:var(--bg-modal);box-shadow:1px 0 0 var(--border-strong)}
+.trk-sheet-holder td.trk-fz-row{position:sticky;z-index:3;background:var(--bg-modal);box-shadow:0 1px 0 var(--border-strong)}
+.trk-sheet-holder td.trk-fz-col.trk-fz-row{z-index:4;box-shadow:1px 0 0 var(--border-strong),0 1px 0 var(--border-strong)}
+.trk-fzctl{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);margin-left:auto}
+.trk-fzctl button{width:22px;height:22px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text);border-radius:6px;cursor:pointer;font-size:13px;line-height:1;font-family:inherit}
+.trk-fzctl button:hover{background:var(--bg-hover)}
+.trk-fzctl .trk-fz-n{min-width:14px;text-align:center;font-weight:600;color:var(--text-strong)}

@@ -14,7 +14,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-09-15.9";
+var APP_VERSION="2026-09-15.10";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -329,7 +329,15 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
       <button class="btn-cancel" id="trk-view-expand" onclick="trkToggleViewSize()">Expand</button>
       <button class="btn-cancel" onclick="closeModal('modal-trk-view')">Close</button>
     </div>
-    <div id="trk-view-tabs" class="trk-chips" style="margin-bottom:10px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <div id="trk-view-tabs" class="trk-chips"></div>
+      <div id="trk-view-fzctl" class="trk-fzctl" style="display:none">
+        <span>Freeze cols</span>
+        <button type="button" onclick="trkFreezeAdj('cols',-1)" title="Freeze one column less">&minus;</button><span class="trk-fz-n" id="trk-fz-cols">1</span><button type="button" onclick="trkFreezeAdj('cols',1)" title="Freeze one more column">&#43;</button>
+        <span style="margin-left:10px">rows</span>
+        <button type="button" onclick="trkFreezeAdj('rows',-1)" title="Freeze one row less">&minus;</button><span class="trk-fz-n" id="trk-fz-rows">0</span><button type="button" onclick="trkFreezeAdj('rows',1)" title="Freeze one more row">&#43;</button>
+      </div>
+    </div>
     <div id="trk-view-body" class="trk-view-body"></div>
   </div>
 </div>
