@@ -954,13 +954,13 @@ tr.exp-detail td{
 }
 .trk-card:hover{border-color:var(--border-strong);box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .trk-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.trk-card-name{font-size:14px;font-weight:600;color:var(--text-strong)}
-.trk-card-cust{font-size:12px;color:var(--text-muted);margin-top:4px;display:flex;align-items:center;gap:6px}
-.trk-card-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--text-muted)}
+.trk-card-name{font-size:15px;font-weight:600;color:var(--text-strong)}
+.trk-card-cust{font-size:13px;color:var(--text);margin-top:4px;display:flex;align-items:center;gap:6px}
+.trk-card-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:var(--text)}
 .trk-card-foot{
   display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
   margin-top:10px;padding-top:8px;border-top:1px solid var(--border);
-  font-size:11px;color:var(--text-faint);
+  font-size:12px;color:var(--text-muted);
 }
 .trk-card-counts{white-space:nowrap}
 
@@ -978,7 +978,7 @@ tr.exp-detail td{
 .trk-type{background:var(--accent-soft);color:var(--accent-text)}
 
 .trk-value{font-weight:600;color:var(--accent-text)}
-.trk-value-usd{font-size:10.5px;color:var(--text-faint)}
+.trk-value-usd{font-size:11.5px;color:var(--text-muted)}
 .trk-due{color:var(--text-muted)}
 .trk-overdue{color:#b91c1c;font-weight:600}
 
@@ -1000,10 +1000,10 @@ tr.exp-detail td{
   gap:12px 20px;margin-top:14px;
 }
 .trk-info-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-strong)}
-.trk-info-val{font-size:13px;color:var(--text);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.trk-info-val{font-size:14px;color:var(--text-strong);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .trk-notes{
   margin-top:14px;padding-top:12px;border-top:1px solid var(--border);
-  font-size:12.5px;color:var(--text-muted);line-height:1.6;white-space:normal;
+  font-size:14px;color:var(--text);line-height:1.65;white-space:normal;
 }
 
 .trk-tl-head{
@@ -1022,11 +1022,11 @@ tr.exp-detail td{
   background:var(--bg-stat);border:1px solid var(--border);border-radius:10px;
   padding:12px 15px;
 }
-.trk-tl-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted)}
+.trk-tl-meta{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)}
 .trk-tl-edit{margin-left:auto;font-size:11px;color:var(--text-faint);text-decoration:none}
 .trk-tl-edit:hover{color:var(--accent-text)}
-.trk-tl-title{font-size:13.5px;font-weight:600;color:var(--text-strong);margin-top:6px}
-.trk-tl-details{font-size:12.5px;color:var(--text-muted);line-height:1.6;margin-top:5px}
+.trk-tl-title{font-size:15px;font-weight:600;color:var(--text-strong);margin-top:6px}
+.trk-tl-details{font-size:14px;color:var(--text);line-height:1.65;margin-top:6px}
 .trk-tl-atts{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
 .trk-att{
   display:inline-flex;align-items:center;gap:5px;
@@ -1057,7 +1057,7 @@ tr.exp-detail td{
 .trk-suggest-item:hover,.trk-suggest-item.active{background:var(--bg-hover);color:var(--text-strong)}
 
 /* Tracker: contact position */
-.trk-contact-pos{font-size:12px;color:var(--text-muted);font-weight:500}
+.trk-contact-pos{font-size:13px;color:var(--text);font-weight:500}
 
 /* Tracker: in-app file viewer */
 .trk-view-modal{width:min(1100px,95vw);max-width:95vw}
