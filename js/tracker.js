@@ -222,7 +222,7 @@ function trkRenderDetail(){
 
   var tl=entries.map(function(e){
     var atts=(e.attachments||[]).map(function(a){
-      return "<a class='trk-att' href='"+trkEsc(a.url)+"' target='_blank' rel='noopener'>"+trkFileIcon(a.name)+" "+trkEsc(a.name)+"</a>";
+      return "<a class='trk-att' href='"+trkEsc(a.url)+"' data-name='"+trkEsc(a.name)+"' onclick='return trkViewFile(this)'>"+trkFileIcon(a.name)+" "+trkEsc(a.name)+"</a>";
     }).join("");
     return "<div class='trk-tl-item'><div class='trk-tl-dot'></div><div class='trk-tl-body'>"+
       "<div class='trk-tl-meta'><strong>"+trkFmtDate(e.date)+"</strong> "+trkTypeBadge(e.type)+
@@ -240,6 +240,74 @@ function trkRenderDetail(){
         " Add entry</button></div>"+
     (tl?"<div class='trk-timeline'>"+tl+"</div>"
        :"<div class='empty'>No timeline entries yet. Click <strong>+ Add entry</strong> to record the enquiry, meeting minutes or a quotation &mdash; that's also where you attach the PDF / Excel files.</div>");
+}
+
+/* ===== in-app file viewer =====
+   Clicking an attachment chip previews the file right here instead of
+   downloading it: PDFs and images render inline, Excel/CSV are parsed
+   with SheetJS (lazy-loaded from the CDN on first use) and shown as
+   tables with one tab per sheet. Anything else falls back to a link. */
+var TRK_VIEW_WB=null;
+function trkViewFile(a){
+  trkOpenViewer(a.getAttribute("href"),a.getAttribute("data-name")||"");
+  return false; /* cancel the default navigation/download */
+}
+function trkOpenViewer(url,name){
+  var m=document.getElementById("modal-trk-view");
+  document.getElementById("trk-view-title").textContent=name;
+  document.getElementById("trk-view-open").href=url;
+  document.getElementById("trk-view-tabs").innerHTML="";
+  var body=document.getElementById("trk-view-body");
+  var n=String(name).toLowerCase();
+  m.classList.add("open");
+  if(/\.pdf$/.test(n)){
+    body.innerHTML="<iframe class='trk-view-frame' src='"+trkEsc(url)+"' title='"+trkEsc(name)+"'></iframe>";
+  }else if(/\.(png|jpe?g|gif|webp)$/.test(n)){
+    body.innerHTML="<img src='"+trkEsc(url)+"' alt='"+trkEsc(name)+"' style='max-width:100%;height:auto;display:block;margin:0 auto'>";
+  }else if(/\.(xlsx|xlsm|xls|csv)$/.test(n)){
+    body.innerHTML="<div class='empty'>Loading spreadsheet&hellip;</div>";
+    trkRenderSpreadsheet(url,name);
+  }else{
+    body.innerHTML="<div class='empty'>No inline preview for this file type. <a href='"+trkEsc(url)+"' target='_blank' rel='noopener'>Open / download it</a> instead.</div>";
+  }
+}
+function trkLoadSheetJS(){
+  if(window.XLSX)return Promise.resolve();
+  return new Promise(function(res,rej){
+    var s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload=res;
+    s.onerror=function(){rej(new Error("could not load the spreadsheet viewer (offline?)"));};
+    document.head.appendChild(s);
+  });
+}
+async function trkRenderSpreadsheet(url,name){
+  var body=document.getElementById("trk-view-body");
+  try{
+    await trkLoadSheetJS();
+    var r=await fetch(url);
+    if(!r.ok)throw new Error("could not fetch the file (HTTP "+r.status+")");
+    TRK_VIEW_WB=XLSX.read(await r.arrayBuffer(),{type:"array"});
+    var tabs=document.getElementById("trk-view-tabs");
+    tabs.innerHTML=TRK_VIEW_WB.SheetNames.length>1
+      ?TRK_VIEW_WB.SheetNames.map(function(sn,i){
+        return "<button class='trk-chip' data-sheet='"+i+"' onclick='trkShowSheet("+i+")'>"+trkEsc(sn)+"</button>";
+      }).join("")
+      :"";
+    trkShowSheet(0);
+  }catch(err){
+    body.innerHTML="<div class='empty'>Preview failed: "+trkEsc(err.message)+"<br><a href='"+trkEsc(url)+"' target='_blank' rel='noopener'>Open / download it</a> instead.</div>";
+  }
+}
+function trkShowSheet(i){
+  if(!TRK_VIEW_WB)return;
+  document.querySelectorAll("#trk-view-tabs .trk-chip").forEach(function(b){
+    b.classList.toggle("active",Number(b.dataset.sheet)===i);
+  });
+  document.getElementById("trk-view-body").innerHTML=
+    "<div class='trk-sheet-holder'>"+
+      XLSX.utils.sheet_to_html(TRK_VIEW_WB.Sheets[TRK_VIEW_WB.SheetNames[i]],{header:"",footer:""})+
+    "</div>";
 }
 
 /* ===== global "+ Add entry" button (toolbar) ===== */

@@ -14,7 +14,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-09-15.6";
+var APP_VERSION="2026-09-15.7";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -319,6 +319,17 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
       <button class="btn-cancel" onclick="closeModal('modal-trk-project')">Cancel</button>
       <button class="btn-save" onclick="trkSaveProject()">Save project</button>
     </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-trk-view">
+  <div class="modal modal-wide trk-view-modal">
+    <div class="modal-title" style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span id="trk-view-title" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <a id="trk-view-open" class="att-add" href="#" target="_blank" rel="noopener" style="text-decoration:none;font-weight:600">Open in new tab</a>
+      <button class="btn-cancel" onclick="closeModal('modal-trk-view')">Close</button>
+    </div>
+    <div id="trk-view-tabs" class="trk-chips" style="margin-bottom:10px"></div>
+    <div id="trk-view-body" class="trk-view-body"></div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-trk-entry">

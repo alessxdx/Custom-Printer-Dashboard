@@ -1058,3 +1058,11 @@ tr.exp-detail td{
 
 /* Tracker: contact position */
 .trk-contact-pos{font-size:12px;color:var(--text-muted);font-weight:500}
+
+/* Tracker: in-app file viewer */
+.trk-view-modal{width:min(1100px,95vw);max-width:95vw}
+.trk-view-body{max-height:72vh;overflow:auto;border-radius:8px}
+.trk-view-frame{width:100%;height:70vh;border:none;border-radius:8px;background:#fff}
+.trk-sheet-holder table{border-collapse:collapse;font-size:12px;width:max-content;min-width:100%;background:var(--bg-stat)}
+.trk-sheet-holder td{border:1px solid var(--border);padding:4px 9px;color:var(--text);white-space:nowrap;max-width:420px;overflow:hidden;text-overflow:ellipsis}
+.trk-sheet-holder tr:first-child td{font-weight:600;color:var(--text-strong);background:var(--bg-soft);position:sticky;top:0}
