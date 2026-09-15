@@ -34,11 +34,16 @@ function trkFmtDate(d){
   if(isNaN(dt))return d;
   return dt.getDate()+" "+TRK_MONTHS[dt.getMonth()]+" "+dt.getFullYear();
 }
-function trkStatusBadge(s){
-  var cls={"Enquiry":"trk-s-enquiry","Quoted":"trk-s-quoted","Negotiation":"trk-s-negotiation","Won":"trk-s-won","Lost":"trk-s-lost","On hold":"trk-s-onhold"}[s]||"trk-s-enquiry";
-  return "<span class='trk-badge "+cls+"'>"+trkEsc(s)+"</span>";
+function trkStatusSlug(s){
+  return {"Enquiry":"enquiry","Quoted":"quoted","Negotiation":"negotiation","Won":"won","Lost":"lost","On hold":"onhold"}[s]||"enquiry";
 }
-function trkTypeBadge(t){return "<span class='trk-badge trk-type'>"+trkEsc(t)+"</span>";}
+function trkStatusBadge(s){
+  return "<span class='trk-badge trk-s-"+trkStatusSlug(s)+"'>"+trkEsc(s)+"</span>";
+}
+function trkTypeSlug(t){
+  return {"Meeting":"meeting","Quotation":"quotation","Call":"call","Email":"email","Site visit":"site","Note":"note"}[t]||"note";
+}
+function trkTypeBadge(t){return "<span class='trk-badge trk-type trk-t-"+trkTypeSlug(t)+"'>"+trkEsc(t)+"</span>";}
 function trkValueHtml(p){
   if(p.estValue===null)return"";
   var usd=(p.currency!=="USD"&&typeof fxUsdText==="function")?fxUsdText(p.estValue,p.currency):"";
@@ -186,7 +191,7 @@ function trkRenderList(){
     var attCount=entries.reduce(function(n,e){return n+(e.attachments?e.attachments.length:0);},0);
     var flag=trkFlag(p.country,16);
     var overdue=p.expectedDate&&TRK_ACTIVE_STATUSES.indexOf(p.status)>-1&&p.expectedDate<new Date().toISOString().slice(0,10);
-    return "<div class='trk-card' onclick='trkOpen(\""+p._id+"\")'>"+
+    return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+"' onclick='trkOpen(\""+p._id+"\")'>"+
       "<div class='trk-card-top'><span class='trk-card-name'>"+trkEsc(p.name)+"</span>"+trkStatusBadge(p.status)+"</div>"+
       ((p.customer||p.country)?"<div class='trk-card-cust'>"+flag+" "+trkEsc(p.customer)+(p.customer&&p.country?" &middot; ":"")+trkEsc(p.country)+"</div>":"")+
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
@@ -235,14 +240,14 @@ function trkRenderDetail(){
           (p.contactPosition?" <span class='trk-contact-pos'>&middot; "+trkEsc(p.contactPosition)+"</span>":"")+
           (p.contactInfo?" <span class='trk-value-usd'>"+trkEsc(p.contactInfo)+"</span>":""))+
       "</div>"+
-      (p.notes?"<div class='trk-notes'>"+trkEsc(p.notes).replace(/\n/g,"<br>")+"</div>":"")+
+      (p.notes?"<div class='trk-notes'><div class='trk-notes-label'>Project description</div>"+trkEsc(p.notes).replace(/\n/g,"<br>")+"</div>":"")+
     "</div>";
 
   var tl=entries.map(function(e){
     var atts=(e.attachments||[]).map(function(a){
       return "<a class='trk-att' href='"+trkEsc(a.url)+"' data-name='"+trkEsc(a.name)+"' onclick='return trkViewFile(this)'>"+trkFileIcon(a.name)+" "+trkEsc(a.name)+"</a>";
     }).join("");
-    return "<div class='trk-tl-item'><div class='trk-tl-dot'></div><div class='trk-tl-body'>"+
+    return "<div class='trk-tl-item trk-t-"+trkTypeSlug(e.type)+"'><div class='trk-tl-dot'></div><div class='trk-tl-body'>"+
       "<div class='trk-tl-meta'><strong>"+trkFmtDate(e.date)+"</strong> "+trkTypeBadge(e.type)+
         "<a href='#' class='trk-tl-edit' onclick='trkEditEntry(event,\""+e._id+"\")'>Edit</a></div>"+
       (e.title?"<div class='trk-tl-title'>"+trkEsc(e.title)+"</div>":"")+

@@ -991,6 +991,7 @@ tr.exp-detail td{
 
 .trk-detail-card{
   background:var(--bg-stat);border:1px solid var(--border);border-radius:10px;
+  border-top:4px solid var(--accent);
   padding:18px 20px;margin-bottom:20px;
 }
 .trk-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -999,11 +1000,18 @@ tr.exp-detail td{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
   gap:12px 20px;margin-top:14px;
 }
-.trk-info-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-strong)}
+.trk-info-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent-text)}
 .trk-info-val{font-size:14px;color:var(--text-strong);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .trk-notes{
-  margin-top:14px;padding-top:12px;border-top:1px solid var(--border);
+  margin-top:16px;padding:12px 16px;
+  background:var(--bg-accent-soft);
+  border-left:4px solid var(--accent);
+  border-radius:8px;
   font-size:14px;color:var(--text);line-height:1.65;white-space:normal;
+}
+.trk-notes-label{
+  font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--accent-text);margin-bottom:6px;
 }
 
 .trk-tl-head{
@@ -1082,3 +1090,34 @@ tr.exp-detail td{
 /* Tracker: drag & drop highlight on the entry modal's attachment area */
 #te-drop{border-radius:8px;transition:background .12s}
 #te-drop.trk-dragover{outline:2px dashed var(--accent);outline-offset:5px;background:var(--accent-soft)}
+
+/* Tracker: color coding — status edge on list cards, type colors on the
+   timeline (badge + dot + card edge), all from the theme's badge palette */
+.trk-card{border-left:4px solid var(--border-strong)}
+.trk-card.trk-sc-enquiry{border-left-color:var(--accent)}
+.trk-card.trk-sc-quoted{border-left-color:var(--badge-qt-fg)}
+.trk-card.trk-sc-negotiation{border-left-color:var(--badge-special-fg)}
+.trk-card.trk-sc-won{border-left-color:var(--badge-po-fg)}
+.trk-card.trk-sc-lost{border-left-color:var(--badge-ls-fg)}
+.trk-card.trk-sc-onhold{border-left-color:var(--badge-w-fg)}
+
+.trk-tl-body{border-left:4px solid var(--border-strong)}
+.trk-t-meeting  .trk-tl-body{border-left-color:var(--badge-qt-fg)}
+.trk-t-quotation .trk-tl-body{border-left-color:var(--badge-special-fg)}
+.trk-t-call     .trk-tl-body{border-left-color:var(--accent)}
+.trk-t-email    .trk-tl-body{border-left-color:var(--badge-term-fg)}
+.trk-t-site     .trk-tl-body{border-left-color:var(--badge-po-fg)}
+.trk-t-note     .trk-tl-body{border-left-color:var(--badge-w-fg)}
+.trk-t-meeting  .trk-tl-dot{background:var(--badge-qt-fg)}
+.trk-t-quotation .trk-tl-dot{background:var(--badge-special-fg)}
+.trk-t-call     .trk-tl-dot{background:var(--accent)}
+.trk-t-email    .trk-tl-dot{background:var(--badge-term-fg)}
+.trk-t-site     .trk-tl-dot{background:var(--badge-po-fg)}
+.trk-t-note     .trk-tl-dot{background:var(--badge-w-fg)}
+
+.trk-badge.trk-type.trk-t-meeting{background:var(--badge-qt-bg);color:var(--badge-qt-fg)}
+.trk-badge.trk-type.trk-t-quotation{background:var(--badge-special-bg);color:var(--badge-special-fg)}
+.trk-badge.trk-type.trk-t-call{background:var(--accent-soft);color:var(--accent-text)}
+.trk-badge.trk-type.trk-t-email{background:var(--badge-term-bg);color:var(--badge-term-fg)}
+.trk-badge.trk-type.trk-t-site{background:var(--badge-po-bg);color:var(--badge-po-fg)}
+.trk-badge.trk-type.trk-t-note{background:var(--badge-w-bg);color:var(--badge-w-fg)}
