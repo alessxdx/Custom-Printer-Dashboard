@@ -1102,22 +1102,22 @@ tr.exp-detail td{
 .trk-card.trk-sc-onhold{border-left-color:var(--badge-w-fg)}
 
 .trk-tl-body{border-left:4px solid var(--border-strong)}
-.trk-t-meeting  .trk-tl-body{border-left-color:var(--badge-qt-fg)}
+.trk-t-meeting  .trk-tl-body{border-left-color:var(--badge-po-fg)}
 .trk-t-quotation .trk-tl-body{border-left-color:var(--badge-special-fg)}
 .trk-t-call     .trk-tl-body{border-left-color:var(--accent)}
 .trk-t-email    .trk-tl-body{border-left-color:var(--badge-term-fg)}
-.trk-t-site     .trk-tl-body{border-left-color:var(--badge-po-fg)}
+.trk-t-site     .trk-tl-body{border-left-color:var(--badge-qt-fg)}
 .trk-t-note     .trk-tl-body{border-left-color:var(--badge-w-fg)}
-.trk-t-meeting  .trk-tl-dot{background:var(--badge-qt-fg)}
+.trk-t-meeting  .trk-tl-dot{background:var(--badge-po-fg)}
 .trk-t-quotation .trk-tl-dot{background:var(--badge-special-fg)}
 .trk-t-call     .trk-tl-dot{background:var(--accent)}
 .trk-t-email    .trk-tl-dot{background:var(--badge-term-fg)}
-.trk-t-site     .trk-tl-dot{background:var(--badge-po-fg)}
+.trk-t-site     .trk-tl-dot{background:var(--badge-qt-fg)}
 .trk-t-note     .trk-tl-dot{background:var(--badge-w-fg)}
 
-.trk-badge.trk-type.trk-t-meeting{background:var(--badge-qt-bg);color:var(--badge-qt-fg)}
+.trk-badge.trk-type.trk-t-meeting{background:var(--badge-po-bg);color:var(--badge-po-fg)}
 .trk-badge.trk-type.trk-t-quotation{background:var(--badge-special-bg);color:var(--badge-special-fg)}
 .trk-badge.trk-type.trk-t-call{background:var(--accent-soft);color:var(--accent-text)}
 .trk-badge.trk-type.trk-t-email{background:var(--badge-term-bg);color:var(--badge-term-fg)}
-.trk-badge.trk-type.trk-t-site{background:var(--badge-po-bg);color:var(--badge-po-fg)}
+.trk-badge.trk-type.trk-t-site{background:var(--badge-qt-bg);color:var(--badge-qt-fg)}
 .trk-badge.trk-type.trk-t-note{background:var(--badge-w-bg);color:var(--badge-w-fg)}
