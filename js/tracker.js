@@ -247,7 +247,7 @@ function trkRenderDetail(){
    downloading it: PDFs and images render inline, Excel/CSV are parsed
    with SheetJS (lazy-loaded from the CDN on first use) and shown as
    tables with one tab per sheet. Anything else falls back to a link. */
-var TRK_VIEW_WB=null;
+
 function trkViewFile(a){
   trkOpenViewer(a.getAttribute("href"),a.getAttribute("data-name")||"");
   return false; /* cancel the default navigation/download */
@@ -271,26 +271,45 @@ function trkOpenViewer(url,name){
     body.innerHTML="<div class='empty'>No inline preview for this file type. <a href='"+trkEsc(url)+"' target='_blank' rel='noopener'>Open / download it</a> instead.</div>";
   }
 }
-function trkLoadSheetJS(){
-  if(window.XLSX)return Promise.resolve();
+function trkLoadScript(src){
   return new Promise(function(res,rej){
     var s=document.createElement("script");
-    s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
-    s.onload=res;
+    s.src=src;s.onload=res;
     s.onerror=function(){rej(new Error("could not load the spreadsheet viewer (offline?)"));};
     document.head.appendChild(s);
   });
 }
+function trkLoadSheetJS(){
+  return window.XLSX?Promise.resolve():trkLoadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+}
+function trkLoadExcelJS(){
+  return window.ExcelJS?Promise.resolve():trkLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js");
+}
+/* SheetJS (free) gives the displayed VALUES ("USD 220.95") but no styling;
+   ExcelJS gives the STYLING (fills, bold, merges via theme) but doesn't
+   apply number formats. So: values from SheetJS, colors from ExcelJS. */
+var TRK_VIEW_SJS=null,TRK_VIEW_EJS=null,TRK_VIEW_THEME=null;
 async function trkRenderSpreadsheet(url,name){
   var body=document.getElementById("trk-view-body");
   try{
-    await trkLoadSheetJS();
+    var styled=/\.(xlsx|xlsm)$/i.test(name);
+    await Promise.all(styled?[trkLoadSheetJS(),trkLoadExcelJS()]:[trkLoadSheetJS()]);
     var r=await fetch(url);
     if(!r.ok)throw new Error("could not fetch the file (HTTP "+r.status+")");
-    TRK_VIEW_WB=XLSX.read(await r.arrayBuffer(),{type:"array"});
+    var buf=await r.arrayBuffer();
+    TRK_VIEW_SJS=XLSX.read(new Uint8Array(buf),{type:"array"});
+    TRK_VIEW_EJS=null;TRK_VIEW_THEME=null;
+    if(styled){
+      try{
+        var ewb=new ExcelJS.Workbook();
+        await ewb.xlsx.load(buf);
+        TRK_VIEW_EJS=ewb;
+        TRK_VIEW_THEME=trkParseTheme(ewb);
+      }catch(e){/* styling is best-effort — values still render */}
+    }
     var tabs=document.getElementById("trk-view-tabs");
-    tabs.innerHTML=TRK_VIEW_WB.SheetNames.length>1
-      ?TRK_VIEW_WB.SheetNames.map(function(sn,i){
+    tabs.innerHTML=TRK_VIEW_SJS.SheetNames.length>1
+      ?TRK_VIEW_SJS.SheetNames.map(function(sn,i){
         return "<button class='trk-chip' data-sheet='"+i+"' onclick='trkShowSheet("+i+")'>"+trkEsc(sn)+"</button>";
       }).join("")
       :"";
@@ -299,15 +318,89 @@ async function trkRenderSpreadsheet(url,name){
     body.innerHTML="<div class='empty'>Preview failed: "+trkEsc(err.message)+"<br><a href='"+trkEsc(url)+"' target='_blank' rel='noopener'>Open / download it</a> instead.</div>";
   }
 }
+/* Theme palette from the workbook's theme XML. Theme color indexes swap
+   the dark/light pairs (0↔1, 2↔3) relative to the XML order — an Excel
+   quirk, not a bug here. */
+function trkParseTheme(ewb){
+  try{
+    var xml=ewb.model&&ewb.model.themes&&ewb.model.themes.theme1;
+    if(!xml)return null;
+    var scheme=xml.match(/<a:clrScheme[\s\S]*?<\/a:clrScheme>/);
+    if(!scheme)return null;
+    var cols=[],re=/<a:(?:srgbClr val="([0-9A-Fa-f]{6})"|sysClr[^>]*lastClr="([0-9A-Fa-f]{6})")/g,m;
+    while((m=re.exec(scheme[0]))&&cols.length<12)cols.push(m[1]||m[2]);
+    if(cols.length<10)return null;
+    return [cols[1],cols[0],cols[3],cols[2]].concat(cols.slice(4));
+  }catch(e){return null;}
+}
+function trkThemeColor(idx,tint){
+  if(!TRK_VIEW_THEME||idx==null||idx>=TRK_VIEW_THEME.length)return null;
+  var hex=TRK_VIEW_THEME[idx];
+  var r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
+  if(tint>0){r=Math.round(r+(255-r)*tint);g=Math.round(g+(255-g)*tint);b=Math.round(b+(255-b)*tint);}
+  else if(tint<0){r=Math.round(r*(1+tint));g=Math.round(g*(1+tint));b=Math.round(b*(1+tint));}
+  return "rgb("+r+","+g+","+b+")";
+}
+function trkCellColor(c){
+  if(!c)return null;
+  if(c.argb)return "#"+(c.argb.length===8?c.argb.slice(2):c.argb);
+  if(c.theme!==undefined)return trkThemeColor(c.theme,c.tint||0);
+  return null;
+}
 function trkShowSheet(i){
-  if(!TRK_VIEW_WB)return;
+  var wb=TRK_VIEW_SJS;
+  if(!wb)return;
   document.querySelectorAll("#trk-view-tabs .trk-chip").forEach(function(b){
     b.classList.toggle("active",Number(b.dataset.sheet)===i);
   });
-  document.getElementById("trk-view-body").innerHTML=
-    "<div class='trk-sheet-holder'>"+
-      XLSX.utils.sheet_to_html(TRK_VIEW_WB.Sheets[TRK_VIEW_WB.SheetNames[i]],{header:"",footer:""})+
-    "</div>";
+  var body=document.getElementById("trk-view-body");
+  var name=wb.SheetNames[i],ws=wb.Sheets[name];
+  if(!ws||!ws["!ref"]){body.innerHTML="<div class='empty'>This sheet is empty.</div>";return;}
+  var range=XLSX.utils.decode_range(ws["!ref"]);
+  var maxR=Math.min(range.e.r,range.s.r+499),maxC=Math.min(range.e.c,range.s.c+59);
+  var covered={},span={};
+  (ws["!merges"]||[]).forEach(function(m){
+    span[m.s.r+"_"+m.s.c]={cs:m.e.c-m.s.c+1,rs:m.e.r-m.s.r+1};
+    for(var r=m.s.r;r<=m.e.r;r++)for(var c=m.s.c;c<=m.e.c;c++)
+      if(r!==m.s.r||c!==m.s.c)covered[r+"_"+c]=1;
+  });
+  var es=TRK_VIEW_EJS?TRK_VIEW_EJS.getWorksheet(name):null;
+  var html="<table>";
+  for(var r=range.s.r;r<=maxR;r++){
+    html+="<tr>";
+    for(var c=range.s.c;c<=maxC;c++){
+      if(covered[r+"_"+c])continue;
+      var cell=ws[XLSX.utils.encode_cell({r:r,c:c})];
+      var text=cell?(cell.w!==undefined?cell.w:(cell.v!=null?String(cell.v):"")):"";
+      var st="",attrs="";
+      var sp=span[r+"_"+c];
+      if(sp){
+        if(sp.cs>1)attrs+=" colspan='"+sp.cs+"'";
+        if(sp.rs>1)attrs+=" rowspan='"+sp.rs+"'";
+      }
+      try{
+        if(es){
+          var ec=es.getRow(r+1).getCell(c+1);
+          var bg=(ec.fill&&ec.fill.type==="pattern"&&ec.fill.pattern!=="none")?trkCellColor(ec.fill.fgColor):null;
+          var fc=ec.font?trkCellColor(ec.font.color):null;
+          if(bg)st+="background:"+bg+";";
+          /* excel fills are designed for dark-on-light — keep the text dark
+             on a colored cell even when the app is in a dark theme */
+          if(bg&&!fc)fc="#2a2a2a";
+          if(fc)st+="color:"+fc+";";
+          if(ec.font&&ec.font.bold)st+="font-weight:600;";
+          var al=ec.alignment&&ec.alignment.horizontal;
+          if(al&&al!=="fill")st+="text-align:"+al+";";
+          else if(cell&&cell.t==="n")st+="text-align:right;";
+        }else if(cell&&cell.t==="n")st+="text-align:right;";
+      }catch(e){/* style of one cell failing shouldn't kill the table */}
+      html+="<td"+attrs+(st?" style='"+st+"'":"")+">"+trkEsc(text)+"</td>";
+    }
+    html+="</tr>";
+  }
+  html+="</table>";
+  if(range.e.r>maxR||range.e.c>maxC)html+="<div class='empty'>Large sheet — preview truncated. Use &quot;Open in new tab&quot; for the full file.</div>";
+  body.innerHTML="<div class='trk-sheet-holder'>"+html+"</div>";
 }
 
 /* ===== global "+ Add entry" button (toolbar) ===== */
