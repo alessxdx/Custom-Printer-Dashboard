@@ -18,8 +18,12 @@ create table if not exists tracker_projects (
   expected_date date,
   contact_name text,
   contact_info text,
-  notes text
+  notes text,
+  products jsonb                        -- ["TK180 Plastic", ...] products of interest
 );
+
+-- Added 2026-09-15 after the initial setup ran; harmless to re-run.
+alter table tracker_projects add column if not exists products jsonb;
 
 create table if not exists tracker_entries (
   id uuid primary key default gen_random_uuid(),

@@ -20,8 +20,8 @@ var TRK_STATUS_RANK={"Enquiry":0,"Quoted":1,"Negotiation":2,"On hold":3,"Won":4,
 var TRK_OFFICES=["China","Indonesia","Singapore"];
 
 /* ===== converters ===== */
-function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",contactName:r.contact_name||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
-function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,contact_name:p.contactName||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
+function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",contactName:r.contact_name||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
+function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,contact_name:p.contactName||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
 function dbToTrkE(r){return{_id:r.id,projectId:r.project_id,date:r.entry_date||"",type:r.entry_type||"Note",title:r.title||"",details:r.details||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
 function trkEToDb(e){return{project_id:e.projectId,entry_date:e.date||null,entry_type:e.type,title:e.title||null,details:e.details||null,attachments:e.attachments||[]};}
 
@@ -160,6 +160,7 @@ function trkRenderList(){
     return "<div class='trk-card' onclick='trkOpen(\""+p._id+"\")'>"+
       "<div class='trk-card-top'><span class='trk-card-name'>"+trkEsc(p.name)+"</span>"+trkStatusBadge(p.status)+"</div>"+
       ((p.customer||p.country)?"<div class='trk-card-cust'>"+flag+" "+trkEsc(p.customer)+(p.customer&&p.country?" &middot; ":"")+trkEsc(p.country)+"</div>":"")+
+      ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
       "<div class='trk-card-meta'>"+
         (p.office?"<span class='trk-badge trk-office'>"+trkEsc(p.office)+" office</span>":"")+
         (p.estValue!==null?"<span>"+trkValueHtml(p)+"</span>":"")+
@@ -198,6 +199,7 @@ function trkRenderDetail(){
         infoRow("Customer",(p.customer?flag+" "+trkEsc(p.customer):""))+
         infoRow("Country",trkEsc(p.country))+
         infoRow("Handling office",p.office?trkEsc(p.office):"")+
+        infoRow("Products of interest",trkProductChips(p))+
         infoRow("Estimated value",p.estValue!==null?trkValueHtml(p):"")+
         infoRow("Expected close",p.expectedDate?trkFmtDate(p.expectedDate):"")+
         infoRow("Contact",trkEsc(p.contactName)+(p.contactInfo?" <span class='trk-value-usd'>"+trkEsc(p.contactInfo)+"</span>":""))+
@@ -224,7 +226,7 @@ function trkRenderDetail(){
         "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' style='width:13px;height:13px'><line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/></svg>"+
         " Add entry</button></div>"+
     (tl?"<div class='trk-timeline'>"+tl+"</div>"
-       :"<div class='empty'>No timeline entries yet. Record the enquiry, meeting minutes or the quotation you sent.</div>");
+       :"<div class='empty'>No timeline entries yet. Click <strong>+ Add entry</strong> to record the enquiry, meeting minutes or a quotation &mdash; that's also where you attach the PDF / Excel files.</div>");
 }
 
 /* ===== global "+ Add entry" button (toolbar) ===== */
@@ -274,6 +276,40 @@ function trkComboValue(selId,newId){
   if(sel.value==="__new__")return document.getElementById(newId).value.trim();
   return sel.value;
 }
+/* Products of interest — staged chips, saved as a jsonb string array */
+var TRK_PROD=[];
+function trkFillProductSel(){
+  var models=(typeof getModelList==="function"?getModelList():[]).slice().sort(trkAlpha);
+  document.getElementById("tp-product-sel").innerHTML=
+    "<option value=''>&mdash; choose a product &mdash;</option>"+
+    models.map(function(m){return "<option value=\""+trkEsc(m)+"\">"+trkEsc(m)+"</option>";}).join("")+
+    "<option value='__new__'>&#43; Other / type your own&hellip;</option>";
+}
+function trkRenderProducts(){
+  document.getElementById("tp-products").innerHTML=TRK_PROD.map(function(pr,i){
+    return "<span class='att-item'>"+trkEsc(pr)+" <a href='#' class='att-remove' title='Remove' onclick='trkRemoveProduct(event,"+i+")'>&#10005;</a></span>";
+  }).join("")||"<span class='att-empty'>Nothing added yet.</span>";
+}
+function trkAddProduct(){
+  var v=trkComboValue("tp-product-sel","tp-product-new");
+  if(!v)return;
+  if(TRK_PROD.map(function(p){return p.toLowerCase();}).indexOf(v.toLowerCase())===-1)TRK_PROD.push(v);
+  document.getElementById("tp-product-sel").value="";
+  var inp=document.getElementById("tp-product-new");inp.value="";inp.style.display="none";
+  trkRenderProducts();
+}
+function trkRemoveProduct(e,i){
+  if(e)e.preventDefault();
+  TRK_PROD.splice(i,1);
+  trkRenderProducts();
+}
+function trkProductChips(p,max){
+  var prods=p.products||[];
+  if(!prods.length)return"";
+  var shown=max?prods.slice(0,max):prods;
+  return shown.map(function(pr){return "<span class='trk-badge trk-prod'>"+trkEsc(pr)+"</span>";}).join(" ")+
+    (max&&prods.length>max?" <span class='trk-value-usd'>+"+(prods.length-max)+" more</span>":"");
+}
 function trkOpenProjectModal(){
   var m=document.getElementById("modal-trk-project");
   m.removeAttribute("data-edit-id");
@@ -282,6 +318,8 @@ function trkOpenProjectModal(){
   m.querySelectorAll("input,textarea").forEach(function(el){el.value="";});
   trkFillCombo("tp-customer","tp-customer-new","customer","");
   trkFillCombo("tp-country","tp-country-new","country","");
+  trkFillProductSel();TRK_PROD=[];trkRenderProducts();
+  document.getElementById("tp-product-new").style.display="none";
   document.getElementById("tp-office").value="";
   document.getElementById("tp-status").value="Enquiry";
   document.getElementById("tp-currency").value="USD";
@@ -297,6 +335,8 @@ function trkEditProject(){
   document.getElementById("tp-name").value=p.name;
   trkFillCombo("tp-customer","tp-customer-new","customer",p.customer);
   trkFillCombo("tp-country","tp-country-new","country",p.country);
+  trkFillProductSel();TRK_PROD=(p.products||[]).slice();trkRenderProducts();
+  document.getElementById("tp-product-new").style.display="none";
   document.getElementById("tp-office").value=p.office||"";
   document.getElementById("tp-status").value=p.status;
   document.getElementById("tp-value").value=p.estValue===null?"":p.estValue;
@@ -309,14 +349,20 @@ function trkEditProject(){
 }
 async function trkSaveProject(){
   var name=document.getElementById("tp-name").value.trim();
-  if(!name){alert("Please give the project a name.");return;}
+  var customer=trkComboValue("tp-customer","tp-customer-new");
+  if(!name){
+    /* Just an enquiry — auto-name it so nothing is required up front. */
+    if(!customer){alert("Please pick a customer or give the project a name.");return;}
+    name=customer+" enquiry — "+trkFmtDate(new Date().toISOString().slice(0,10));
+  }
   var valRaw=document.getElementById("tp-value").value;
   var p={
     name:name,
-    customer:trkComboValue("tp-customer","tp-customer-new"),
+    customer:customer,
     country:trkComboValue("tp-country","tp-country-new"),
     office:document.getElementById("tp-office").value,
     status:document.getElementById("tp-status").value,
+    products:TRK_PROD.slice(),
     estValue:valRaw===""?null:parseFloat(valRaw),
     currency:document.getElementById("tp-currency").value,
     expectedDate:document.getElementById("tp-date").value,
