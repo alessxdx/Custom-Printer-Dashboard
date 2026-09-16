@@ -14,7 +14,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-09-16.1";
+var APP_VERSION="2026-09-16.2";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -332,19 +332,19 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
   <div class="modal modal-wide">
     <div class="modal-title" id="po-modal-title">Add purchase order</div>
     <div class="form-grid">
-      <div class="form-group"><label>PO number *</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="po-number" placeholder="e.g. CUSTOM013-0925" style="font-family:'DM Mono',monospace"></div>
-      <div class="form-group"><label>Office</label><select id="po-office"><option value="">&mdash;</option><option>Indonesia</option><option>Shanghai</option><option>Singapore</option></select></div>
-      <div class="form-group"><label>PO date</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="po-date" type="date"></div>
-      <div class="form-group"><label>Currency</label><select id="po-currency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="RMB">RMB</option><option value="SGD">SGD</option><option value="IDR">IDR</option></select></div>
-      <div class="form-group form-full" id="po-drop"><label>PO document <span style="font-size:10px;color:#aaa;font-weight:400">(PDF &mdash; drop it here, then &#9889; fills the form)</span></label>
+      <div class="form-group form-full" id="po-drop"><label>PO document(s) <span style="font-size:10px;color:#aaa;font-weight:400">(drop the PDF here &mdash; one PDF fills this form; several PDFs create one PO each)</span></label>
         <input id="po-files" type="file" multiple accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg" onchange="poAddFiles()" class="att-file-input">
         <div class="att-list" id="po-att-list"></div>
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
           <button type="button" class="att-add" onclick="document.getElementById('po-files').click()">&#43; Add file &mdash; or drag &amp; drop</button>
-          <button type="button" class="att-add" onclick="poFillFromPdf()">&#9889; Fill form from PDF</button>
+          <button type="button" class="att-add" onclick="poFillFromPdf()">&#9889; Fill / import from PDF</button>
         </div>
         <span class="form-hint" id="po-parse-status"></span>
       </div>
+      <div class="form-group"><label>PO number *</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="po-number" placeholder="e.g. CUSTOM013-0925" style="font-family:'DM Mono',monospace"></div>
+      <div class="form-group"><label>Office</label><select id="po-office"><option value="">&mdash;</option><option>Indonesia</option><option>Shanghai</option><option>Singapore</option></select></div>
+      <div class="form-group"><label>PO date</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="po-date" type="date"></div>
+      <div class="form-group"><label>Currency</label><select id="po-currency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="RMB">RMB</option><option value="SGD">SGD</option><option value="IDR">IDR</option></select></div>
     </div>
     <div class="pj-items">
       <label class="pj-items-label">Line items <span style="font-size:10px;color:#aaa;font-weight:400">(usually filled by &#9889; &mdash; powers the units-per-model and price-change views)</span></label>

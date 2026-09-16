@@ -42,9 +42,12 @@ function poUsd(v,cur){
   if(v===null||isNaN(v))return null;
   return (typeof fxToUSD==="function")?fxToUSD(v,cur):(cur==="USD"?v:null);
 }
+var PO_CUR_SYM={USD:"$",EUR:"€",RMB:"¥",CNY:"¥",SGD:"S$",IDR:"Rp "};
 function poFmtMoney(v,cur){
   if(v===null||v===undefined||isNaN(v))return "—";
-  return v.toLocaleString(undefined,{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2})+" "+cur;
+  var n=v.toLocaleString(undefined,{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2});
+  var sym=PO_CUR_SYM[cur];
+  return sym?sym+n:n+" "+cur;
 }
 
 /* Debounced search — re-rendering replaces the input, so refocus it */
@@ -255,6 +258,17 @@ function poAddFiles(){
   files.forEach(function(f){PO_ATT.push({name:f.name||"file",file:f});});
   if(input)input.value="";
   poRenderAttList();
+  poAfterFilesAdded();
+}
+function poPdfAtts(){return PO_ATT.filter(function(a){return /\.pdf$/i.test(a.name);});}
+/* Auto-run the parser: one PDF fills the empty form immediately;
+   several announce the one-PO-per-PDF import. */
+function poAfterFilesAdded(){
+  var m=document.getElementById("modal-po");
+  if(m.getAttribute("data-edit-id"))return;
+  var pdfs=poPdfAtts();
+  if(pdfs.length===1&&!document.getElementById("po-number").value.trim())poFillFromPdf();
+  else if(pdfs.length>1)poStatus(pdfs.length+" PDFs staged — ⚡ creates one PO per PDF.");
 }
 function poRemoveAtt(e,i){if(e)e.preventDefault();PO_ATT.splice(i,1);poRenderAttList();}
 
@@ -334,16 +348,7 @@ async function poSave(){
     var pending=PO_ATT.filter(function(a){return a.file&&!a.url;});
     for(var i=0;i<pending.length;i++){
       showLoad("Uploading file "+(i+1)+" of "+pending.length+"...");
-      var safe=(pending[i].file.name||"file").replace(/[^a-zA-Z0-9._-]/g,"_");
-      var path="po/"+Date.now()+"-"+safe;
-      var r0=await fetch(SB_URL+"/storage/v1/object/documents/"+path,{
-        method:"POST",
-        headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":pending[i].file.type||"application/octet-stream"},
-        body:pending[i].file
-      });
-      if(!r0.ok)throw new Error("upload failed (HTTP "+r0.status+")");
-      pending[i].url=SB_URL+"/storage/v1/object/public/documents/"+path;
-      delete pending[i].file;
+      await poUploadAtt(pending[i]);
     }
   }catch(err){hideLoad();alert("File upload failed: "+err.message+"\nPO was not saved — please try again.");return;}
   var totRaw=document.getElementById("po-total").value;
@@ -426,7 +431,7 @@ async function poDelete(){
     if(box)box.classList.remove("trk-dragover");
     var files=(e.dataTransfer&&e.dataTransfer.files)?Array.prototype.slice.call(e.dataTransfer.files):[];
     files.forEach(function(f){PO_ATT.push({name:f.name||"file",file:f});});
-    if(files.length)poRenderAttList();
+    if(files.length){poRenderAttList();poAfterFilesAdded();}
   });
 })();
 
@@ -436,50 +441,113 @@ async function poDelete(){
      item rows: "1 40 Units 915DW011200300 VKP80II-RX $189.00 $7,560.00"
      "TOTAL PRICE $26,382.00" / "TOTAL $ 23,613.00"                     */
 function poStatus(msg){var el=document.getElementById("po-parse-status");if(el)el.textContent=msg;}
+async function poUploadAtt(a){
+  if(a.url||!a.file)return a;
+  var safe=(a.file.name||"file").replace(/[^a-zA-Z0-9._-]/g,"_");
+  var path="po/"+Date.now()+"-"+safe;
+  var r=await fetch(SB_URL+"/storage/v1/object/documents/"+path,{
+    method:"POST",
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":a.file.type||"application/octet-stream"},
+    body:a.file
+  });
+  if(!r.ok)throw new Error("upload failed (HTTP "+r.status+")");
+  a.url=SB_URL+"/storage/v1/object/public/documents/"+path;
+  delete a.file;
+  return a;
+}
+/* Parse one PO PDF into plain data (no DOM). */
+async function poParseFile(a){
+  var lines;
+  if(a.file)lines=await pdfFileToLines(a.file);
+  else lines=await pdfFileToLines(await(await fetch(a.url)).blob());
+  var all=lines.join("\n");
+  var out={poNumber:"",date:"",office:"",total:null,currency:/€/.test(all)?"EUR":"USD",lines:[]};
+  var m;
+  if((m=all.match(/PO\s*NO\s*[:.]?\s*([A-Z0-9#][A-Z0-9#-]+)/i)))out.poNumber=m[1];
+  else if((m=String(a.name).match(/([A-Z]{2,}\d{2,}-\d{2,})/)))out.poNumber=m[1];
+  if((m=all.match(/DATE\s*:\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/))){
+    var d=new Date(m[1].replace(",",", "));
+    if(!isNaN(d))out.date=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  }
+  if(/SHANGHAI/i.test(all))out.office="Shanghai";
+  else if(/GRALESSANDO|SINGAPORE/i.test(all))out.office="Singapore";
+  else if(/JAKARTA|INDONESIA/i.test(all))out.office="Indonesia";
+  lines.forEach(function(ln){
+    var lm=ln.match(/^(\d{1,2})\s+([\d.,]+)\s+(units?|pcs?\.?|sets?|lots?|rolls?|boxes?)\s+([0-9][0-9A-Za-z]{8,})\s+(.+?)\s+\$?\s*([\d,]+\.\d{2})\s+\$?\s*([\d,]+\.\d{2})\s*$/i);
+    if(!lm)return;
+    out.lines.push({
+      qty:parseFloat(lm[2].replace(/,/g,"")),
+      unit:lm[3].replace(/\.$/,""),
+      pn:lm[4],
+      description:lm[5].trim(),
+      unitPrice:parseFloat(lm[6].replace(/,/g,"")),
+      sortOrder:out.lines.length
+    });
+  });
+  if((m=all.match(/TOTAL(?:\s+PRICE)?\s+\$?\s*([\d,]+\.\d{2})/i)))out.total=parseFloat(m[1].replace(/,/g,""));
+  else if(out.lines.length)out.total=Math.round(out.lines.reduce(function(s,l){return s+l.qty*(l.unitPrice||0);},0)*100)/100;
+  return out;
+}
 async function poFillFromPdf(){
-  var a=PO_ATT.find(function(x){return x.file&&/\.pdf$/i.test(x.name);})||PO_ATT.find(function(x){return /\.pdf$/i.test(x.name);});
-  if(!a){alert("Add the PO PDF first (drop it on the form).");return;}
+  var pdfs=poPdfAtts();
+  if(!pdfs.length){alert("Add the PO PDF first (drop it on the form).");return;}
+  var m=document.getElementById("modal-po");
+  var editing=!!m.getAttribute("data-edit-id");
+  if(pdfs.length>1&&!editing){await poBulkImport(pdfs);return;}
   poStatus("Reading PDF…");
   try{
-    var lines;
-    if(a.file){lines=await pdfFileToLines(a.file);}
-    else{
-      var blob=await(await fetch(a.url)).blob();
-      lines=await pdfFileToLines(blob);
-    }
-    var all=lines.join("\n");
-    var m;
-    if((m=all.match(/PO\s*NO\s*[:.]?\s*([A-Z0-9#][A-Z0-9#-]+)/i)))document.getElementById("po-number").value=m[1];
-    else if((m=String(a.name).match(/([A-Z]{2,}\d{2,}-\d{2,})/)))document.getElementById("po-number").value=m[1];
-    if((m=all.match(/DATE\s*:\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/))){
-      var d=new Date(m[1].replace(",",", "));
-      if(!isNaN(d))document.getElementById("po-date").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-    }
-    if(/SHANGHAI/i.test(all))document.getElementById("po-office").value="Shanghai";
-    else if(/GRALESSANDO|SINGAPORE/i.test(all))document.getElementById("po-office").value="Singapore";
-    else if(/JAKARTA|INDONESIA/i.test(all))document.getElementById("po-office").value="Indonesia";
-    /* line items */
-    var rows=document.getElementById("pol-rows");
-    var found=[];
-    lines.forEach(function(ln){
-      var lm=ln.match(/^(\d{1,2})\s+([\d.,]+)\s+(units?|pcs?\.?|sets?|lots?|rolls?|boxes?)\s+([0-9][0-9A-Za-z]{8,})\s+(.+?)\s+\$?\s*([\d,]+\.\d{2})\s+\$?\s*([\d,]+\.\d{2})\s*$/i);
-      if(!lm)return;
-      found.push({
-        qty:parseFloat(lm[2].replace(/,/g,"")),
-        unit:lm[3].replace(/\.$/,""),
-        pn:lm[4],
-        description:lm[5].trim(),
-        unitPrice:parseFloat(lm[6].replace(/,/g,""))
-      });
-    });
-    if(found.length){
+    var d=await poParseFile(pdfs[0]);
+    if(d.poNumber)document.getElementById("po-number").value=d.poNumber;
+    if(d.date)document.getElementById("po-date").value=d.date;
+    if(d.office)document.getElementById("po-office").value=d.office;
+    document.getElementById("po-currency").value=d.currency;
+    if(d.lines.length){
+      var rows=document.getElementById("pol-rows");
       rows.innerHTML="";
-      found.forEach(function(l){polAddRow(l);});
+      d.lines.forEach(function(l){polAddRow(l);});
     }
-    if((m=all.match(/TOTAL(?:\s+PRICE)?\s+\$?\s*([\d,]+\.\d{2})/i)))document.getElementById("po-total").value=parseFloat(m[1].replace(/,/g,""));
-    else poRecalc();
-    poStatus(found.length?("Filled: "+found.length+" line"+(found.length===1?"":"s")+" — check, then save."):"Read the header, but no line items matched — enter lines manually or check the PDF.");
+    if(d.total!==null)document.getElementById("po-total").value=d.total;
+    poStatus(d.lines.length?("Filled: "+d.lines.length+" line"+(d.lines.length===1?"":"s")+" — check, then save."):"Read the header, but no line items matched — enter lines manually or check the PDF.");
   }catch(err){
     poStatus("Could not read the PDF: "+err.message);
   }
+}
+/* Several PDFs dropped at once → one PO record per PDF, saved directly:
+   parse, upload, insert PO + lines. POs whose number is already recorded
+   are skipped, so re-dropping a folder of PDFs is safe. */
+async function poBulkImport(pdfs){
+  if(!confirm("Create "+pdfs.length+" separate POs — one per PDF?"))return;
+  var made=0,skipped=[],failed=[];
+  for(var i=0;i<pdfs.length;i++){
+    var a=pdfs[i];
+    showLoad("Importing "+(i+1)+" of "+pdfs.length+": "+a.name);
+    try{
+      var d=await poParseFile(a);
+      if(!d.poNumber)throw new Error("no PO number found");
+      if(PO_LIST.some(function(p){return p.poNumber.toLowerCase()===d.poNumber.toLowerCase();})){
+        skipped.push(d.poNumber);
+        continue;
+      }
+      await poUploadAtt(a);
+      var p={poNumber:d.poNumber,office:d.office,date:d.date,currency:d.currency,total:d.total,notes:"",attachments:[{name:a.name,url:a.url}]};
+      var r=await trkInsert("purchase_orders",poToDb(p));
+      if(!r||!r[0])throw new Error("insert failed");
+      p._id=r[0].id;p.createdAt=r[0].created_at;
+      PO_LIST.push(p);
+      for(var j=0;j<d.lines.length;j++){
+        d.lines[j].poId=p._id;
+        var rl=await trkInsert("po_lines",poLineToDb(d.lines[j]));
+        if(rl&&rl[0])d.lines[j]._id=rl[0].id;
+        PO_LINES.push(d.lines[j]);
+      }
+      made++;
+    }catch(err){failed.push(a.name+" — "+err.message);}
+  }
+  hideLoad();
+  closeModal("modal-po");
+  renderPOs();
+  var msg="Imported "+made+" PO"+(made===1?"":"s")+".";
+  if(skipped.length)msg+="\nAlready recorded (skipped): "+skipped.join(", ");
+  if(failed.length)msg+="\nFailed: "+failed.join("; ");
+  alert(msg);
 }
