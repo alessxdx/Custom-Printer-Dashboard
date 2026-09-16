@@ -41,3 +41,32 @@ alter table tracker_projects enable row level security;
 alter table tracker_entries enable row level security;
 create policy "tracker_projects_all" on tracker_projects for all using (true) with check (true);
 create policy "tracker_entries_all" on tracker_entries for all using (true) with check (true);
+
+-- Purchase Orders register (added 2026-09-16). Same conventions.
+create table if not exists purchase_orders (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  po_number text not null,
+  office text,                    -- Indonesia | Shanghai | Singapore
+  po_date date,
+  vendor text default 'CUSTOM S.p.A.',
+  currency text default 'USD',
+  total numeric,
+  notes text,
+  attachments jsonb               -- [{name,url}]
+);
+create table if not exists po_lines (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  po_id uuid not null references purchase_orders(id) on delete cascade,
+  pn text,
+  description text,
+  qty numeric,
+  unit text,
+  unit_price numeric,
+  sort_order int
+);
+alter table purchase_orders enable row level security;
+alter table po_lines enable row level security;
+create policy "purchase_orders_all" on purchase_orders for all using (true) with check (true);
+create policy "po_lines_all" on po_lines for all using (true) with check (true);

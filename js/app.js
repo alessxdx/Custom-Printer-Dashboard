@@ -11,6 +11,7 @@ var TAB_TITLES = {
   customers: "By Customer",
   groups: "Project Groups",
   tracker: "Project Tracker",
+  po: "Purchase Orders",
   projects: "By Project",
   model: "Model Comparison",
   buying: "Buying Prices",
@@ -27,7 +28,7 @@ function setTab(btn){
   /* Re-clicking the tracker tab returns to its list view; leaving it
      restores the customer stat row the tracker replaced. */
   if(typeof TRK_SEL !== "undefined") TRK_SEL = null;
-  if(currentTab !== "tracker" && typeof renderStats === "function") renderStats();
+  if(currentTab !== "tracker" && currentTab !== "po" && typeof renderStats === "function") renderStats();
   /* restore the toolbar add button's label/visibility when leaving tracker */
   if(typeof trkSyncToolbar === "function") trkSyncToolbar();
   var title = document.getElementById("page-title");

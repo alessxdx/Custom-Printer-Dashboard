@@ -990,6 +990,7 @@ function renderContent(){
   else if(currentTab==="groups")renderProjectGroupsList();
   else if(currentTab==="projects")renderProjects();
   else if(currentTab==="tracker")renderTracker();
+  else if(currentTab==="po")renderPOs();
   else if(currentTab==="model")renderModel();
   else if(currentTab==="buying")renderBuying();
   else if(currentTab==="spares")renderSpares();
@@ -1203,6 +1204,9 @@ function openModal(){
   else if(currentTab==="tracker"){
     /* list view → new tracker project; detail view → new timeline entry */
     trkOpenAdd();
+  }
+  else if(currentTab==="po"){
+    poOpenModal();
   }
   else if(currentTab==="others"){
     closeOtherModal();
