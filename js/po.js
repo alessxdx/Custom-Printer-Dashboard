@@ -158,9 +158,28 @@ function renderPOs(){
   content.innerHTML=toolbar+(PO_VIEW==="models"?poModelsHtml(list):poListHtml(list));
 }
 
+var PO_MONTHS_FULL=["January","February","March","April","May","June","July","August","September","October","November","December"];
+function poMonthLabel(p){
+  if(!p.date)return "No date";
+  var d=String(p.date);
+  var mi=parseInt(d.slice(5,7),10)-1;
+  return (PO_MONTHS_FULL[mi]||"")+" "+d.slice(0,4);
+}
 function poListHtml(list){
   if(!list.length)return "<div class='empty'>"+(PO_LIST.length?"No purchase orders match this filter.":"No purchase orders yet. Click <strong>+ Add PO</strong> and drop the PO PDF — the form fills itself.")+"</div>";
+  var lastMonth=null;
   return list.map(function(p){
+    var header="";
+    var ml=poMonthLabel(p);
+    if(ml!==lastMonth){
+      lastMonth=ml;
+      header="<div class='po-month'>"+ml+"</div>";
+    }
+    return header+poCardHtml(p);
+  }).join("");
+}
+function poCardHtml(p){
+  return [p].map(function(p){
     var lines=poLinesFor(p._id);
     var open=!!PO_EXPANDED[p._id];
     var atts=(p.attachments||[]).map(function(a){
@@ -346,6 +365,9 @@ function poEdit(id){
 async function poSave(){
   var num=document.getElementById("po-number").value.trim();
   if(!num){alert("Please enter the PO number.");return;}
+  /* forgot-I-already-entered-it guard */
+  var dup=poFindByNumber(num,document.getElementById("modal-po").getAttribute("data-edit-id"));
+  if(dup&&!confirm("PO "+num+" is already recorded ("+(dup.date?trkFmtDate(dup.date):"no date")+", "+(dup.office||"?")+" office).\nSave anyway as a duplicate?"))return;
   /* upload staged files (same bucket, po/ prefix) */
   try{
     var pending=PO_ATT.filter(function(a){return a.file&&!a.url;});
@@ -444,6 +466,11 @@ async function poDelete(){
      item rows: "1 40 Units 915DW011200300 VKP80II-RX $189.00 $7,560.00"
      "TOTAL PRICE $26,382.00" / "TOTAL $ 23,613.00"                     */
 function poStatus(msg){var el=document.getElementById("po-parse-status");if(el)el.textContent=msg;}
+function poFindByNumber(num,exceptId){
+  num=String(num||"").trim().toLowerCase();
+  if(!num)return null;
+  return PO_LIST.find(function(p){return p.poNumber.toLowerCase()===num&&p._id!==exceptId;})||null;
+}
 async function poUploadAtt(a){
   if(a.url||!a.file)return a;
   var safe=(a.file.name||"file").replace(/[^a-zA-Z0-9._-]/g,"_");
@@ -512,7 +539,10 @@ async function poFillFromPdf(){
       d.lines.forEach(function(l){polAddRow(l);});
     }
     if(d.total!==null)document.getElementById("po-total").value=d.total;
-    poStatus(d.lines.length?("Filled: "+d.lines.length+" line"+(d.lines.length===1?"":"s")+" — check, then save."):"Read the header, but no line items matched — enter lines manually or check the PDF.");
+    var msg=d.lines.length?("Filled: "+d.lines.length+" line"+(d.lines.length===1?"":"s")+" — check, then save."):"Read the header, but no line items matched — enter lines manually or check the PDF.";
+    var dup=poFindByNumber(d.poNumber,m.getAttribute("data-edit-id"));
+    if(dup)msg="⚠ "+d.poNumber+" is ALREADY recorded ("+(dup.date?trkFmtDate(dup.date):"no date")+", "+(dup.office||"?")+" office) — saving would create a duplicate. "+msg;
+    poStatus(msg);
   }catch(err){
     poStatus("Could not read the PDF: "+err.message);
   }
