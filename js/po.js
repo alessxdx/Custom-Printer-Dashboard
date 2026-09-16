@@ -14,7 +14,8 @@ var PO_VIEW="pos";           /* "pos" | "models" */
 var PO_FOFFICE="",PO_FYEAR="",PO_SEARCH="";
 var PO_ATT=[];               /* modal attachment staging */
 var PO_EXPANDED={};
-var PO_OFFICES=["Indonesia","Shanghai","Singapore"];
+var PO_OFFICES=["China","Indonesia","Singapore"];
+function poOfficeSlug(o){return String(o||"").toLowerCase().replace(/\s/g,"");}
 
 /* ===== converters ===== */
 function dbToPo(r){return{_id:r.id,poNumber:r.po_number||"",office:r.office||"",date:r.po_date||"",vendor:r.vendor||"CUSTOM S.p.A.",currency:r.currency||"USD",total:(r.total===null||r.total===undefined)?null:Number(r.total),notes:r.notes||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
@@ -145,11 +146,13 @@ function renderPOs(){
           "<option value=''"+(PO_FYEAR===""?" selected":"")+">All years</option>"+
           years.map(function(y){return "<option"+(PO_FYEAR===y?" selected":"")+">"+y+"</option>";}).join("")+
         "</select>"+
-        "<select class='trk-office-filter' onchange='PO_FOFFICE=this.value;renderPOs()'>"+
-          "<option value=''"+(PO_FOFFICE===""?" selected":"")+">All offices</option>"+
-          PO_OFFICES.map(function(o){return "<option"+(PO_FOFFICE===o?" selected":"")+">"+o+"</option>";}).join("")+
-        "</select>"+
       "</div>"+
+    "</div>"+
+    "<div class='trk-chips' style='margin-bottom:14px'>"+
+      [""].concat(PO_OFFICES).map(function(o){
+        var n=o?PO_LIST.filter(function(p){return p.office===o;}).length:PO_LIST.length;
+        return "<button class='trk-chip po-chip-"+(o?poOfficeSlug(o):"all")+(PO_FOFFICE===o?" active":"")+"' onclick='PO_FOFFICE=\""+o+"\";renderPOs()'>"+(o||"All offices")+(n?" ("+n+")":"")+"</button>";
+      }).join("")+
     "</div>";
 
   content.innerHTML=toolbar+(PO_VIEW==="models"?poModelsHtml(list):poListHtml(list));
@@ -173,14 +176,14 @@ function poListHtml(list){
         "<span class='po-line-sub'>"+(sub!==null?poFmtMoney(sub,p.currency):"")+"</span>"+
       "</div>";
     }).join("");
-    return "<div class='trk-card po-card' onclick='poToggle(\""+p._id+"\")'>"+
+    return "<div class='trk-card po-card po-of-"+poOfficeSlug(p.office)+"' onclick='poToggle(\""+p._id+"\")'>"+
       "<div class='trk-card-top'>"+
         "<span class='trk-card-name'>"+trkEsc(p.poNumber)+"</span>"+
         "<span class='po-total'>"+poFmtMoney(p.total,p.currency)+
           ((p.currency!=="USD"&&typeof fxUsdText==="function"&&p.total!==null)?" <span class='trk-value-usd'>"+fxUsdText(p.total,p.currency)+"</span>":"")+"</span>"+
       "</div>"+
       "<div class='trk-card-meta'>"+
-        (p.office?"<span class='trk-badge trk-office'>"+trkEsc(p.office)+" office</span>":"")+
+        (p.office?"<span class='trk-badge po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
         (p.date?"<span>"+trkFmtDate(p.date)+"</span>":"")+
         "<span class='trk-value-usd'>"+lines.length+" line"+(lines.length===1?"":"s")+"</span>"+
         "<button class='edit-btn' onclick='event.stopPropagation();poEdit(\""+p._id+"\")'>Edit</button>"+
@@ -469,11 +472,13 @@ async function poParseFile(a){
     var d=new Date(m[1].replace(",",", "));
     if(!isNaN(d))out.date=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   }
-  if(/SHANGHAI/i.test(all))out.office="Shanghai";
+  if(/SHANGHAI/i.test(all))out.office="China";
   else if(/GRALESSANDO|SINGAPORE/i.test(all))out.office="Singapore";
   else if(/JAKARTA|INDONESIA/i.test(all))out.office="Indonesia";
   lines.forEach(function(ln){
-    var lm=ln.match(/^(\d{1,2})\s+([\d.,]+)\s+(units?|pcs?\.?|sets?|lots?|rolls?|boxes?)\s+([0-9][0-9A-Za-z]{8,})\s+(.+?)\s+\$?\s*([\d,]+\.\d{2})\s+\$?\s*([\d,]+\.\d{2})\s*$/i);
+    /* the trailing group tolerates remark text wrapped onto the item row
+       (e.g. a delivery-schedule note after the subtotal) */
+    var lm=ln.match(/^(\d{1,2})\s+([\d.,]+)\s+(units?|pcs?\.?|sets?|lots?|rolls?|boxes?)\s+([0-9][0-9A-Za-z]{8,})\s+(.+?)\s+\$?\s*([\d,]+\.\d{2})\s+\$?\s*([\d,]+\.\d{2})(?:\s+\S.*)?$/i);
     if(!lm)return;
     out.lines.push({
       qty:parseFloat(lm[2].replace(/,/g,"")),

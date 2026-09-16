@@ -1179,3 +1179,14 @@ tr.exp-detail td{
   .po-line{grid-template-columns:1fr;gap:2px}
   .po-line-price,.po-line-sub{text-align:left}
 }
+
+/* PO office color coding — card edge, badge and filter chips */
+.po-card.po-of-china{border-left-color:var(--badge-ls-fg)}
+.po-card.po-of-singapore{border-left-color:var(--badge-qt-fg)}
+.po-card.po-of-indonesia{border-left-color:var(--badge-special-fg)}
+.trk-badge.po-of-china{background:var(--badge-ls-bg);color:var(--badge-ls-fg)}
+.trk-badge.po-of-singapore{background:var(--badge-qt-bg);color:var(--badge-qt-fg)}
+.trk-badge.po-of-indonesia{background:var(--badge-special-bg);color:var(--badge-special-fg)}
+.trk-chip.po-chip-china:not(.active){color:var(--badge-ls-fg)}
+.trk-chip.po-chip-singapore:not(.active){color:var(--badge-qt-fg)}
+.trk-chip.po-chip-indonesia:not(.active){color:var(--badge-special-fg)}
