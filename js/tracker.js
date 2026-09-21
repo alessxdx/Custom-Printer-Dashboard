@@ -42,7 +42,7 @@ function trkStatusBadge(s){
   return "<span class='trk-badge trk-s-"+trkStatusSlug(s)+"'>"+trkEsc(s)+"</span>";
 }
 function trkTypeSlug(t){
-  return {"Meeting":"meeting","Quotation":"quotation","Call":"call","Email":"email","Site visit":"site","Note":"note"}[t]||"note";
+  return {"Meeting":"meeting","Quotation":"quotation","Purchase order":"po","Invoice":"invoice","Call":"call","Email":"email","Site visit":"site","Note":"note"}[t]||"note";
 }
 function trkTypeBadge(t){return "<span class='trk-badge trk-type trk-t-"+trkTypeSlug(t)+"'>"+trkEsc(t)+"</span>";}
 function trkValueHtml(p){

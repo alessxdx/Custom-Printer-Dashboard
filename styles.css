@@ -30,6 +30,8 @@
   --badge-w-bg: #eaeae8; --badge-w-fg: #4a4a4a;
   --badge-special-bg: #fdf3d6; --badge-special-fg: #856404;
   --badge-group-bg: #fef3c7; --badge-group-fg: #856404; --badge-group-bd: #f3d77a;
+  --badge-order-bg: #ede9fe; --badge-order-fg: #6d28d9;
+  --badge-inv-bg: #fce7f3; --badge-inv-fg: #be185d;
   --scroll-thumb: #d8d8d6;
 }
 :root[data-theme="dark"]{
@@ -63,6 +65,8 @@
   --badge-w-bg: #2a2a2a; --badge-w-fg: #c9c9c4;
   --badge-special-bg: #3a2e10; --badge-special-fg: #e6c769;
   --badge-group-bg: #3a2e10; --badge-group-fg: #e6c769; --badge-group-bd: #5a4520;
+  --badge-order-bg: #2a2050; --badge-order-fg: #b7a4f7;
+  --badge-inv-bg: #451527; --badge-inv-fg: #f0a3c8;
   --scroll-thumb: #404040;
 }
 :root[data-theme="navy"]{
@@ -96,6 +100,8 @@
   --badge-w-bg: #1b2f4d; --badge-w-fg: #c9d6e8;
   --badge-special-bg: #3a2e10; --badge-special-fg: #e6c769;
   --badge-group-bg: #23345a; --badge-group-fg: #7db4ff; --badge-group-bd: #345080;
+  --badge-order-bg: #2a2050; --badge-order-fg: #b7a4f7;
+  --badge-inv-bg: #451527; --badge-inv-fg: #f0a3c8;
   --scroll-thumb: #2e4568;
 }
 
@@ -1105,12 +1111,16 @@ tr.exp-detail td{
 .trk-tl-body{border-left:4px solid var(--border-strong)}
 .trk-t-meeting  .trk-tl-body{border-left-color:var(--badge-po-fg)}
 .trk-t-quotation .trk-tl-body{border-left-color:var(--badge-special-fg)}
+.trk-t-po       .trk-tl-body{border-left-color:var(--badge-order-fg)}
+.trk-t-invoice  .trk-tl-body{border-left-color:var(--badge-inv-fg)}
 .trk-t-call     .trk-tl-body{border-left-color:var(--accent)}
 .trk-t-email    .trk-tl-body{border-left-color:var(--badge-term-fg)}
 .trk-t-site     .trk-tl-body{border-left-color:var(--badge-qt-fg)}
 .trk-t-note     .trk-tl-body{border-left-color:var(--badge-w-fg)}
 .trk-t-meeting  .trk-tl-dot{background:var(--badge-po-fg)}
 .trk-t-quotation .trk-tl-dot{background:var(--badge-special-fg)}
+.trk-t-po       .trk-tl-dot{background:var(--badge-order-fg)}
+.trk-t-invoice  .trk-tl-dot{background:var(--badge-inv-fg)}
 .trk-t-call     .trk-tl-dot{background:var(--accent)}
 .trk-t-email    .trk-tl-dot{background:var(--badge-term-fg)}
 .trk-t-site     .trk-tl-dot{background:var(--badge-qt-fg)}
@@ -1118,6 +1128,8 @@ tr.exp-detail td{
 
 .trk-badge.trk-type.trk-t-meeting{background:var(--badge-po-bg);color:var(--badge-po-fg)}
 .trk-badge.trk-type.trk-t-quotation{background:var(--badge-special-bg);color:var(--badge-special-fg)}
+.trk-badge.trk-type.trk-t-po{background:var(--badge-order-bg);color:var(--badge-order-fg)}
+.trk-badge.trk-type.trk-t-invoice{background:var(--badge-inv-bg);color:var(--badge-inv-fg)}
 .trk-badge.trk-type.trk-t-call{background:var(--accent-soft);color:var(--accent-text)}
 .trk-badge.trk-type.trk-t-email{background:var(--badge-term-bg);color:var(--badge-term-fg)}
 .trk-badge.trk-type.trk-t-site{background:var(--badge-qt-bg);color:var(--badge-qt-fg)}
