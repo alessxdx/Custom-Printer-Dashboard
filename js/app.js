@@ -34,6 +34,7 @@ function navTo(tab, sel){
   /* Re-clicking the tracker tab returns to its list view; leaving it
      restores the customer stat row the tracker replaced. */
   if(typeof TRK_SEL !== "undefined") TRK_SEL = (tab === "tracker" && sel) ? sel : null;
+  if(typeof MD_SEL !== "undefined" && tab === "customers"){ MD_SEL = sel || null; MD_SEL_ROUTED = !!sel; }
   if(currentTab !== "tracker" && currentTab !== "po" && typeof renderStats === "function") renderStats();
   /* restore the toolbar add button's label/visibility when leaving tracker */
   if(typeof trkSyncToolbar === "function") trkSyncToolbar();
@@ -389,6 +390,7 @@ var ROUTE_APPLYING = false;
 function routeState(){
   if(typeof MD_GROUP_SEL !== "undefined" && MD_GROUP_SEL) return { tab: "groups", sel: MD_GROUP_SEL };
   if(currentTab === "tracker" && typeof TRK_SEL !== "undefined" && TRK_SEL) return { tab: "tracker", sel: TRK_SEL };
+  if(currentTab === "customers" && typeof MD_SEL !== "undefined" && MD_SEL && MD_SEL_ROUTED) return { tab: "customers", sel: MD_SEL };
   return { tab: currentTab, sel: "" };
 }
 
@@ -420,6 +422,15 @@ function applyRoute(){
   ROUTE_APPLYING = true;
   try { navTo(p.tab, p.sel || null); } finally { ROUTE_APPLYING = false; }
 }
+
+/* Customer selection is routed only when the user picked a customer —
+   the desktop view auto-selects the first one on plain "#customers",
+   and that auto-pick must not create history entries. */
+var MD_SEL_ROUTED = false;
+var _routeMdSelect = mdSelect;
+mdSelect = function(key){ MD_SEL_ROUTED = true; _routeMdSelect(key); syncRoute(); };
+var _routeMdBack = mdBack;
+mdBack = function(){ MD_SEL_ROUTED = false; _routeMdBack(); syncRoute(); };
 
 /* sync the URL after every render, whatever triggered it */
 var _routeRenderContent = renderContent;
