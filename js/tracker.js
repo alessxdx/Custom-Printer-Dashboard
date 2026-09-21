@@ -16,6 +16,7 @@ var TRK_ATT=[];              /* entry-modal attachment staging */
 
 var TRK_STATUSES=["Enquiry","Quoted","Negotiation","Won","Lost","On hold"];
 var TRK_ACTIVE_STATUSES=["Enquiry","Quoted","Negotiation"];
+var TRK_CLOSED_STATUSES=["Won","Lost"];
 var TRK_STATUS_RANK={"Enquiry":0,"Quoted":1,"Negotiation":2,"On hold":3,"Won":4,"Lost":5};
 var TRK_OFFICES=["China","Indonesia","Singapore"];
 
@@ -48,6 +49,15 @@ function trkValueHtml(p){
   if(p.estValue===null)return"";
   var usd=(p.currency!=="USD"&&typeof fxUsdText==="function")?fxUsdText(p.estValue,p.currency):"";
   return "<span class='trk-value'>"+p.estValue.toLocaleString()+" "+trkEsc(p.currency)+"</span>"+(usd?" <span class='trk-value-usd'>"+usd+"</span>":"");
+}
+/* Newest entry date per project id, in one pass over the entries. */
+function trkLastActivityMap(){
+  var m={};
+  TRK_ENTRIES.forEach(function(e){
+    var d=e.date||"";
+    if(!m[e.projectId]||d>m[e.projectId])m[e.projectId]=d;
+  });
+  return m;
 }
 function trkEntriesFor(pid){
   return TRK_ENTRIES.filter(function(e){return e.projectId===pid;})
@@ -175,13 +185,19 @@ function trkRenderList(){
     TRK_OFFICES.map(function(o){return "<option"+(TRK_FOFFICE===o?" selected":"")+">"+o+"</option>";}).join("")+
     "</select>";
 
+  /* Most recently active project first — the "Last: …" line on each card
+     is what drives the order, so logging an entry brings that project to
+     the top. Closed projects (Won/Lost) sink below the live pipeline. */
+  var act=trkLastActivityMap();
+  function actOf(p){return act[p._id]||(p.createdAt||"").slice(0,10);}
   var list=TRK_PROJECTS.filter(function(p){
     return (!TRK_FSTATUS||p.status===TRK_FSTATUS)&&(!TRK_FOFFICE||p.office===TRK_FOFFICE);
   }).sort(function(a,b){
-    var r=(TRK_STATUS_RANK[a.status]||0)-(TRK_STATUS_RANK[b.status]||0);
-    if(r!==0)return r;
-    var da=a.expectedDate||"9999",db=b.expectedDate||"9999";
-    if(da!==db)return da.localeCompare(db);
+    var ca=TRK_CLOSED_STATUSES.indexOf(a.status)>-1?1:0;
+    var cb=TRK_CLOSED_STATUSES.indexOf(b.status)>-1?1:0;
+    if(ca!==cb)return ca-cb;
+    var da=actOf(a),db=actOf(b);
+    if(da!==db)return db.localeCompare(da);
     return (b.createdAt||"").localeCompare(a.createdAt||"");
   });
 
