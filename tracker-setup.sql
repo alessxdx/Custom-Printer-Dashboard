@@ -30,6 +30,11 @@ alter table tracker_projects add column if not exists contact_position text;
 -- Won projects — Not paid | Partially paid | Fully paid.
 alter table tracker_projects add column if not exists payment text;
 
+-- Added 2026-09-21 (already run in production): expected close as a
+-- period ("2026-Q3" or "2026-12"); expected_date holds the period's
+-- last day for overdue checks.
+alter table tracker_projects add column if not exists expected_period text;
+
 create table if not exists tracker_entries (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),

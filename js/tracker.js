@@ -22,8 +22,8 @@ var TRK_CLOSED_STATUSES=["Won","Lost"];
 var TRK_OFFICES=["China","Indonesia","Singapore"];
 
 /* ===== converters ===== */
-function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",payment:r.payment||"",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
-function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,payment:p.payment||null,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
+function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",payment:r.payment||"",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",expectedPeriod:r.expected_period||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
+function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,payment:p.payment||null,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,expected_period:p.expectedPeriod||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
 function dbToTrkE(r){return{_id:r.id,projectId:r.project_id,date:r.entry_date||"",type:r.entry_type||"Note",title:r.title||"",details:r.details||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
 function trkEToDb(e){return{project_id:e.projectId,entry_date:e.date||null,entry_type:e.type,title:e.title||null,details:e.details||null,attachments:e.attachments||[]};}
 
@@ -35,6 +35,25 @@ function trkFmtDate(d){
   var dt=new Date(String(d).slice(0,10)+"T00:00:00");
   if(isNaN(dt))return d;
   return dt.getDate()+" "+TRK_MONTHS[dt.getMonth()]+" "+dt.getFullYear();
+}
+/* ===== expected close periods =====
+   Stored as "2026-Q3" or "2026-12" in expected_period; expected_date
+   is kept at the period's LAST day so overdue checks keep working.
+   Projects saved before periods existed may have only a date. */
+var TRK_Q_END={Q1:"03-31",Q2:"06-30",Q3:"09-30",Q4:"12-31"};
+function trkPeriodEnd(per){
+  var m=/^(\d{4})-(Q[1-4])$/.exec(per);
+  if(m)return m[1]+"-"+TRK_Q_END[m[2]];
+  m=/^(\d{4})-(\d{2})$/.exec(per);
+  if(m)return m[1]+"-"+m[2]+"-"+("0"+new Date(+m[1],+m[2],0).getDate()).slice(-2);
+  return"";
+}
+function trkPeriodLabel(p){
+  var m=/^(\d{4})-(Q[1-4])$/.exec(p.expectedPeriod||"");
+  if(m)return m[2]+" "+m[1];
+  m=/^(\d{4})-(\d{2})$/.exec(p.expectedPeriod||"");
+  if(m)return TRK_MONTHS[+m[2]-1]+" "+m[1];
+  return p.expectedDate?trkFmtDate(p.expectedDate):"";
 }
 function trkStatusSlug(s){
   return {"Enquiry":"enquiry","Quoted":"quoted","Negotiation":"negotiation","Won":"won","Lost":"lost","On hold":"onhold"}[s]||"enquiry";
@@ -298,7 +317,7 @@ function trkRenderList(){
       "<div class='trk-card-meta'>"+
         (p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
         (p.estValue!==null?"<span>"+trkValueHtml(p)+"</span>":"")+
-        (p.expectedDate?"<span class='"+(overdue?"trk-overdue":"trk-due")+"'>&#128337; "+trkFmtDate(p.expectedDate)+(overdue?" (overdue)":"")+"</span>":"")+
+        ((p.expectedPeriod||p.expectedDate)?"<span class='"+(overdue?"trk-overdue":"trk-due")+"'>&#128337; "+trkPeriodLabel(p)+(overdue?" (overdue)":"")+"</span>":"")+
       "</div>"+
       "<div class='trk-card-foot'>"+
         (last?"Last: "+trkEsc(last.type)+(last.title?" &mdash; "+trkEsc(last.title):"")+" ("+trkFmtDate(last.date)+")":"No activity yet")+
@@ -335,7 +354,7 @@ function trkRenderDetail(){
         infoRow("Handling office",p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
         infoRow("Products of interest",trkProductChips(p))+
         infoRow("Estimated value",p.estValue!==null?trkValueHtml(p):"")+
-        infoRow("Expected close",p.expectedDate?trkFmtDate(p.expectedDate):"")+
+        infoRow("Expected close",trkPeriodLabel(p))+
         infoRow("Contact",trkEsc(p.contactName)+
           (p.contactPosition?" <span class='trk-contact-pos'>&middot; "+trkEsc(p.contactPosition)+"</span>":"")+
           (p.contactInfo?" <span class='trk-value-usd'>"+trkEsc(p.contactInfo)+"</span>":""))+
@@ -783,6 +802,7 @@ function trkOpenProjectModal(){
   TRK_PROD=[];trkRenderProducts();
   TRK_NAME_AUTO="";
   document.getElementById("tp-office").value="";
+  document.getElementById("tp-close-period").value="";
   trkSetStatusDisplay("Enquiry");
   trkSetPaymentDisplay("");
   trkSyncPaymentVis("Enquiry");
@@ -851,7 +871,19 @@ function trkEditProject(){
   lostBtn.textContent=p.status==="Lost"?"Reopen project":"Mark as lost";
   document.getElementById("tp-value").value=p.estValue===null?"":p.estValue;
   document.getElementById("tp-currency").value=p.currency||"USD";
-  document.getElementById("tp-date").value=p.expectedDate?String(p.expectedDate).slice(0,10):"";
+  /* period picker: prefer the stored period; legacy date-only projects
+     load as their month */
+  var perM=/^(\d{4})-(Q[1-4]|\d{2})$/.exec(p.expectedPeriod||"");
+  if(perM){
+    document.getElementById("tp-close-period").value=perM[2];
+    document.getElementById("tp-close-year").value=perM[1];
+  }else if(p.expectedDate){
+    document.getElementById("tp-close-period").value=String(p.expectedDate).slice(5,7);
+    document.getElementById("tp-close-year").value=String(p.expectedDate).slice(0,4);
+  }else{
+    document.getElementById("tp-close-period").value="";
+    document.getElementById("tp-close-year").value="";
+  }
   document.getElementById("tp-contact").value=p.contactName;
   document.getElementById("tp-position").value=p.contactPosition;
   document.getElementById("tp-contact-info").value=p.contactInfo;
@@ -884,12 +916,18 @@ async function trkSaveProject(){
     products:TRK_PROD.slice(),
     estValue:valRaw===""?null:parseFloat(valRaw),
     currency:document.getElementById("tp-currency").value,
-    expectedDate:document.getElementById("tp-date").value,
+    expectedPeriod:(function(){
+      var per=document.getElementById("tp-close-period").value;
+      var yr=document.getElementById("tp-close-year").value.trim();
+      return (per&&/^\d{4}$/.test(yr))?yr+"-"+per:"";
+    })(),
     contactName:document.getElementById("tp-contact").value.trim(),
     contactPosition:document.getElementById("tp-position").value.trim(),
     contactInfo:document.getElementById("tp-contact-info").value.trim(),
     notes:document.getElementById("tp-notes").value.trim()
   };
+  /* keep expected_date at the period's last day for overdue checks */
+  p.expectedDate=trkPeriodEnd(p.expectedPeriod);
   var m=document.getElementById("modal-trk-project");
   var editId=m.getAttribute("data-edit-id");
   showLoad("Saving...");
