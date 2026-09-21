@@ -19,15 +19,21 @@ var TAB_TITLES = {
   others: "Notes"
 };
 
-/* Override setTab to drive sidebar instead of top tabs */
-function setTab(btn){
-  document.querySelectorAll(".nav-item[data-tab]").forEach(function(b){b.classList.remove("active");});
-  btn.classList.add("active");
-  currentTab = btn.dataset.tab;
-  MD_GROUP_SEL = null;
+/* Override setTab to drive sidebar instead of top tabs.
+   navTo is the single navigation entry point — sidebar clicks and URL
+   (hash) routing both land here. sel is a sub-page within the tab:
+   a tracker project id or a project-group name. */
+function setTab(btn){ navTo(btn.dataset.tab, null); }
+
+function navTo(tab, sel){
+  document.querySelectorAll(".nav-item[data-tab]").forEach(function(b){
+    b.classList.toggle("active", b.dataset.tab === tab);
+  });
+  currentTab = tab;
+  MD_GROUP_SEL = (tab === "groups" && sel) ? sel : null;
   /* Re-clicking the tracker tab returns to its list view; leaving it
      restores the customer stat row the tracker replaced. */
-  if(typeof TRK_SEL !== "undefined") TRK_SEL = null;
+  if(typeof TRK_SEL !== "undefined") TRK_SEL = (tab === "tracker" && sel) ? sel : null;
   if(currentTab !== "tracker" && currentTab !== "po" && typeof renderStats === "function") renderStats();
   /* restore the toolbar add button's label/visibility when leaving tracker */
   if(typeof trkSyncToolbar === "function") trkSyncToolbar();
@@ -369,4 +375,63 @@ async function finishInlineEdit(){
   var img = document.getElementById("brand-logo");
   if(img && window.__CUSTOM_LOGO__) img.src = window.__CUSTOM_LOGO__;
 })();
+
+/* ============================================================
+   URL ROUTING — #tab or #tab/<selection>
+   Every view gets its own address (e.g. #tracker, #tracker/<project id>,
+   #groups/<group name>) so the browser back/forward buttons walk
+   between pages instead of leaving the dashboard, and views can be
+   bookmarked or shared.
+   ============================================================ */
+var ROUTE_APPLYING = false;
+
+/* the route the current app state corresponds to */
+function routeState(){
+  if(typeof MD_GROUP_SEL !== "undefined" && MD_GROUP_SEL) return { tab: "groups", sel: MD_GROUP_SEL };
+  if(currentTab === "tracker" && typeof TRK_SEL !== "undefined" && TRK_SEL) return { tab: "tracker", sel: TRK_SEL };
+  return { tab: currentTab, sel: "" };
+}
+
+/* Decoded {tab, sel} from the URL. Some browsers return location.hash
+   decoded and others raw, so comparisons always use decoded parts. */
+function parseHash(){
+  var raw = (location.hash || "").replace(/^#/, "");
+  var i = raw.indexOf("/");
+  var tab = i === -1 ? raw : raw.slice(0, i);
+  var sel = i === -1 ? "" : raw.slice(i + 1);
+  try { tab = decodeURIComponent(tab); } catch(e){}
+  try { sel = decodeURIComponent(sel); } catch(e){}
+  if(!TAB_TITLES[tab]){ tab = "customers"; sel = ""; }
+  return { tab: tab, sel: sel };
+}
+
+/* After every render, reflect the app state in the URL (pushes a
+   history entry whenever the view actually changed). */
+function syncRoute(){
+  if(ROUTE_APPLYING) return;
+  var s = routeState(), p = parseHash();
+  if(p.tab === s.tab && p.sel === (s.sel || "")) return;
+  location.hash = "#" + s.tab + (s.sel ? "/" + encodeURIComponent(s.sel) : "");
+}
+
+function applyRoute(){
+  var p = parseHash(), s = routeState();
+  if(p.tab === s.tab && p.sel === (s.sel || "")) return; /* echo of our own sync */
+  ROUTE_APPLYING = true;
+  try { navTo(p.tab, p.sel || null); } finally { ROUTE_APPLYING = false; }
+}
+
+/* sync the URL after every render, whatever triggered it */
+var _routeRenderContent = renderContent;
+renderContent = function(){ _routeRenderContent(); syncRoute(); };
+var _routeRenderTracker = renderTracker;
+renderTracker = function(){ _routeRenderTracker(); syncRoute(); };
+
+window.addEventListener("hashchange", applyRoute);
+(function initRoute(){
+  var p = parseHash();
+  if(p.tab !== "customers" || p.sel) applyRoute();
+  else history.replaceState(null, "", location.pathname + location.search + "#customers");
+})();
+
 loadFromDB();

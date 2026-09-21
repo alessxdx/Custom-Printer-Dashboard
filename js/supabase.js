@@ -205,7 +205,9 @@ async function loadFromDB(){
     }
 
   }catch(e){console.error(e);alert("Could not connect to database. Using local data.");}
-  hideLoad();refreshFilterOptions();renderStats();renderCustomers();
+  /* renderContent (not renderCustomers): with URL routing the app can
+     start on any tab, so re-render whichever view the route selected. */
+  hideLoad();refreshFilterOptions();renderStats();renderContent();
 }
 
 
