@@ -250,8 +250,11 @@ function trkRenderList(){
     var attCount=entries.reduce(function(n,e){return n+(e.attachments?e.attachments.length:0);},0);
     var flag=trkFlag(p.country,16);
     var overdue=p.expectedDate&&TRK_ACTIVE_STATUSES.indexOf(p.status)>-1&&p.expectedDate<new Date().toISOString().slice(0,10);
-    var edge=trkCountryColor(p.country);
-    return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+"'"+(edge?" style='border-left-color:"+edge+"'":"")+" onclick='trkOpen(\""+p._id+"\")'>"+
+    /* Edge color follows the handling office (same colors as the office
+       badges: China red, Singapore blue, Indonesia yellow); projects
+       without an office fall back to their country's color. */
+    var edge=p.office?"":trkCountryColor(p.country);
+    return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+(p.office?" po-of-"+poOfficeSlug(p.office):"")+"'"+(edge?" style='border-left-color:"+edge+"'":"")+" onclick='trkOpen(\""+p._id+"\")'>"+
       "<div class='trk-card-top'><span class='trk-card-name'>"+trkDisplayName(p)+"</span>"+trkStatusBadge(p.status)+"</div>"+
       ((p.customer||p.country)?"<div class='trk-card-cust'>"+flag+" "+trkEsc(p.customer)+(p.customer&&p.country?" &middot; ":"")+trkEsc(p.country)+"</div>":"")+
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
