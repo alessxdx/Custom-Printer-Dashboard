@@ -2,7 +2,7 @@
    PROJECT TRACKER — upcoming / ongoing / future sales projects.
    Standalone tab: its own tables (tracker_projects, tracker_entries),
    lazy-loaded on first open. Each project moves through a sales
-   pipeline (Enquiry → Quoted → Negotiation → Won / Lost / On hold)
+   pipeline (Enquiry → Quoted → Won / Lost)
    and carries a dated timeline of entries (meetings, quotations,
    calls…), each with PDF/Excel attachments in the shared
    "documents" storage bucket under tracker/.
@@ -14,15 +14,16 @@ var TRK_SEL=null;            /* project id shown in detail view */
 var TRK_FSTATUS="",TRK_FOFFICE="";
 var TRK_ATT=[];              /* entry-modal attachment staging */
 
-var TRK_STATUSES=["Enquiry","Quoted","Negotiation","Won","Lost","On hold"];
-var TRK_ACTIVE_STATUSES=["Enquiry","Quoted","Negotiation"];
+/* Pipeline: Enquiry → Quoted → Won / Lost. (Negotiation and On hold
+   were retired; legacy projects with those statuses still render.) */
+var TRK_STATUSES=["Enquiry","Quoted","Won","Lost"];
+var TRK_ACTIVE_STATUSES=["Enquiry","Quoted"];
 var TRK_CLOSED_STATUSES=["Won","Lost"];
-var TRK_STATUS_RANK={"Enquiry":0,"Quoted":1,"Negotiation":2,"On hold":3,"Won":4,"Lost":5};
 var TRK_OFFICES=["China","Indonesia","Singapore"];
 
 /* ===== converters ===== */
-function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
-function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
+function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",payment:r.payment||"",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
+function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,payment:p.payment||null,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
 function dbToTrkE(r){return{_id:r.id,projectId:r.project_id,date:r.entry_date||"",type:r.entry_type||"Note",title:r.title||"",details:r.details||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
 function trkEToDb(e){return{project_id:e.projectId,entry_date:e.date||null,entry_type:e.type,title:e.title||null,details:e.details||null,attachments:e.attachments||[]};}
 
@@ -40,6 +41,15 @@ function trkStatusSlug(s){
 }
 function trkStatusBadge(s){
   return "<span class='trk-badge trk-s-"+trkStatusSlug(s)+"'>"+trkEsc(s)+"</span>";
+}
+/* Payment progress badge, shown on Won projects only. An unset value
+   means nothing has been received yet. */
+var TRK_PAYMENTS=["Not paid","Partially paid","Fully paid"];
+function trkPaymentBadge(p){
+  if(p.status!=="Won")return"";
+  var pay=p.payment||"Not paid";
+  var slug={"Not paid":"not","Partially paid":"partial","Fully paid":"paid"}[pay]||"not";
+  return " <span class='trk-badge trk-pay-"+slug+"'>"+trkEsc(pay)+"</span>";
 }
 function trkTypeSlug(t){
   return {"Meeting":"meeting","Quotation":"quotation","Purchase order":"po","Invoice":"invoice","Call":"call","Email":"email","Site visit":"site","Note":"note"}[t]||"note";
@@ -166,7 +176,7 @@ function trkRenderStats(){
     if(v!==null)wonVal+=v;
   });
   el.innerHTML=
-    "<div class='stat'><div class='stat-label'>Active projects</div><div class='stat-value'>"+active.length+"</div><div class='stat-sub'>enquiry &rarr; negotiation</div></div>"+
+    "<div class='stat'><div class='stat-label'>Active projects</div><div class='stat-value'>"+active.length+"</div><div class='stat-sub'>enquiry &rarr; quoted</div></div>"+
     "<div class='stat'><div class='stat-label'>Pipeline value</div><div class='stat-value'>"+(typeof fxFormatUSD==="function"?fxFormatUSD(pipeline):"$"+pipeline.toLocaleString())+"</div><div class='stat-sub'>estimated, USD equivalent</div></div>"+
     "<div class='stat'><div class='stat-label'>Quotes outstanding</div><div class='stat-value'>"+quoted+"</div><div class='stat-sub'>waiting on customer</div></div>"+
     "<div class='stat'><div class='stat-label'>Won</div><div class='stat-value'>"+won.length+"</div><div class='stat-sub'>"+(wonVal?(typeof fxFormatUSD==="function"?fxFormatUSD(wonVal):"$"+wonVal.toLocaleString())+" USD equivalent":"projects closed")+"</div></div>";
@@ -255,7 +265,7 @@ function trkRenderList(){
        without an office fall back to their country's color. */
     var edge=p.office?"":trkCountryColor(p.country);
     return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+(p.office?" po-of-"+poOfficeSlug(p.office):"")+"'"+(edge?" style='border-left-color:"+edge+"'":"")+" onclick='trkOpen(\""+p._id+"\")'>"+
-      "<div class='trk-card-top'><span class='trk-card-name'>"+trkDisplayName(p)+"</span>"+trkStatusBadge(p.status)+"</div>"+
+      "<div class='trk-card-top'><span class='trk-card-name'>"+trkDisplayName(p)+"</span><span style='white-space:nowrap'>"+trkStatusBadge(p.status)+trkPaymentBadge(p)+"</span></div>"+
       ((p.customer||p.country)?"<div class='trk-card-cust'>"+flag+" "+trkEsc(p.customer)+(p.customer&&p.country?" &middot; ":"")+trkEsc(p.country)+"</div>":"")+
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
       "<div class='trk-card-meta'>"+
@@ -289,7 +299,7 @@ function trkRenderDetail(){
     "<button class='trk-back' onclick='trkBack()'>&larr; All projects</button>"+
     "<div class='trk-detail-card'>"+
       "<div class='trk-detail-head'>"+
-        "<div class='trk-detail-name'>"+trkDisplayName(p)+" "+trkStatusBadge(p.status)+"</div>"+
+        "<div class='trk-detail-name'>"+trkDisplayName(p)+" "+trkStatusBadge(p.status)+trkPaymentBadge(p)+"</div>"+
         "<button class='edit-btn' onclick='trkEditProject()'>Edit project</button>"+
       "</div>"+
       "<div class='trk-info-grid'>"+
@@ -666,17 +676,51 @@ function trkRenderProducts(){
 }
 function trkAddProduct(v){
   var inp=document.getElementById("tp-product");
+  var qEl=document.getElementById("tp-product-qty");
   v=String(v!==undefined?v:inp.value).trim();
   if(!v)return;
+  var q=qEl?qEl.value.trim():"";
+  if(q)v=q+"× "+v;                       /* "50× TK180" */
   if(TRK_PROD.map(function(p){return p.toLowerCase();}).indexOf(v.toLowerCase())===-1)TRK_PROD.push(v);
   inp.value="";
+  if(qEl)qEl.value="";
   trkRenderProducts();
+  trkAutoName();
 }
 function trkRemoveProduct(e,i){
   if(e)e.preventDefault();
   TRK_PROD.splice(i,1);
   trkRenderProducts();
+  trkAutoName();
 }
+
+/* ===== auto project name =====
+   Standard format: "Customer — 50× Model" (the card appends the first
+   entry date on its own). The name field live-fills from the customer
+   and product fields, but stops as soon as the user types their own
+   name; it resumes if they clear the field. */
+function trkComposedName(){
+  var cEl=document.getElementById("tp-customer");
+  var customer=cEl?cEl.value.trim():"";
+  var prods=TRK_PROD.slice(0,3).join(", ")+(TRK_PROD.length>3?" +"+(TRK_PROD.length-3):"");
+  if(!customer)return TRK_PROD.length?prods:"";
+  return customer+(TRK_PROD.length?" — "+prods:"");
+}
+var TRK_NAME_AUTO="";
+function trkAutoName(){
+  var el=document.getElementById("tp-name");
+  if(!el)return;
+  var cur=el.value.trim();
+  if(cur&&cur!==TRK_NAME_AUTO)return;       /* user wrote their own */
+  TRK_NAME_AUTO=trkComposedName();
+  el.value=TRK_NAME_AUTO;
+}
+(function trkWireAutoName(){
+  var c=document.getElementById("tp-customer");
+  if(!c)return;
+  c.addEventListener("input",trkAutoName);
+  c.addEventListener("blur",trkAutoName);   /* suggest clicks set the value programmatically */
+})();
 function trkProductChips(p,max){
   var prods=p.products||[];
   if(!prods.length)return"";
@@ -692,10 +736,18 @@ function trkOpenProjectModal(){
   m.querySelectorAll("input,textarea").forEach(function(el){el.value="";});
   trkInitProjectSuggests();
   TRK_PROD=[];trkRenderProducts();
+  TRK_NAME_AUTO="";
   document.getElementById("tp-office").value="";
   document.getElementById("tp-status").value="Enquiry";
+  document.getElementById("tp-payment").value="Not paid";
+  trkSyncPaymentVis();
   document.getElementById("tp-currency").value="USD";
   m.classList.add("open");
+}
+/* the Payment field only applies to Won projects */
+function trkSyncPaymentVis(){
+  var wrap=document.getElementById("tp-payment-wrap");
+  if(wrap)wrap.style.display=document.getElementById("tp-status").value==="Won"?"":"none";
 }
 function trkEditProject(){
   var p=TRK_PROJECTS.find(function(x){return x._id===TRK_SEL;});
@@ -709,8 +761,23 @@ function trkEditProject(){
   document.getElementById("tp-customer").value=p.customer;
   document.getElementById("tp-country").value=p.country;
   TRK_PROD=(p.products||[]).slice();trkRenderProducts();
+  /* if the stored name matches the composed format, keep it in sync
+     with later customer/product edits; a custom name stays untouched */
+  TRK_NAME_AUTO=trkComposedName();
   document.getElementById("tp-office").value=p.office||"";
-  document.getElementById("tp-status").value=p.status;
+  /* Legacy statuses (Negotiation, On hold) are no longer offered but
+     must round-trip: add a temporary option so editing doesn't silently
+     reset them to Enquiry. */
+  var stSel=document.getElementById("tp-status");
+  Array.prototype.slice.call(stSel.options).forEach(function(o){
+    if(TRK_STATUSES.indexOf(o.value)===-1)stSel.removeChild(o);
+  });
+  if(p.status&&TRK_STATUSES.indexOf(p.status)===-1){
+    var opt=document.createElement("option");opt.textContent=p.status;stSel.appendChild(opt);
+  }
+  stSel.value=p.status;
+  document.getElementById("tp-payment").value=p.payment||"Not paid";
+  trkSyncPaymentVis();
   document.getElementById("tp-value").value=p.estValue===null?"":p.estValue;
   document.getElementById("tp-currency").value=p.currency||"USD";
   document.getElementById("tp-date").value=p.expectedDate?String(p.expectedDate).slice(0,10):"";
@@ -726,9 +793,9 @@ async function trkSaveProject(){
   /* a product typed but never added shouldn't be lost */
   if(document.getElementById("tp-product").value.trim())trkAddProduct();
   if(!name){
-    /* Just an enquiry — auto-name it so nothing is required up front. */
-    if(!customer){alert("Please pick a customer or give the project a name.");return;}
-    name=customer+" enquiry — "+trkFmtDate(new Date().toISOString().slice(0,10));
+    /* Standard auto-name; the card appends the first entry date itself. */
+    name=trkComposedName();
+    if(!name){alert("Please pick a customer or give the project a name.");return;}
   }
   var valRaw=document.getElementById("tp-value").value;
   var p={
@@ -737,6 +804,7 @@ async function trkSaveProject(){
     country:document.getElementById("tp-country").value.trim(),
     office:document.getElementById("tp-office").value,
     status:document.getElementById("tp-status").value,
+    payment:document.getElementById("tp-status").value==="Won"?document.getElementById("tp-payment").value:"",
     products:TRK_PROD.slice(),
     estValue:valRaw===""?null:parseFloat(valRaw),
     currency:document.getElementById("tp-currency").value,
@@ -916,6 +984,16 @@ async function trkSaveEntry(){
       TRK_ENTRIES.push(entry);
     }
   }catch(err){hideLoad();alert("Save failed: "+err.message);return;}
+  /* A purchase order closes the deal — flip the project to Won. */
+  if(entry.type==="Purchase order"){
+    var proj=TRK_PROJECTS.find(function(x){return x._id===TRK_SEL;});
+    if(proj&&proj.status!=="Won"){
+      proj.status="Won";
+      try{
+        await fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+proj._id,{method:"PATCH",headers:sbH(),body:JSON.stringify({status:"Won"})});
+      }catch(err){console.error("Auto-Won status update failed:",err);}
+    }
+  }
   hideLoad();
   closeModal("modal-trk-entry");
   renderTracker();

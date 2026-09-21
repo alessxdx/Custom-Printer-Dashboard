@@ -26,6 +26,10 @@ create table if not exists tracker_projects (
 alter table tracker_projects add column if not exists products jsonb;
 alter table tracker_projects add column if not exists contact_position text;
 
+-- Added 2026-09-21 (already run in production): payment progress for
+-- Won projects — Not paid | Partially paid | Fully paid.
+alter table tracker_projects add column if not exists payment text;
+
 create table if not exists tracker_entries (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),

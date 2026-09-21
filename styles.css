@@ -1128,6 +1128,9 @@ tr.exp-detail td{
 
 .trk-badge.trk-type.trk-t-meeting{background:var(--badge-po-bg);color:var(--badge-po-fg)}
 .trk-badge.trk-type.trk-t-quotation{background:var(--badge-special-bg);color:var(--badge-special-fg)}
+.trk-badge.trk-pay-not{background:var(--badge-ls-bg);color:var(--badge-ls-fg)}
+.trk-badge.trk-pay-partial{background:var(--badge-special-bg);color:var(--badge-special-fg)}
+.trk-badge.trk-pay-paid{background:var(--badge-po-bg);color:var(--badge-po-fg)}
 .trk-badge.trk-type.trk-t-po{background:var(--badge-order-bg);color:var(--badge-order-fg)}
 .trk-badge.trk-type.trk-t-invoice{background:var(--badge-inv-bg);color:var(--badge-inv-fg)}
 .trk-badge.trk-type.trk-t-call{background:var(--accent-soft);color:var(--accent-text)}
