@@ -774,7 +774,7 @@ function trkOpenProjectModal(){
   TRK_NAME_AUTO="";
   document.getElementById("tp-office").value="";
   document.getElementById("tp-status").value="Enquiry";
-  document.getElementById("tp-payment").value="Not paid";
+  trkSetPaymentDisplay("");
   trkSyncPaymentVis();
   document.getElementById("tp-currency").value="USD";
   m.classList.add("open");
@@ -783,6 +783,14 @@ function trkOpenProjectModal(){
 function trkSyncPaymentVis(){
   var wrap=document.getElementById("tp-payment-wrap");
   if(wrap)wrap.style.display=document.getElementById("tp-status").value==="Won"?"":"none";
+}
+/* Payment is read-only here — it is driven by "Payment received"
+   timeline entries, so the modal just shows the current state. */
+function trkSetPaymentDisplay(pay){
+  var el=document.getElementById("tp-payment-display");
+  if(!el)return;
+  el.innerHTML=trkPaymentBadge({status:"Won",payment:pay})+
+    " <span style='font-size:10.5px;color:var(--text-faint)'>set by &ldquo;Payment received&rdquo; entries in the timeline</span>";
 }
 function trkEditProject(){
   var p=TRK_PROJECTS.find(function(x){return x._id===TRK_SEL;});
@@ -811,7 +819,7 @@ function trkEditProject(){
     var opt=document.createElement("option");opt.textContent=p.status;stSel.appendChild(opt);
   }
   stSel.value=p.status;
-  document.getElementById("tp-payment").value=p.payment||"Not paid";
+  trkSetPaymentDisplay(p.payment);
   trkSyncPaymentVis();
   document.getElementById("tp-value").value=p.estValue===null?"":p.estValue;
   document.getElementById("tp-currency").value=p.currency||"USD";
@@ -833,13 +841,18 @@ async function trkSaveProject(){
     if(!name){alert("Please pick a customer or give the project a name.");return;}
   }
   var valRaw=document.getElementById("tp-value").value;
+  /* payment is owned by "Payment received" entries — carry it over
+     untouched when editing, start empty on a new project */
+  var mEl=document.getElementById("modal-trk-project");
+  var prevId=mEl.getAttribute("data-edit-id");
+  var prev=prevId?TRK_PROJECTS.find(function(x){return x._id===prevId;}):null;
   var p={
     name:name,
     customer:customer,
     country:document.getElementById("tp-country").value.trim(),
     office:document.getElementById("tp-office").value,
     status:document.getElementById("tp-status").value,
-    payment:document.getElementById("tp-status").value==="Won"?document.getElementById("tp-payment").value:"",
+    payment:prev?(prev.payment||""):"",
     products:TRK_PROD.slice(),
     estValue:valRaw===""?null:parseFloat(valRaw),
     currency:document.getElementById("tp-currency").value,
