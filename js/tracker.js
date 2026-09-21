@@ -196,7 +196,7 @@ function trkRenderList(){
       ((p.customer||p.country)?"<div class='trk-card-cust'>"+flag+" "+trkEsc(p.customer)+(p.customer&&p.country?" &middot; ":"")+trkEsc(p.country)+"</div>":"")+
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
       "<div class='trk-card-meta'>"+
-        (p.office?"<span class='trk-badge trk-office'>"+trkEsc(p.office)+" office</span>":"")+
+        (p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
         (p.estValue!==null?"<span>"+trkValueHtml(p)+"</span>":"")+
         (p.expectedDate?"<span class='"+(overdue?"trk-overdue":"trk-due")+"'>&#128337; "+trkFmtDate(p.expectedDate)+(overdue?" (overdue)":"")+"</span>":"")+
       "</div>"+
@@ -232,7 +232,7 @@ function trkRenderDetail(){
       "<div class='trk-info-grid'>"+
         infoRow("Customer",(p.customer?flag+" "+trkEsc(p.customer):""))+
         infoRow("Country",trkEsc(p.country))+
-        infoRow("Handling office",p.office?trkEsc(p.office):"")+
+        infoRow("Handling office",p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
         infoRow("Products of interest",trkProductChips(p))+
         infoRow("Estimated value",p.estValue!==null?trkValueHtml(p):"")+
         infoRow("Expected close",p.expectedDate?trkFmtDate(p.expectedDate):"")+
