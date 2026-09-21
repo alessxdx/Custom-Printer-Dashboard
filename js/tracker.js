@@ -199,19 +199,29 @@ function trkSyncToolbar(){
   }
 }
 
-/* Self-heal: an open project that already has a Purchase order entry
-   is a won deal — flip it. Covers entries added before the auto-Won
-   rule existed (e.g. on the live site running older JS). Lost projects
-   are left alone: that closure was deliberate. */
-var TRK_RECONCILED={};
-function trkReconcileWon(){
+/* Status is DERIVED from the timeline, not edited by hand:
+   Purchase order / Payment received ⇒ Won, Quotation ⇒ Quoted,
+   nothing ⇒ Enquiry. "Lost" is the one manual flag (set from the
+   editor's Mark-as-lost button) and is never derived away. The pass
+   runs on every tracker render, so adding, editing or deleting
+   entries keeps statuses correct with no extra bookkeeping. */
+function trkDerivedStatus(p){
+  if(p.status==="Lost")return "Lost";
+  var won=false,quoted=false;
+  TRK_ENTRIES.forEach(function(e){
+    if(e.projectId!==p._id)return;
+    if(e.type==="Purchase order"||e.type==="Payment received")won=true;
+    else if(e.type==="Quotation")quoted=true;
+  });
+  return won?"Won":(quoted?"Quoted":"Enquiry");
+}
+function trkReconcileStatus(){
   TRK_PROJECTS.forEach(function(p){
-    if(p.status==="Won"||p.status==="Lost"||TRK_RECONCILED[p._id])return;
-    if(!TRK_ENTRIES.some(function(e){return e.projectId===p._id&&e.type==="Purchase order";}))return;
-    TRK_RECONCILED[p._id]=true;
-    p.status="Won";
-    fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+p._id,{method:"PATCH",headers:sbH(),body:JSON.stringify({status:"Won"})})
-      .catch(function(err){console.error("Auto-Won reconcile failed:",err);});
+    var s=trkDerivedStatus(p);
+    if(p.status===s)return;
+    p.status=s;
+    fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+p._id,{method:"PATCH",headers:sbH(),body:JSON.stringify({status:s})})
+      .catch(function(err){console.error("Status reconcile failed:",err);});
   });
 }
 
@@ -231,7 +241,7 @@ function renderTracker(){
     });
     return;
   }
-  trkReconcileWon();
+  trkReconcileStatus();
   trkRenderStats();
   if(TRK_SEL&&!TRK_PROJECTS.some(function(p){return p._id===TRK_SEL;}))TRK_SEL=null;
   trkSyncToolbar();
@@ -773,16 +783,41 @@ function trkOpenProjectModal(){
   TRK_PROD=[];trkRenderProducts();
   TRK_NAME_AUTO="";
   document.getElementById("tp-office").value="";
-  document.getElementById("tp-status").value="Enquiry";
+  trkSetStatusDisplay("Enquiry");
   trkSetPaymentDisplay("");
-  trkSyncPaymentVis();
+  trkSyncPaymentVis("Enquiry");
+  document.getElementById("btn-lost-trk-project").style.display="none";
   document.getElementById("tp-currency").value="USD";
   m.classList.add("open");
 }
 /* the Payment field only applies to Won projects */
-function trkSyncPaymentVis(){
+function trkSyncPaymentVis(status){
   var wrap=document.getElementById("tp-payment-wrap");
-  if(wrap)wrap.style.display=document.getElementById("tp-status").value==="Won"?"":"none";
+  if(wrap)wrap.style.display=status==="Won"?"":"none";
+}
+/* Status is read-only in the editor — the timeline drives it. */
+function trkSetStatusDisplay(status){
+  var el=document.getElementById("tp-status-display");
+  if(!el)return;
+  el.innerHTML=trkStatusBadge(status)+
+    " <span style='font-size:10.5px;color:var(--text-faint)'>from the timeline &mdash; quotation &rArr; Quoted, purchase order &rArr; Won</span>";
+}
+/* Mark as lost / Reopen — the only manual status action. Reopening
+   re-derives from the timeline. */
+async function trkToggleLost(){
+  var m=document.getElementById("modal-trk-project");
+  var id=m.getAttribute("data-edit-id");
+  var p=TRK_PROJECTS.find(function(x){return x._id===id;});
+  if(!p)return;
+  if(p.status==="Lost"){p.status="Enquiry";p.status=trkDerivedStatus(p);}
+  else p.status="Lost";
+  showLoad("Saving...");
+  try{
+    await fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+p._id,{method:"PATCH",headers:sbH(),body:JSON.stringify({status:p.status})});
+  }catch(err){console.error("Status update failed:",err);}
+  hideLoad();
+  closeModal("modal-trk-project");
+  renderTracker();
 }
 /* Payment is read-only here — it is driven by "Payment received"
    timeline entries, so the modal just shows the current state. */
@@ -808,19 +843,12 @@ function trkEditProject(){
      with later customer/product edits; a custom name stays untouched */
   TRK_NAME_AUTO=trkComposedName();
   document.getElementById("tp-office").value=p.office||"";
-  /* Legacy statuses (Negotiation, On hold) are no longer offered but
-     must round-trip: add a temporary option so editing doesn't silently
-     reset them to Enquiry. */
-  var stSel=document.getElementById("tp-status");
-  Array.prototype.slice.call(stSel.options).forEach(function(o){
-    if(TRK_STATUSES.indexOf(o.value)===-1)stSel.removeChild(o);
-  });
-  if(p.status&&TRK_STATUSES.indexOf(p.status)===-1){
-    var opt=document.createElement("option");opt.textContent=p.status;stSel.appendChild(opt);
-  }
-  stSel.value=p.status;
+  trkSetStatusDisplay(p.status);
   trkSetPaymentDisplay(p.payment);
-  trkSyncPaymentVis();
+  trkSyncPaymentVis(p.status);
+  var lostBtn=document.getElementById("btn-lost-trk-project");
+  lostBtn.style.display="inline-flex";
+  lostBtn.textContent=p.status==="Lost"?"Reopen project":"Mark as lost";
   document.getElementById("tp-value").value=p.estValue===null?"":p.estValue;
   document.getElementById("tp-currency").value=p.currency||"USD";
   document.getElementById("tp-date").value=p.expectedDate?String(p.expectedDate).slice(0,10):"";
@@ -851,7 +879,7 @@ async function trkSaveProject(){
     customer:customer,
     country:document.getElementById("tp-country").value.trim(),
     office:document.getElementById("tp-office").value,
-    status:document.getElementById("tp-status").value,
+    status:prev?prev.status:"Enquiry",
     payment:prev?(prev.payment||""):"",
     products:TRK_PROD.slice(),
     estValue:valRaw===""?null:parseFloat(valRaw),
@@ -1040,22 +1068,16 @@ async function trkSaveEntry(){
       TRK_ENTRIES.push(entry);
     }
   }catch(err){hideLoad();alert("Save failed: "+err.message);return;}
-  /* A purchase order closes the deal — flip the project to Won.
-     A payment received does too, and also sets the payment badge. */
-  if(entry.type==="Purchase order"||entry.type==="Payment received"){
+  /* Status re-derives in renderTracker below; payment is event-driven
+     and only a Payment received entry moves it. */
+  if(entry.type==="Payment received"){
     var proj=TRK_PROJECTS.find(function(x){return x._id===TRK_SEL;});
-    var upd={};
-    if(proj&&proj.status!=="Won")upd.status="Won";
-    if(proj&&entry.type==="Payment received"){
-      var lvl=document.getElementById("te-payment").value;
-      if(proj.payment!==lvl)upd.payment=lvl;
-    }
-    if(proj&&Object.keys(upd).length){
-      if(upd.status)proj.status=upd.status;
-      if(upd.payment)proj.payment=upd.payment;
+    var lvl=document.getElementById("te-payment").value;
+    if(proj&&proj.payment!==lvl){
+      proj.payment=lvl;
       try{
-        await fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+proj._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(upd)});
-      }catch(err){console.error("Auto status/payment update failed:",err);}
+        await fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+proj._id,{method:"PATCH",headers:sbH(),body:JSON.stringify({payment:lvl})});
+      }catch(err){console.error("Payment update failed:",err);}
     }
   }
   hideLoad();
