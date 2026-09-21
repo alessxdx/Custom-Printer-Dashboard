@@ -199,6 +199,22 @@ function trkSyncToolbar(){
   }
 }
 
+/* Self-heal: an open project that already has a Purchase order entry
+   is a won deal — flip it. Covers entries added before the auto-Won
+   rule existed (e.g. on the live site running older JS). Lost projects
+   are left alone: that closure was deliberate. */
+var TRK_RECONCILED={};
+function trkReconcileWon(){
+  TRK_PROJECTS.forEach(function(p){
+    if(p.status==="Won"||p.status==="Lost"||TRK_RECONCILED[p._id])return;
+    if(!TRK_ENTRIES.some(function(e){return e.projectId===p._id&&e.type==="Purchase order";}))return;
+    TRK_RECONCILED[p._id]=true;
+    p.status="Won";
+    fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+p._id,{method:"PATCH",headers:sbH(),body:JSON.stringify({status:"Won"})})
+      .catch(function(err){console.error("Auto-Won reconcile failed:",err);});
+  });
+}
+
 /* ===== main render ===== */
 function renderTracker(){
   var content=document.getElementById("content");
@@ -215,6 +231,7 @@ function renderTracker(){
     });
     return;
   }
+  trkReconcileWon();
   trkRenderStats();
   if(TRK_SEL&&!TRK_PROJECTS.some(function(p){return p._id===TRK_SEL;}))TRK_SEL=null;
   trkSyncToolbar();
