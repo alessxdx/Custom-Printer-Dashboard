@@ -52,7 +52,7 @@ function trkPaymentBadge(p){
   return " <span class='trk-badge trk-pay-"+slug+"'>"+trkEsc(pay)+"</span>";
 }
 function trkTypeSlug(t){
-  return {"Meeting":"meeting","Quotation":"quotation","Purchase order":"po","Invoice":"invoice","Call":"call","Email":"email","Site visit":"site","Note":"note"}[t]||"note";
+  return {"Meeting":"meeting","Quotation":"quotation","Purchase order":"po","Invoice":"invoice","Payment received":"payment","Call":"call","Email":"email","Site visit":"site","Note":"note"}[t]||"note";
 }
 function trkTypeBadge(t){return "<span class='trk-badge trk-type trk-t-"+trkTypeSlug(t)+"'>"+trkEsc(t)+"</span>";}
 function trkValueHtml(p){
@@ -957,10 +957,17 @@ function trkOpenEntryModal(){
   document.getElementById("te-type").value="Meeting";
   document.getElementById("te-title").value="";
   document.getElementById("te-details").value="";
+  document.getElementById("te-payment").value="Partially paid";
+  trkSyncEntryPaymentVis();
   var fi=document.getElementById("te-files");if(fi)fi.value="";
   TRK_ATT=[];
   trkRenderAttList();
   m.classList.add("open");
+}
+/* the payment-level select only applies to Payment received entries */
+function trkSyncEntryPaymentVis(){
+  var wrap=document.getElementById("te-payment-wrap");
+  if(wrap)wrap.style.display=document.getElementById("te-type").value==="Payment received"?"":"none";
 }
 function trkEditEntry(ev,id){
   if(ev)ev.preventDefault();
@@ -972,6 +979,7 @@ function trkEditEntry(ev,id){
   document.getElementById("btn-delete-trk-entry").style.display="inline-flex";
   document.getElementById("te-date").value=e.date?String(e.date).slice(0,10):"";
   document.getElementById("te-type").value=e.type;
+  trkSyncEntryPaymentVis();
   document.getElementById("te-title").value=e.title;
   document.getElementById("te-details").value=e.details;
   var fi=document.getElementById("te-files");if(fi)fi.value="";
@@ -1019,14 +1027,22 @@ async function trkSaveEntry(){
       TRK_ENTRIES.push(entry);
     }
   }catch(err){hideLoad();alert("Save failed: "+err.message);return;}
-  /* A purchase order closes the deal — flip the project to Won. */
-  if(entry.type==="Purchase order"){
+  /* A purchase order closes the deal — flip the project to Won.
+     A payment received does too, and also sets the payment badge. */
+  if(entry.type==="Purchase order"||entry.type==="Payment received"){
     var proj=TRK_PROJECTS.find(function(x){return x._id===TRK_SEL;});
-    if(proj&&proj.status!=="Won"){
-      proj.status="Won";
+    var upd={};
+    if(proj&&proj.status!=="Won")upd.status="Won";
+    if(proj&&entry.type==="Payment received"){
+      var lvl=document.getElementById("te-payment").value;
+      if(proj.payment!==lvl)upd.payment=lvl;
+    }
+    if(proj&&Object.keys(upd).length){
+      if(upd.status)proj.status=upd.status;
+      if(upd.payment)proj.payment=upd.payment;
       try{
-        await fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+proj._id,{method:"PATCH",headers:sbH(),body:JSON.stringify({status:"Won"})});
-      }catch(err){console.error("Auto-Won status update failed:",err);}
+        await fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+proj._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(upd)});
+      }catch(err){console.error("Auto status/payment update failed:",err);}
     }
   }
   hideLoad();
