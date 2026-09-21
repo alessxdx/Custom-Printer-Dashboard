@@ -5,6 +5,7 @@ const FLAGS={
   "China":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-cn"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-cn)"><rect width="36" height="36" fill="#DE2910"/><polygon points="7,5 8.2,8.6 12,8.6 9,10.8 10.2,14.4 7,12.2 3.8,14.4 5,10.8 2,8.6 5.8,8.6" fill="#FFDE00"/><polygon points="14,3 14.6,4.8 16.4,4.8 15,5.8 15.6,7.6 14,6.5 12.4,7.6 13,5.8 11.6,4.8 13.4,4.8" fill="#FFDE00" transform="scale(0.55) translate(11,0)"/><polygon points="14,3 14.6,4.8 16.4,4.8 15,5.8 15.6,7.6 14,6.5 12.4,7.6 13,5.8 11.6,4.8 13.4,4.8" fill="#FFDE00" transform="scale(0.55) translate(16,5)"/><polygon points="14,3 14.6,4.8 16.4,4.8 15,5.8 15.6,7.6 14,6.5 12.4,7.6 13,5.8 11.6,4.8 13.4,4.8" fill="#FFDE00" transform="scale(0.55) translate(15,12)"/><polygon points="14,3 14.6,4.8 16.4,4.8 15,5.8 15.6,7.6 14,6.5 12.4,7.6 13,5.8 11.6,4.8 13.4,4.8" fill="#FFDE00" transform="scale(0.55) translate(10,16)"/></g></svg>`,
   "Australia":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-au"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-au)"><rect width="36" height="36" fill="#00008B"/><rect width="18" height="9" fill="#00008B"/><line x1="0" y1="0" x2="18" y2="9" stroke="#fff" stroke-width="3"/><line x1="18" y1="0" x2="0" y2="9" stroke="#fff" stroke-width="3"/><line x1="0" y1="0" x2="18" y2="9" stroke="#CC142B" stroke-width="1.5"/><line x1="18" y1="0" x2="0" y2="9" stroke="#CC142B" stroke-width="1.5"/><rect x="7" y="0" width="4" height="9" fill="#fff"/><rect x="0" y="3" width="18" height="3" fill="#fff"/><rect x="8" y="0" width="2" height="9" fill="#CC142B"/><rect x="0" y="4" width="18" height="1" fill="#CC142B"/><circle cx="24" cy="24" r="2.5" fill="#fff"/><circle cx="28" cy="20" r="1.5" fill="#fff"/><circle cx="30" cy="26" r="1.5" fill="#fff"/><circle cx="26" cy="29" r="1.5" fill="#fff"/><circle cx="21" cy="29" r="1.5" fill="#fff"/></g></svg>`,
   "Indonesia":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-id"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-id)"><rect width="36" height="18" fill="#CE1126"/><rect y="18" width="36" height="18" fill="#fff"/></g></svg>`,
+  "Bangladesh":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-bd"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-bd)"><rect width="36" height="36" fill="#006A4E"/><circle cx="16" cy="18" r="8.5" fill="#F42A41"/></g></svg>`,
   "Malaysia":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-my"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-my)"><rect width="36" height="36" fill="#fff"/><rect y="0" width="36" height="5.14" fill="#CC0001"/><rect y="10.28" width="36" height="5.14" fill="#CC0001"/><rect y="20.57" width="36" height="5.14" fill="#CC0001"/><rect y="30.85" width="36" height="5.14" fill="#CC0001"/><rect width="18" height="18" fill="#010066"/><circle cx="10" cy="9" r="5" fill="#FC0"/><circle cx="11.5" cy="9" r="4" fill="#010066"/><polygon points="13,9 13.5,10.5 15,10.5 13.8,11.4 14.3,12.9 13,12 11.7,12.9 12.2,11.4 11,10.5 12.5,10.5" fill="#FC0" transform="scale(0.6) translate(8,-1)"/></g></svg>`,
   "Thailand":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-th"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-th)"><rect width="36" height="36" fill="#A51931"/><rect y="6" width="36" height="6" fill="#fff"/><rect y="12" width="36" height="12" fill="#2D2A4A"/><rect y="24" width="36" height="6" fill="#fff"/></g></svg>`,
   "Vietnam":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-vn"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-vn)"><rect width="36" height="36" fill="#DA251D"/><polygon points="18,8 20,14 26,14 21,18 23,24 18,20 13,24 15,18 10,14 16,14" fill="#FFFF00"/></g></svg>`,
@@ -18,9 +19,45 @@ const FLAGS={
   "UAE":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-ae"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-ae)"><rect width="36" height="12" fill="#00732F"/><rect y="12" width="36" height="12" fill="#fff"/><rect y="24" width="36" height="12" fill="#000"/><rect width="9" height="36" fill="#FF0000"/></g></svg>`,
   "New Zealand":`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><clipPath id="c-nz"><circle cx="18" cy="18" r="18"/></clipPath><g clip-path="url(#c-nz)"><rect width="36" height="36" fill="#00247D"/><line x1="0" y1="0" x2="18" y2="9" stroke="#fff" stroke-width="3"/><line x1="18" y1="0" x2="0" y2="9" stroke="#fff" stroke-width="3"/><line x1="0" y1="0" x2="18" y2="9" stroke="#CC142B" stroke-width="1.5"/><line x1="18" y1="0" x2="0" y2="9" stroke="#CC142B" stroke-width="1.5"/><rect x="7" y="0" width="4" height="9" fill="#fff"/><rect x="0" y="3" width="18" height="3" fill="#fff"/><rect x="8" y="0" width="2" height="9" fill="#CC142B"/><rect x="0" y="4" width="18" height="1" fill="#CC142B"/><circle cx="26" cy="8" r="2" fill="#CC142B" stroke="#fff" stroke-width="0.5"/><circle cx="30" cy="14" r="2" fill="#CC142B" stroke="#fff" stroke-width="0.5"/><circle cx="24" cy="18" r="2" fill="#CC142B" stroke="#fff" stroke-width="0.5"/><circle cx="29" cy="22" r="2" fill="#CC142B" stroke="#fff" stroke-width="0.5"/></g></svg>`,
 };
+/* ISO 3166 alpha-2 codes (lowercase keys) — lets flagImg render a flag
+   for ANY country the user types, via flagcdn.com, without hand-drawing
+   an SVG for each. Common alternate spellings included. */
+const COUNTRY_CODES={
+  "afghanistan":"af","albania":"al","algeria":"dz","andorra":"ad","angola":"ao","argentina":"ar","armenia":"am","australia":"au","austria":"at","azerbaijan":"az",
+  "bahamas":"bs","bahrain":"bh","bangladesh":"bd","barbados":"bb","belarus":"by","belgium":"be","belize":"bz","benin":"bj","bhutan":"bt","bolivia":"bo",
+  "bosnia and herzegovina":"ba","bosnia":"ba","botswana":"bw","brazil":"br","brunei":"bn","bulgaria":"bg","burkina faso":"bf","burundi":"bi",
+  "cambodia":"kh","cameroon":"cm","canada":"ca","cape verde":"cv","central african republic":"cf","chad":"td","chile":"cl","china":"cn","colombia":"co","comoros":"km",
+  "congo":"cg","republic of the congo":"cg","dr congo":"cd","democratic republic of the congo":"cd","costa rica":"cr","croatia":"hr","cuba":"cu","cyprus":"cy",
+  "czech republic":"cz","czechia":"cz","denmark":"dk","djibouti":"dj","dominica":"dm","dominican republic":"do",
+  "east timor":"tl","timor-leste":"tl","ecuador":"ec","egypt":"eg","el salvador":"sv","equatorial guinea":"gq","eritrea":"er","estonia":"ee","eswatini":"sz","swaziland":"sz","ethiopia":"et",
+  "fiji":"fj","finland":"fi","france":"fr","gabon":"ga","gambia":"gm","georgia":"ge","germany":"de","ghana":"gh","greece":"gr","grenada":"gd","guatemala":"gt",
+  "guinea":"gn","guinea-bissau":"gw","guyana":"gy","haiti":"ht","honduras":"hn","hong kong":"hk","hungary":"hu",
+  "iceland":"is","india":"in","indonesia":"id","iran":"ir","iraq":"iq","ireland":"ie","israel":"il","italy":"it","ivory coast":"ci","cote d'ivoire":"ci",
+  "jamaica":"jm","japan":"jp","jordan":"jo","kazakhstan":"kz","kenya":"ke","kiribati":"ki","kosovo":"xk","kuwait":"kw","kyrgyzstan":"kg",
+  "laos":"la","latvia":"lv","lebanon":"lb","lesotho":"ls","liberia":"lr","libya":"ly","liechtenstein":"li","lithuania":"lt","luxembourg":"lu",
+  "macau":"mo","madagascar":"mg","malawi":"mw","malaysia":"my","maldives":"mv","mali":"ml","malta":"mt","marshall islands":"mh","mauritania":"mr","mauritius":"mu",
+  "mexico":"mx","micronesia":"fm","moldova":"md","monaco":"mc","mongolia":"mn","montenegro":"me","morocco":"ma","mozambique":"mz","myanmar":"mm","burma":"mm",
+  "namibia":"na","nauru":"nr","nepal":"np","netherlands":"nl","new zealand":"nz","nicaragua":"ni","niger":"ne","nigeria":"ng","north korea":"kp","north macedonia":"mk","macedonia":"mk","norway":"no",
+  "oman":"om","pakistan":"pk","palau":"pw","palestine":"ps","panama":"pa","papua new guinea":"pg","paraguay":"py","peru":"pe","philippines":"ph","poland":"pl","portugal":"pt",
+  "qatar":"qa","romania":"ro","russia":"ru","rwanda":"rw","saint kitts and nevis":"kn","saint lucia":"lc","saint vincent and the grenadines":"vc",
+  "samoa":"ws","san marino":"sm","sao tome and principe":"st","saudi arabia":"sa","senegal":"sn","serbia":"rs","seychelles":"sc","sierra leone":"sl","singapore":"sg",
+  "slovakia":"sk","slovenia":"si","solomon islands":"sb","somalia":"so","south africa":"za","south korea":"kr","korea":"kr","south sudan":"ss","spain":"es","sri lanka":"lk",
+  "sudan":"sd","suriname":"sr","sweden":"se","switzerland":"ch","syria":"sy","taiwan":"tw","tajikistan":"tj","tanzania":"tz","thailand":"th","togo":"tg","tonga":"to",
+  "trinidad and tobago":"tt","tunisia":"tn","turkey":"tr","turkmenistan":"tm","tuvalu":"tv","uganda":"ug","ukraine":"ua",
+  "united arab emirates":"ae","uae":"ae","united kingdom":"gb","uk":"gb","great britain":"gb","england":"gb",
+  "united states":"us","usa":"us","united states of america":"us","america":"us","uruguay":"uy","uzbekistan":"uz",
+  "vanuatu":"vu","vatican city":"va","venezuela":"ve","vietnam":"vn","viet nam":"vn","yemen":"ye","zambia":"zm","zimbabwe":"zw"
+};
+function countryCode(name){
+  if(!name) return null;
+  return COUNTRY_CODES[String(name).trim().toLowerCase()]||null;
+}
 function flagImg(country, size){
-  const svg = FLAGS[country];
-  if(!svg) return '<div style="width:'+(size||28)+'px;height:'+(size||28)+'px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999">?</div>';
   const s = size||28;
-  return `<div style="width:${s}px;height:${s}px;border-radius:50%;overflow:hidden;flex-shrink:0">${svg.replace(/width="36"/g,`width="${s}"`).replace(/height="36"/g,`height="${s}"`)}</div>`;
+  const svg = FLAGS[country];
+  if(svg) return `<div style="width:${s}px;height:${s}px;border-radius:50%;overflow:hidden;flex-shrink:0">${svg.replace(/width="36"/g,`width="${s}"`).replace(/height="36"/g,`height="${s}"`)}</div>`;
+  /* No hand-drawn SVG — any other country falls back to flagcdn.com. */
+  const code = countryCode(country);
+  if(code) return '<div style="width:'+s+'px;height:'+s+'px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="https://flagcdn.com/h80/'+code+'.png" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.style.display=\'none\'"></div>';
+  return '<div style="width:'+s+'px;height:'+s+'px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999">?</div>';
 }

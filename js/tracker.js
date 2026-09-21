@@ -66,11 +66,54 @@ function trkEntriesFor(pid){
       return d!==0?d:(b.createdAt||"").localeCompare(a.createdAt||"");
     });
 }
-/* Flag only when we actually have that country's SVG — the generic "?"
-   placeholder looks broken next to new-market countries (Bangladesh…). */
+/* Flag only when we can actually draw one (hand-drawn SVG or a known
+   ISO code for the CDN fallback) — the generic "?" placeholder looks
+   broken next to unrecognized country names. */
 function trkFlag(country,size){
-  if(typeof FLAGS==="undefined"||!FLAGS[country])return"";
-  return flagImg(country,size);
+  if(typeof FLAGS!=="undefined"&&FLAGS[country])return flagImg(country,size);
+  if(typeof countryCode==="function"&&countryCode(country))return flagImg(country,size);
+  return"";
+}
+
+/* ===== per-country card colors (left edge) =====
+   Curated colors for the main markets — aligned with the office badge
+   colors where country and office coincide — plus a stable hashed hue
+   for any new country, so color coding needs no upkeep. */
+var TRK_COUNTRY_COLORS={
+  "China":"#b91c1c",        /* red — matches China office */
+  "Indonesia":"#b45309",    /* gold — matches Indonesia office */
+  "Singapore":"#1d4ed8",    /* blue — matches Singapore office */
+  "Philippines":"#0d9488",  /* teal */
+  "Bangladesh":"#15803d",   /* green */
+  "India":"#ea580c",        /* orange */
+  "Thailand":"#7c3aed",     /* violet */
+  "Vietnam":"#0891b2",      /* cyan */
+  "Malaysia":"#4f46e5",     /* indigo */
+  "Italy":"#16a34a"         /* green */
+};
+function trkCountryColor(c){
+  if(!c)return"";
+  if(TRK_COUNTRY_COLORS[c])return TRK_COUNTRY_COLORS[c];
+  var h=0;for(var i=0;i<c.length;i++)h=(h*31+c.charCodeAt(i))>>>0;
+  return "hsl("+(h%360)+",60%,45%)";
+}
+
+/* ===== title date suffix =====
+   Cards show "Name — 7 Sep 2026" using the project's earliest entry
+   date (fallback: creation date), unless the name already contains a
+   date of its own. */
+var TRK_DATE_IN_NAME=/\d{1,2}\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)|\d{4}-\d{2}|\d{1,2}[\/.]\d{1,2}[\/.]\d{2,4}/i;
+function trkFirstDate(p){
+  var d=null;
+  TRK_ENTRIES.forEach(function(e){
+    if(e.projectId===p._id&&e.date&&(!d||e.date<d))d=e.date;
+  });
+  return d||(p.createdAt||"").slice(0,10);
+}
+function trkDisplayName(p){
+  if(TRK_DATE_IN_NAME.test(p.name))return trkEsc(p.name);
+  var d=trkFirstDate(p);
+  return trkEsc(p.name)+(d?" <span class='trk-name-date'>&mdash; "+trkFmtDate(d)+"</span>":"");
 }
 function trkFileIcon(name){
   var n=String(name||"").toLowerCase();
@@ -207,8 +250,9 @@ function trkRenderList(){
     var attCount=entries.reduce(function(n,e){return n+(e.attachments?e.attachments.length:0);},0);
     var flag=trkFlag(p.country,16);
     var overdue=p.expectedDate&&TRK_ACTIVE_STATUSES.indexOf(p.status)>-1&&p.expectedDate<new Date().toISOString().slice(0,10);
-    return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+"' onclick='trkOpen(\""+p._id+"\")'>"+
-      "<div class='trk-card-top'><span class='trk-card-name'>"+trkEsc(p.name)+"</span>"+trkStatusBadge(p.status)+"</div>"+
+    var edge=trkCountryColor(p.country);
+    return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+"'"+(edge?" style='border-left-color:"+edge+"'":"")+" onclick='trkOpen(\""+p._id+"\")'>"+
+      "<div class='trk-card-top'><span class='trk-card-name'>"+trkDisplayName(p)+"</span>"+trkStatusBadge(p.status)+"</div>"+
       ((p.customer||p.country)?"<div class='trk-card-cust'>"+flag+" "+trkEsc(p.customer)+(p.customer&&p.country?" &middot; ":"")+trkEsc(p.country)+"</div>":"")+
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
       "<div class='trk-card-meta'>"+
@@ -242,7 +286,7 @@ function trkRenderDetail(){
     "<button class='trk-back' onclick='trkBack()'>&larr; All projects</button>"+
     "<div class='trk-detail-card'>"+
       "<div class='trk-detail-head'>"+
-        "<div class='trk-detail-name'>"+trkEsc(p.name)+" "+trkStatusBadge(p.status)+"</div>"+
+        "<div class='trk-detail-name'>"+trkDisplayName(p)+" "+trkStatusBadge(p.status)+"</div>"+
         "<button class='edit-btn' onclick='trkEditProject()'>Edit project</button>"+
       "</div>"+
       "<div class='trk-info-grid'>"+

@@ -1094,6 +1094,7 @@ tr.exp-detail td{
 /* Tracker: color coding — status edge on list cards, type colors on the
    timeline (badge + dot + card edge), all from the theme's badge palette */
 .trk-card{border-left:4px solid var(--border-strong)}
+.trk-name-date{color:var(--text-muted);font-weight:600}
 .trk-card.trk-sc-enquiry{border-left-color:var(--accent)}
 .trk-card.trk-sc-quoted{border-left-color:var(--badge-qt-fg)}
 .trk-card.trk-sc-negotiation{border-left-color:var(--badge-special-fg)}
