@@ -662,9 +662,20 @@ function trkInitProjectSuggests(){
   trkSuggestInit("tp-customer",function(){return trkComboValues("customer");});
   trkSuggestInit("tp-country",function(){return trkComboValues("country");});
   trkSuggestInit("tp-product",function(){
-    var models=(typeof getModelList==="function"?getModelList():[]).slice().sort(trkAlpha);
-    var have=TRK_PROD.map(function(p){return p.toLowerCase();});
-    return models.filter(function(m){return have.indexOf(m.toLowerCase())===-1;});
+    /* Vocabulary = the master model list PLUS products free-typed on any
+       tracker project (qty prefixes like "79× " stripped), minus what's
+       already on this project. */
+    function bare(s){return String(s||"").replace(/^\s*\d+\s*[x×]\s*/i,"").trim();}
+    var seen={},list=[];
+    function add(name){
+      var b=bare(name);
+      if(b&&!seen[b.toLowerCase()]){seen[b.toLowerCase()]=true;list.push(b);}
+    }
+    (typeof getModelList==="function"?getModelList():[]).forEach(add);
+    TRK_PROJECTS.forEach(function(p){(p.products||[]).forEach(add);});
+    var have={};
+    TRK_PROD.forEach(function(p){have[bare(p).toLowerCase()]=true;});
+    return list.filter(function(m){return !have[m.toLowerCase()];}).sort(trkAlpha);
   },function(v){trkAddProduct(v);});
 }
 /* Products of interest — staged chips, saved as a jsonb string array */
@@ -714,6 +725,13 @@ function trkAutoName(){
   if(cur&&cur!==TRK_NAME_AUTO)return;       /* user wrote their own */
   TRK_NAME_AUTO=trkComposedName();
   el.value=TRK_NAME_AUTO;
+}
+/* The "↻ Auto" button: regenerate the name from the current fields.
+   Setting the field to the composed value also re-arms live auto-fill
+   (a hand-written name normally switches it off). */
+function trkResetAutoName(){
+  TRK_NAME_AUTO=trkComposedName();
+  document.getElementById("tp-name").value=TRK_NAME_AUTO;
 }
 (function trkWireAutoName(){
   var c=document.getElementById("tp-customer");

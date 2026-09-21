@@ -14,7 +14,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-09-21.7";
+var APP_VERSION="2026-09-21.9";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -301,7 +301,7 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
   <div class="modal">
     <div class="modal-title" id="trk-project-modal-title">Add project / enquiry</div>
     <div class="form-grid">
-      <div class="form-group form-full"><label>Project name <span style="font-size:10px;color:#aaa;font-weight:400">(auto-filled as "Customer &mdash; 50&times; Model" from the fields below &mdash; edit it if you like)</span></label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-name" placeholder="e.g. Biman &mdash; 50&times; TK180 &mdash; boarding pass printers"></div>
+      <div class="form-group form-full"><label>Project name <span style="font-size:10px;color:#aaa;font-weight:400">(auto-filled as "Customer &mdash; 50&times; Model" from the fields below &mdash; edit it if you like)</span></label><div style="display:flex;gap:8px"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-name" placeholder="e.g. Biman &mdash; 50&times; TK180 &mdash; boarding pass printers" style="flex:1"><button type="button" class="att-add" style="white-space:nowrap" onclick="trkResetAutoName()" title="Regenerate the name from the customer and products below">&#8635; Auto</button></div></div>
       <div class="form-group"><label>Customer</label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-customer" placeholder="Type — existing customers pop up" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-customer-suggest"></div></div></div>
       <div class="form-group"><label>Country</label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-country" placeholder="Type — existing countries pop up" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-country-suggest"></div></div></div>
       <div class="form-group"><label>Handling office</label><select id="tp-office"><option value="">&mdash;</option><option>China</option><option>Indonesia</option><option>Singapore</option></select></div>
