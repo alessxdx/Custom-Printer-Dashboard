@@ -79,12 +79,15 @@ function trkValueHtml(p){
   var usd=(p.currency!=="USD"&&typeof fxUsdText==="function")?fxUsdText(p.estValue,p.currency):"";
   return "<span class='trk-value'>"+p.estValue.toLocaleString()+" "+trkEsc(p.currency)+"</span>"+(usd?" <span class='trk-value-usd'>"+usd+"</span>":"");
 }
-/* Newest entry date per project id, in one pass over the entries. */
+/* Newest entry per project id, in one pass over the entries. Keeps the
+   entry's created_at alongside its date so two entries on the same day
+   can still be ordered by which was logged last. */
 function trkLastActivityMap(){
   var m={};
   TRK_ENTRIES.forEach(function(e){
-    var d=e.date||"";
-    if(!m[e.projectId]||d>m[e.projectId])m[e.projectId]=d;
+    var k={d:e.date||"",c:e.createdAt||""};
+    var cur=m[e.projectId];
+    if(!cur||k.d>cur.d||(k.d===cur.d&&k.c>cur.c))m[e.projectId]=k;
   });
   return m;
 }
@@ -139,10 +142,13 @@ function trkFirstDate(p){
   });
   return d||(p.createdAt||"").slice(0,10);
 }
-function trkDisplayName(p){
-  if(TRK_DATE_IN_NAME.test(p.name))return trkEsc(p.name);
+function trkDisplayName(p){return trkEsc(p.name);}
+/* The project's own start date, shown beside customer and country. Blank
+   when the name already spells a date out, so it is never said twice. */
+function trkProjectDate(p){
+  if(TRK_DATE_IN_NAME.test(p.name))return"";
   var d=trkFirstDate(p);
-  return trkEsc(p.name)+(d?" <span class='trk-name-date'>&mdash; "+trkFmtDate(d)+"</span>":"");
+  return d?trkFmtDate(d):"";
 }
 function trkFileIcon(name){
   var n=String(name||"").toLowerCase();
@@ -288,7 +294,7 @@ function trkRenderList(){
      is what drives the order, so logging an entry brings that project to
      the top. Closed projects (Won/Lost) sink below the live pipeline. */
   var act=trkLastActivityMap();
-  function actOf(p){return act[p._id]||(p.createdAt||"").slice(0,10);}
+  function actOf(p){return act[p._id]||{d:(p.createdAt||"").slice(0,10),c:p.createdAt||""};}
   var list=TRK_PROJECTS.filter(function(p){
     return (!TRK_FSTATUS||p.status===TRK_FSTATUS)&&(!TRK_FOFFICE||p.office===TRK_FOFFICE);
   }).sort(function(a,b){
@@ -296,7 +302,8 @@ function trkRenderList(){
     var cb=TRK_CLOSED_STATUSES.indexOf(b.status)>-1?1:0;
     if(ca!==cb)return ca-cb;
     var da=actOf(a),db=actOf(b);
-    if(da!==db)return db.localeCompare(da);
+    if(da.d!==db.d)return db.d.localeCompare(da.d);
+    if(da.c!==db.c)return db.c.localeCompare(da.c);
     return (b.createdAt||"").localeCompare(a.createdAt||"");
   });
 
@@ -310,9 +317,15 @@ function trkRenderList(){
        badges: China red, Singapore blue, Indonesia yellow); projects
        without an office fall back to their country's color. */
     var edge=p.office?"":trkCountryColor(p.country);
+    /* Customer, country and the project's own start date share one line,
+       so the heading is just the project name. */
+    var pdate=trkProjectDate(p);
+    var custLine=[trkEsc(p.customer),trkEsc(p.country),pdate?"<span class='trk-card-date'>"+pdate+"</span>":""]
+      .filter(Boolean).join(" &middot; ");
+    if(custLine&&flag)custLine=flag+" "+custLine;
     return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+(p.office?" po-of-"+poOfficeSlug(p.office):"")+"'"+(edge?" style='border-left-color:"+edge+"'":"")+" onclick='trkOpen(\""+p._id+"\")'>"+
       "<div class='trk-card-top'><span class='trk-card-name'>"+trkDisplayName(p)+"</span><span style='white-space:nowrap'>"+trkStatusBadge(p.status)+trkPaymentBadge(p)+"</span></div>"+
-      ((p.customer||p.country)?"<div class='trk-card-cust'>"+flag+" "+trkEsc(p.customer)+(p.customer&&p.country?" &middot; ":"")+trkEsc(p.country)+"</div>":"")+
+      (custLine?"<div class='trk-card-cust'>"+custLine+"</div>":"")+
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
       "<div class='trk-card-meta'>"+
         (p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
@@ -320,7 +333,7 @@ function trkRenderList(){
         ((p.expectedPeriod||p.expectedDate)?"<span class='"+(overdue?"trk-overdue":"trk-due")+"'>&#128337; "+trkPeriodLabel(p)+(overdue?" (overdue)":"")+"</span>":"")+
       "</div>"+
       "<div class='trk-card-foot'>"+
-        (last?"Last: "+trkEsc(last.type)+(last.title?" &mdash; "+trkEsc(last.title):"")+" ("+trkFmtDate(last.date)+")":"No activity yet")+
+        "<span class='trk-card-last'>"+(last?"<span class='trk-card-when'>"+trkFmtDate(last.date)+"</span> &middot; "+trkEsc(last.type)+(last.title?" &mdash; "+trkEsc(last.title):""):"No activity yet")+"</span>"+
         "<span class='trk-card-counts'>"+entries.length+" entr"+(entries.length===1?"y":"ies")+(attCount?" &middot; &#128206; "+attCount:"")+"</span>"+
       "</div>"+
     "</div>";
@@ -351,6 +364,7 @@ function trkRenderDetail(){
       "<div class='trk-info-grid'>"+
         infoRow("Customer",(p.customer?flag+" "+trkEsc(p.customer):""))+
         infoRow("Country",trkEsc(p.country))+
+        infoRow("Project date",trkProjectDate(p))+
         infoRow("Handling office",p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
         infoRow("Products of interest",trkProductChips(p))+
         infoRow("Estimated value",p.estValue!==null?trkValueHtml(p):"")+

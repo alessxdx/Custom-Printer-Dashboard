@@ -1103,7 +1103,9 @@ tr.exp-detail td{
 /* Tracker: color coding — status edge on list cards, type colors on the
    timeline (badge + dot + card edge), all from the theme's badge palette */
 .trk-card{border-left:4px solid var(--border-strong)}
-.trk-name-date{color:var(--text-muted);font-weight:600}
+.trk-card-date{color:var(--text-muted)}
+.trk-card-when{font-weight:600;color:var(--text)}
+.trk-card-last{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* section headings inside the project modal's form grid */
 .form-section{
   grid-column:1/-1;
