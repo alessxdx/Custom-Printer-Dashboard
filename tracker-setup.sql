@@ -40,7 +40,7 @@ create table if not exists tracker_entries (
   created_at timestamptz not null default now(),
   project_id uuid not null references tracker_projects(id) on delete cascade,
   entry_date date,
-  entry_type text default 'Note',       -- Meeting|Quotation|Call|Email|Site visit|Note
+  entry_type text default 'Note',       -- Meeting|Quotation|Call|Email|WhatsApp|Site visit|Note
   title text,
   details text,
   attachments jsonb                     -- [{name,url}]
