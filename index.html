@@ -14,7 +14,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-09-25.1";
+var APP_VERSION="2026-09-25.2";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -314,6 +314,7 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
       <div class="form-group tp-cust-only"><label>Country</label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-country" placeholder="Type — existing countries pop up" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-country-suggest"></div></div></div>
       <div class="form-group"><label>Handling office</label><select id="tp-office"><option value="">&mdash;</option><option>China</option><option>Indonesia</option><option>Singapore</option></select></div>
       <div class="form-section tp-cust-only">The deal</div>
+      <div class="form-group form-full tp-cust-only"><label>Solution type <span style="font-size:10px;color:#aaa;font-weight:400">(one tag for what the deal is about &mdash; shown on the card)</span></label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-solution" placeholder="e.g. Custom, Posiva, Fire fighting" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-solution-suggest"></div></div></div>
       <div class="form-group form-full tp-cust-only"><label>Products of interest <span style="font-size:10px;color:#aaa;font-weight:400">(qty optional; type &mdash; your models pop up; Enter or &#43; Add; as many as they asked about)</span></label>
         <div style="display:flex;gap:8px;align-items:flex-start">
           <input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-product-qty" placeholder="Qty" style="width:64px;flex-shrink:0">

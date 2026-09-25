@@ -11,7 +11,7 @@
 var TRK_PROJECTS=[],TRK_ENTRIES=[];
 var TRK_LOADED=false,TRK_MISSING=false;
 var TRK_SEL=null;            /* project id shown in detail view */
-var TRK_FSTATUS="",TRK_FOFFICE="";
+var TRK_FSTATUS="",TRK_FOFFICE="",TRK_FSOL="";
 var TRK_ATT=[];              /* entry-modal attachment staging */
 
 /* Pipeline: Enquiry → Quoted → Won / Lost. (Negotiation and On hold
@@ -26,8 +26,8 @@ var TRK_CLOSED_STATUSES=["Won","Lost"];
 var TRK_OFFICES=["China","Indonesia","Singapore"];
 
 /* ===== converters ===== */
-function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",payment:r.payment||"",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",expectedPeriod:r.expected_period||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
-function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,payment:p.payment||null,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,expected_period:p.expectedPeriod||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
+function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",payment:r.payment||"",solution:r.solution||"",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",expectedPeriod:r.expected_period||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
+function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,payment:p.payment||null,solution:p.solution||null,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,expected_period:p.expectedPeriod||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
 function dbToTrkE(r){return{_id:r.id,projectId:r.project_id,date:r.entry_date||"",type:r.entry_type||"Note",title:r.title||"",details:r.details||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
 function trkEToDb(e){return{project_id:e.projectId,entry_date:e.date||null,entry_type:e.type,title:e.title||null,details:e.details||null,attachments:e.attachments||[]};}
 
@@ -73,6 +73,35 @@ function trkPaymentBadge(p){
   var pay=p.payment||"Not paid";
   var slug={"Not paid":"not","Partially paid":"partial","Fully paid":"paid"}[pay]||"not";
   return " <span class='trk-badge trk-pay-"+slug+"'>"+trkEsc(pay)+"</span>";
+}
+/* ===== solution / product-type tag =====
+   One small tag saying WHAT the project is about — Custom (printers),
+   Posiva, Fire fighting… Free text with type-ahead so a new category
+   needs no code change: the known ones get a curated dot color, any
+   new one a stable hashed hue (same trick as the country colors). */
+var TRK_SOLUTIONS=["Custom","Posiva","Fire fighting"];
+var TRK_SOLUTION_COLORS={
+  "Custom":"#1d4ed8",       /* blue */
+  "Posiva":"#7c3aed",       /* violet */
+  "Fire fighting":"#dc2626" /* red, obviously */
+};
+function trkSolutionColor(s){
+  if(TRK_SOLUTION_COLORS[s])return TRK_SOLUTION_COLORS[s];
+  var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;
+  return "hsl("+(h%360)+",60%,45%)";
+}
+function trkSolutionBadge(p){
+  if(!p.solution)return"";
+  return "<span class='trk-badge trk-sol'><span class='trk-sol-dot' style='background:"+trkSolutionColor(p.solution)+"'></span>"+trkEsc(p.solution)+"</span>";
+}
+/* Suggestion vocabulary: the seed list plus anything already tagged. */
+function trkSolutionValues(){
+  var seen={},out=[];
+  TRK_SOLUTIONS.concat(TRK_PROJECTS.map(function(p){return p.solution;})).forEach(function(v){
+    v=String(v||"").trim();
+    if(v&&!seen[v.toLowerCase()]){seen[v.toLowerCase()]=1;out.push(v);}
+  });
+  return out.sort(trkAlpha);
 }
 function trkTypeSlug(t){
   return {"Meeting":"meeting","Quotation":"quotation","Purchase order":"po","Invoice":"invoice","Payment received":"payment","Call":"call","Email":"email","WhatsApp":"whatsapp","Site visit":"site","Note":"note"}[t]||"note";
@@ -281,6 +310,7 @@ function renderTracker(){
 
 function trkSetStatusFilter(s){TRK_FSTATUS=s;renderTracker();}
 function trkSetOfficeFilter(s){TRK_FOFFICE=s;renderTracker();}
+function trkSetSolutionFilter(s){TRK_FSOL=s;renderTracker();}
 
 function trkRenderList(){
   var chips=[{label:"All",value:""}].concat(TRK_STATUSES.map(function(s){
@@ -296,13 +326,22 @@ function trkRenderList(){
     TRK_OFFICES.map(function(o){return "<option"+(TRK_FOFFICE===o?" selected":"")+">"+o+"</option>";}).join("")+
     "</select>";
 
+  /* Solution filter only appears once at least one project is tagged. */
+  var solsUsed={};
+  TRK_PROJECTS.forEach(function(p){var v=String(p.solution||"").trim();if(v)solsUsed[v]=1;});
+  var solList=Object.keys(solsUsed).sort(trkAlpha);
+  var solSel=solList.length?"<select class='trk-office-filter' onchange='trkSetSolutionFilter(this.value)'>"+
+    "<option value=''"+(TRK_FSOL===""?" selected":"")+">All solutions</option>"+
+    solList.map(function(s){return "<option"+(TRK_FSOL===s?" selected":"")+">"+trkEsc(s)+"</option>";}).join("")+
+    "</select>":"";
+
   /* Most recently active project first — the "Last: …" line on each card
      is what drives the order, so logging an entry brings that project to
      the top. Closed projects (Won/Lost) sink below the live pipeline. */
   var act=trkLastActivityMap();
   function actOf(p){return act[p._id]||{d:(p.createdAt||"").slice(0,10),c:p.createdAt||""};}
   var list=TRK_PROJECTS.filter(function(p){
-    return (!TRK_FSTATUS||p.status===TRK_FSTATUS)&&(!TRK_FOFFICE||p.office===TRK_FOFFICE);
+    return (!TRK_FSTATUS||p.status===TRK_FSTATUS)&&(!TRK_FOFFICE||p.office===TRK_FOFFICE)&&(!TRK_FSOL||p.solution===TRK_FSOL);
   }).sort(function(a,b){
     var ca=TRK_CLOSED_STATUSES.indexOf(a.status)>-1?1:0;
     var cb=TRK_CLOSED_STATUSES.indexOf(b.status)>-1?1:0;
@@ -334,6 +373,7 @@ function trkRenderList(){
       (custLine?"<div class='trk-card-cust'>"+custLine+"</div>":"")+
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
       "<div class='trk-card-meta'>"+
+        trkSolutionBadge(p)+
         (p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
         (p.estValue!==null?"<span>"+trkValueHtml(p)+"</span>":"")+
         ((p.expectedPeriod||p.expectedDate)?"<span class='"+(overdue?"trk-overdue":"trk-due")+"'>&#128337; "+trkPeriodLabel(p)+(overdue?" (overdue)":"")+"</span>":"")+
@@ -346,7 +386,7 @@ function trkRenderList(){
   }).join("");
 
   document.getElementById("content").innerHTML=
-    "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div>"+officeSel+"</div>"+
+    "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div>"+solSel+officeSel+"</div>"+
     (cards||"<div class='empty'>"+(TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
 }
 
@@ -372,6 +412,7 @@ function trkRenderDetail(){
         infoRow("Country",trkEsc(p.country))+
         infoRow("Project date",trkProjectDate(p))+
         infoRow("Handling office",p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
+        infoRow("Solution type",trkSolutionBadge(p))+
         infoRow("Products of interest",trkProductChips(p))+
         infoRow("Estimated value",p.estValue!==null?trkValueHtml(p):"")+
         infoRow("Expected close",trkPeriodLabel(p))+
@@ -727,6 +768,7 @@ function trkSuggestInit(inputId,getValues,onPick){
 function trkInitProjectSuggests(){
   trkSuggestInit("tp-customer",function(){return trkComboValues("customer");});
   trkSuggestInit("tp-country",function(){return trkComboValues("country");});
+  trkSuggestInit("tp-solution",trkSolutionValues);
   trkSuggestInit("tp-product",function(){
     /* Vocabulary = the master model list PLUS products free-typed on any
        tracker project (qty prefixes like "79× " stripped), minus what's
@@ -903,6 +945,7 @@ function trkEditProject(){
   trkSetKind(p.status==="Other"?"Other":"Customer");
   document.getElementById("tp-customer").value=p.customer;
   document.getElementById("tp-country").value=p.country;
+  document.getElementById("tp-solution").value=p.solution||"";
   TRK_PROD=(p.products||[]).slice();trkRenderProducts();
   /* if the stored name matches the composed format, keep it in sync
      with later customer/product edits; a custom name stays untouched */
@@ -961,6 +1004,7 @@ async function trkSaveProject(){
     customer:other?"":customer,
     country:other?"":document.getElementById("tp-country").value.trim(),
     office:document.getElementById("tp-office").value,
+    solution:other?"":document.getElementById("tp-solution").value.trim(),
     status:other?"Other":(prev&&prev.status!=="Other"?prev.status:"Enquiry"),
     payment:prev?(prev.payment||""):"",
     products:other?[]:TRK_PROD.slice(),

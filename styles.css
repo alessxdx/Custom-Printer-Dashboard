@@ -1060,6 +1060,11 @@ tr.exp-detail td{
   .trk-detail-head{flex-direction:column}
 }
 
+/* Tracker: solution/product-type tag — neutral pill, colored dot, so it
+   reads in light and dark themes whatever color the tag hashes to */
+.trk-badge.trk-sol{background:var(--bg-soft);color:var(--text);border:1px solid var(--border);gap:6px}
+.trk-sol-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
 /* Tracker: products-of-interest chips */
 .trk-prod{background:var(--bg-soft);color:var(--text-muted);border:1px solid var(--border);font-weight:500}
 .trk-card-prods{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}

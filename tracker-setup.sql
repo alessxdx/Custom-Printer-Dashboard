@@ -38,6 +38,10 @@ alter table tracker_projects add column if not exists payment text;
 -- last day for overdue checks.
 alter table tracker_projects add column if not exists expected_period text;
 
+-- Added 2026-09-25: solution/product-type tag on projects
+-- (Custom | Posiva | Fire fighting | any free text).
+alter table tracker_projects add column if not exists solution text;
+
 create table if not exists tracker_entries (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
