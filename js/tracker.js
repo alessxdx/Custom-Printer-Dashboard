@@ -1004,7 +1004,7 @@ async function trkSaveProject(){
     customer:other?"":customer,
     country:other?"":document.getElementById("tp-country").value.trim(),
     office:document.getElementById("tp-office").value,
-    solution:other?"":document.getElementById("tp-solution").value.trim(),
+    solution:document.getElementById("tp-solution").value.trim(), /* applies to Other too — e.g. fire fighting */
     status:other?"Other":(prev&&prev.status!=="Other"?prev.status:"Enquiry"),
     payment:prev?(prev.payment||""):"",
     products:other?[]:TRK_PROD.slice(),
