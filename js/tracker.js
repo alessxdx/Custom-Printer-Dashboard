@@ -405,6 +405,14 @@ function trkRenderList(){
     cards=order.map(function(s){
       var grp=list.filter(function(p){return (p.solution||"")===s;});
       if(!grp.length)return"";
+      /* Inside a sector the newest entry wins outright — closed
+         projects don't sink here, per the user's preference. */
+      grp.sort(function(a,b){
+        var da=actOf(a),db=actOf(b);
+        if(da.d!==db.d)return db.d.localeCompare(da.d);
+        if(da.c!==db.c)return db.c.localeCompare(da.c);
+        return (b.createdAt||"").localeCompare(a.createdAt||"");
+      });
       return "<div class='trk-group-head"+(s?"":" trk-group-untagged")+"'>"+
         (s?"<span class='trk-sol-dot' style='background:"+trkSolutionColor(s)+"'></span>"+trkEsc(s):"No tag yet")+
         "<span class='trk-group-count'>"+grp.length+"</span></div>"+
