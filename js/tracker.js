@@ -79,11 +79,12 @@ function trkPaymentBadge(p){
    Posiva, Fire fighting… Free text with type-ahead so a new category
    needs no code change: the known ones get a curated dot color, any
    new one a stable hashed hue (same trick as the country colors). */
-var TRK_SOLUTIONS=["Custom","Posiva","Fire fighting"];
+var TRK_SOLUTIONS=["Custom","Posiva","Fire fighting","Others"];
 var TRK_SOLUTION_COLORS={
-  "Custom":"#1d4ed8",       /* blue */
-  "Posiva":"#7c3aed",       /* violet */
-  "Fire fighting":"#dc2626" /* red, obviously */
+  "Custom":"#1d4ed8",        /* blue */
+  "Posiva":"#7c3aed",        /* violet */
+  "Fire fighting":"#dc2626", /* red, obviously */
+  "Others":"#6b7280"         /* gray — the catch-all bucket */
 };
 function trkSolutionColor(s){
   if(TRK_SOLUTION_COLORS[s])return TRK_SOLUTION_COLORS[s];
@@ -352,7 +353,7 @@ function trkRenderList(){
     return (b.createdAt||"").localeCompare(a.createdAt||"");
   });
 
-  var cards=list.map(function(p){
+  function cardHtml(p){
     var entries=trkEntriesFor(p._id);
     var last=entries[0];
     var attCount=entries.reduce(function(n,e){return n+(e.attachments?e.attachments.length:0);},0);
@@ -383,7 +384,33 @@ function trkRenderList(){
         "<span class='trk-card-counts'>"+entries.length+" entr"+(entries.length===1?"y":"ies")+(attCount?" &middot; &#128206; "+attCount:"")+"</span>"+
       "</div>"+
     "</div>";
-  }).join("");
+  }
+
+  /* ===== solution groups =====
+     Once anything is tagged, cards sit under small solution headers
+     (Custom, Posiva, Fire fighting, Others…), untagged projects last.
+     The flat list remains when nothing is tagged yet or the solution
+     filter already narrows the list to one group. */
+  var cards;
+  if(TRK_FSOL||!list.some(function(p){return p.solution;})){
+    cards=list.map(cardHtml).join("");
+  }else{
+    var order=TRK_SOLUTIONS.slice(),extra=[];
+    list.forEach(function(p){
+      var s=p.solution;
+      if(s&&order.indexOf(s)===-1&&extra.indexOf(s)===-1)extra.push(s);
+    });
+    order=order.concat(extra.sort(trkAlpha));
+    order.push(""); /* untagged bucket last */
+    cards=order.map(function(s){
+      var grp=list.filter(function(p){return (p.solution||"")===s;});
+      if(!grp.length)return"";
+      return "<div class='trk-group-head"+(s?"":" trk-group-untagged")+"'>"+
+        (s?"<span class='trk-sol-dot' style='background:"+trkSolutionColor(s)+"'></span>"+trkEsc(s):"No tag yet")+
+        "<span class='trk-group-count'>"+grp.length+"</span></div>"+
+        grp.map(cardHtml).join("");
+    }).join("");
+  }
 
   document.getElementById("content").innerHTML=
     "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div>"+solSel+officeSel+"</div>"+
