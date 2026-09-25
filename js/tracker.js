@@ -342,7 +342,9 @@ function trkRenderList(){
   var act=trkLastActivityMap();
   function actOf(p){return act[p._id]||{d:(p.createdAt||"").slice(0,10),c:p.createdAt||""};}
   var list=TRK_PROJECTS.filter(function(p){
-    return (!TRK_FSTATUS||p.status===TRK_FSTATUS)&&(!TRK_FOFFICE||p.office===TRK_FOFFICE)&&(!TRK_FSOL||p.solution===TRK_FSOL);
+    /* Lost projects stay out of the default view — they only appear
+       when the Lost chip itself is selected. */
+    return (TRK_FSTATUS?p.status===TRK_FSTATUS:p.status!=="Lost")&&(!TRK_FOFFICE||p.office===TRK_FOFFICE)&&(!TRK_FSOL||p.solution===TRK_FSOL);
   }).sort(function(a,b){
     var ca=TRK_CLOSED_STATUSES.indexOf(a.status)>-1?1:0;
     var cb=TRK_CLOSED_STATUSES.indexOf(b.status)>-1?1:0;
