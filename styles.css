@@ -942,6 +942,7 @@ tr.exp-detail td{
    ============================================================ */
 .trk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .trk-chips{display:flex;gap:6px;flex-wrap:wrap}
+.trk-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .trk-chip{
   font-family:'Montserrat',sans-serif;font-size:11.5px;font-weight:500;
   color:var(--text-muted);background:var(--bg-soft);
@@ -1056,6 +1057,7 @@ tr.exp-detail td{
 
 @media (max-width:640px){
   .trk-toolbar{flex-direction:column;align-items:stretch}
+  .trk-filters{flex-direction:column;align-items:stretch}
   .trk-office-filter{width:100%}
   .trk-detail-head{flex-direction:column}
 }

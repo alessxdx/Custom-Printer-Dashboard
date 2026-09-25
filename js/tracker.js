@@ -423,7 +423,7 @@ function trkRenderList(){
   }
 
   document.getElementById("content").innerHTML=
-    "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div>"+solSel+officeSel+"</div>"+
+    "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div><div class='trk-filters'>"+solSel+officeSel+"</div></div>"+
     (cards||"<div class='empty'>"+(TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
 }
 
