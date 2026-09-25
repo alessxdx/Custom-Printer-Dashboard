@@ -15,8 +15,12 @@ var TRK_FSTATUS="",TRK_FOFFICE="";
 var TRK_ATT=[];              /* entry-modal attachment staging */
 
 /* Pipeline: Enquiry → Quoted → Won / Lost. (Negotiation and On hold
-   were retired; legacy projects with those statuses still render.) */
-var TRK_STATUSES=["Enquiry","Quoted","Won","Lost"];
+   were retired; legacy projects with those statuses still render.)
+   "Other" is a project KIND more than a status: not customer related
+   (internal tasks, admin, anything worth a dated timeline). It sits
+   outside the pipeline — never derived from entries, never counted in
+   the stats — and its filter chip only shows once one exists. */
+var TRK_STATUSES=["Enquiry","Quoted","Won","Lost","Other"];
 var TRK_ACTIVE_STATUSES=["Enquiry","Quoted"];
 var TRK_CLOSED_STATUSES=["Won","Lost"];
 var TRK_OFFICES=["China","Indonesia","Singapore"];
@@ -56,7 +60,7 @@ function trkPeriodLabel(p){
   return p.expectedDate?trkFmtDate(p.expectedDate):"";
 }
 function trkStatusSlug(s){
-  return {"Enquiry":"enquiry","Quoted":"quoted","Negotiation":"negotiation","Won":"won","Lost":"lost","On hold":"onhold"}[s]||"enquiry";
+  return {"Enquiry":"enquiry","Quoted":"quoted","Negotiation":"negotiation","Won":"won","Lost":"lost","On hold":"onhold","Other":"other"}[s]||"enquiry";
 }
 function trkStatusBadge(s){
   return "<span class='trk-badge trk-s-"+trkStatusSlug(s)+"'>"+trkEsc(s)+"</span>";
@@ -232,6 +236,7 @@ function trkSyncToolbar(){
    entries keeps statuses correct with no extra bookkeeping. */
 function trkDerivedStatus(p){
   if(p.status==="Lost")return "Lost";
+  if(p.status==="Other")return "Other"; /* outside the pipeline */
   var won=false,quoted=false;
   TRK_ENTRIES.forEach(function(e){
     if(e.projectId!==p._id)return;
@@ -280,8 +285,9 @@ function trkSetOfficeFilter(s){TRK_FOFFICE=s;renderTracker();}
 function trkRenderList(){
   var chips=[{label:"All",value:""}].concat(TRK_STATUSES.map(function(s){
     var n=TRK_PROJECTS.filter(function(p){return p.status===s;}).length;
-    return {label:s+(n?" ("+n+")":""),value:s};
-  })).map(function(c){
+    if(s==="Other"&&!n)return null; /* chip appears once one exists */
+    return {label:(s==="Other"?"Others":s)+(n?" ("+n+")":""),value:s};
+  }).filter(Boolean)).map(function(c){
     return "<button class='trk-chip"+(TRK_FSTATUS===c.value?" active":"")+"' onclick='trkSetStatusFilter(\""+c.value+"\")'>"+trkEsc(c.label)+"</button>";
   }).join("");
 
@@ -806,6 +812,29 @@ function trkProductChips(p,max){
   return shown.map(function(pr){return "<span class='trk-badge trk-prod'>"+trkEsc(pr)+"</span>";}).join(" ")+
     (max&&prods.length>max?" <span class='trk-value-usd'>+"+(prods.length-max)+" more</span>":"");
 }
+/* ===== project kind =====
+   "Customer" (the default sales pipeline) or "Other" (not customer
+   related — internal tasks, admin, anything). Other hides every
+   customer/deal/contact field and stores the project with the fixed
+   status "Other", so the modal's toggle is the only place the kind is
+   chosen; it round-trips through the status column, no schema change. */
+var TRK_KIND="Customer";
+function trkSetKind(k){
+  TRK_KIND=k;
+  var other=k==="Other";
+  document.getElementById("tp-kind-customer").classList.toggle("active",!other);
+  document.getElementById("tp-kind-other").classList.toggle("active",other);
+  document.querySelectorAll("#modal-trk-project .tp-cust-only").forEach(function(el){
+    el.style.display=other?"none":"";
+  });
+  document.getElementById("tp-name-hint").style.display=other?"none":"";
+  document.getElementById("tp-name-auto").style.display=other?"none":"";
+  document.getElementById("tp-kind-hint").style.display=other?"":"none";
+  document.getElementById("tp-name").placeholder=other
+    ?"e.g. Office renovation — contractor updates"
+    :"e.g. Biman — 50× TK180 — boarding pass printers";
+  if(other)trkSyncPaymentVis("Other"); /* payment row is Won-only */
+}
 function trkOpenProjectModal(){
   var m=document.getElementById("modal-trk-project");
   m.removeAttribute("data-edit-id");
@@ -815,6 +844,7 @@ function trkOpenProjectModal(){
   trkInitProjectSuggests();
   TRK_PROD=[];trkRenderProducts();
   TRK_NAME_AUTO="";
+  trkSetKind("Customer");
   document.getElementById("tp-office").value="";
   document.getElementById("tp-close-period").value="";
   trkSetStatusDisplay("Enquiry");
@@ -870,6 +900,7 @@ function trkEditProject(){
   document.getElementById("btn-delete-trk-project").style.display="inline-flex";
   document.getElementById("tp-name").value=p.name;
   trkInitProjectSuggests();
+  trkSetKind(p.status==="Other"?"Other":"Customer");
   document.getElementById("tp-customer").value=p.customer;
   document.getElementById("tp-country").value=p.country;
   TRK_PROD=(p.products||[]).slice();trkRenderProducts();
@@ -881,7 +912,7 @@ function trkEditProject(){
   trkSetPaymentDisplay(p.payment);
   trkSyncPaymentVis(p.status);
   var lostBtn=document.getElementById("btn-lost-trk-project");
-  lostBtn.style.display="inline-flex";
+  lostBtn.style.display=p.status==="Other"?"none":"inline-flex"; /* no pipeline to lose */
   lostBtn.textContent=p.status==="Lost"?"Reopen project":"Mark as lost";
   document.getElementById("tp-value").value=p.estValue===null?"":p.estValue;
   document.getElementById("tp-currency").value=p.currency||"USD";
@@ -905,14 +936,15 @@ function trkEditProject(){
   m.classList.add("open");
 }
 async function trkSaveProject(){
+  var other=TRK_KIND==="Other";
   var name=document.getElementById("tp-name").value.trim();
   var customer=document.getElementById("tp-customer").value.trim();
   /* a product typed but never added shouldn't be lost */
-  if(document.getElementById("tp-product").value.trim())trkAddProduct();
+  if(!other&&document.getElementById("tp-product").value.trim())trkAddProduct();
   if(!name){
     /* Standard auto-name; the card appends the first entry date itself. */
-    name=trkComposedName();
-    if(!name){alert("Please pick a customer or give the project a name.");return;}
+    name=other?"":trkComposedName();
+    if(!name){alert(other?"Please give it a name.":"Please pick a customer or give the project a name.");return;}
   }
   var valRaw=document.getElementById("tp-value").value;
   /* payment is owned by "Payment received" entries — carry it over
@@ -920,24 +952,28 @@ async function trkSaveProject(){
   var mEl=document.getElementById("modal-trk-project");
   var prevId=mEl.getAttribute("data-edit-id");
   var prev=prevId?TRK_PROJECTS.find(function(x){return x._id===prevId;}):null;
+  /* An Other project keeps none of the customer/deal fields — switching
+     kind on an existing project deliberately clears them. Its status is
+     the fixed "Other"; switching back to Customer starts at Enquiry and
+     the reconcile pass re-derives from the timeline on the next render. */
   var p={
     name:name,
-    customer:customer,
-    country:document.getElementById("tp-country").value.trim(),
+    customer:other?"":customer,
+    country:other?"":document.getElementById("tp-country").value.trim(),
     office:document.getElementById("tp-office").value,
-    status:prev?prev.status:"Enquiry",
+    status:other?"Other":(prev&&prev.status!=="Other"?prev.status:"Enquiry"),
     payment:prev?(prev.payment||""):"",
-    products:TRK_PROD.slice(),
-    estValue:valRaw===""?null:parseFloat(valRaw),
+    products:other?[]:TRK_PROD.slice(),
+    estValue:(other||valRaw==="")?null:parseFloat(valRaw),
     currency:document.getElementById("tp-currency").value,
-    expectedPeriod:(function(){
+    expectedPeriod:other?"":(function(){
       var per=document.getElementById("tp-close-period").value;
       var yr=document.getElementById("tp-close-year").value.trim();
       return (per&&/^\d{4}$/.test(yr))?yr+"-"+per:"";
     })(),
-    contactName:document.getElementById("tp-contact").value.trim(),
-    contactPosition:document.getElementById("tp-position").value.trim(),
-    contactInfo:document.getElementById("tp-contact-info").value.trim(),
+    contactName:other?"":document.getElementById("tp-contact").value.trim(),
+    contactPosition:other?"":document.getElementById("tp-position").value.trim(),
+    contactInfo:other?"":document.getElementById("tp-contact-info").value.trim(),
     notes:document.getElementById("tp-notes").value.trim()
   };
   /* keep expected_date at the period's last day for overdue checks */

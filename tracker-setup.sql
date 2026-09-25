@@ -13,6 +13,9 @@ create table if not exists tracker_projects (
   country text,
   office text,                          -- Singapore | Indonesia | China
   status text not null default 'Enquiry', -- Enquiry|Quoted|Negotiation|Won|Lost|On hold
+                                        -- plus 'Other' (2026-09-25): not-customer-related
+                                        -- projects; fixed status outside the pipeline,
+                                        -- no schema change needed (status is free text)
   est_value numeric,
   currency text default 'USD',
   expected_date date,

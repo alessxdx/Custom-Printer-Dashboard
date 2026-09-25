@@ -983,6 +983,7 @@ tr.exp-detail td{
 .trk-s-won{background:var(--badge-po-bg);color:var(--badge-po-fg)}
 .trk-s-lost{background:var(--badge-ls-bg);color:var(--badge-ls-fg)}
 .trk-s-onhold{background:var(--badge-w-bg);color:var(--badge-w-fg);opacity:.8}
+.trk-s-other{background:var(--badge-w-bg);color:var(--badge-w-fg)}
 .trk-office{background:var(--bg-accent-soft);color:var(--accent-text)}
 .trk-type{background:var(--accent-soft);color:var(--accent-text)}
 
@@ -1120,6 +1121,7 @@ tr.exp-detail td{
 .trk-card.trk-sc-won{border-left-color:var(--badge-po-fg)}
 .trk-card.trk-sc-lost{border-left-color:var(--badge-ls-fg)}
 .trk-card.trk-sc-onhold{border-left-color:var(--badge-w-fg)}
+.trk-card.trk-sc-other{border-left-color:var(--badge-w-fg)}
 
 .trk-tl-body{border-left:4px solid var(--border-strong)}
 .trk-t-meeting  .trk-tl-body{border-left-color:var(--badge-po-fg)}

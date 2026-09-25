@@ -14,7 +14,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-09-22.1";
+var APP_VERSION="2026-09-25.1";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -301,13 +301,20 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
   <div class="modal">
     <div class="modal-title" id="trk-project-modal-title">Add project / enquiry</div>
     <div class="form-grid">
-      <div class="form-group form-full"><label>Project name <span style="font-size:10px;color:#aaa;font-weight:400">(auto-filled as "Customer &mdash; 50&times; Model" from the fields below &mdash; edit it if you like)</span></label><div style="display:flex;gap:8px"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-name" placeholder="e.g. Biman &mdash; 50&times; TK180 &mdash; boarding pass printers" style="flex:1"><button type="button" class="att-add" style="white-space:nowrap" onclick="trkResetAutoName()" title="Regenerate the name from the customer and products below">&#8635; Auto</button></div></div>
-      <div class="form-section">Customer</div>
-      <div class="form-group"><label>Customer</label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-customer" placeholder="Type — existing customers pop up" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-customer-suggest"></div></div></div>
-      <div class="form-group"><label>Country</label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-country" placeholder="Type — existing countries pop up" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-country-suggest"></div></div></div>
+      <div class="form-group form-full"><label>Type</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="trk-chip active" id="tp-kind-customer" onclick="trkSetKind('Customer')">Customer project</button>
+          <button type="button" class="trk-chip" id="tp-kind-other" onclick="trkSetKind('Other')">Other &mdash; not customer related</button>
+        </div>
+        <span class="form-hint" id="tp-kind-hint" style="display:none">Anything you want a dated timeline for &mdash; internal tasks, admin, ideas. Kept out of the sales pipeline and stats.</span>
+      </div>
+      <div class="form-group form-full"><label>Project name <span style="font-size:10px;color:#aaa;font-weight:400" id="tp-name-hint">(auto-filled as "Customer &mdash; 50&times; Model" from the fields below &mdash; edit it if you like)</span></label><div style="display:flex;gap:8px"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-name" placeholder="e.g. Biman &mdash; 50&times; TK180 &mdash; boarding pass printers" style="flex:1"><button type="button" class="att-add" style="white-space:nowrap" id="tp-name-auto" onclick="trkResetAutoName()" title="Regenerate the name from the customer and products below">&#8635; Auto</button></div></div>
+      <div class="form-section tp-cust-only">Customer</div>
+      <div class="form-group tp-cust-only"><label>Customer</label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-customer" placeholder="Type — existing customers pop up" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-customer-suggest"></div></div></div>
+      <div class="form-group tp-cust-only"><label>Country</label><div class="trk-suggest"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-country" placeholder="Type — existing countries pop up" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-country-suggest"></div></div></div>
       <div class="form-group"><label>Handling office</label><select id="tp-office"><option value="">&mdash;</option><option>China</option><option>Indonesia</option><option>Singapore</option></select></div>
-      <div class="form-section">The deal</div>
-      <div class="form-group form-full"><label>Products of interest <span style="font-size:10px;color:#aaa;font-weight:400">(qty optional; type &mdash; your models pop up; Enter or &#43; Add; as many as they asked about)</span></label>
+      <div class="form-section tp-cust-only">The deal</div>
+      <div class="form-group form-full tp-cust-only"><label>Products of interest <span style="font-size:10px;color:#aaa;font-weight:400">(qty optional; type &mdash; your models pop up; Enter or &#43; Add; as many as they asked about)</span></label>
         <div style="display:flex;gap:8px;align-items:flex-start">
           <input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-product-qty" placeholder="Qty" style="width:64px;flex-shrink:0">
           <div class="trk-suggest" style="flex:1"><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-product" placeholder="e.g. TK180" readonly onfocus="this.removeAttribute('readonly')"><div class="trk-suggest-panel" id="tp-product-suggest"></div></div>
@@ -315,20 +322,20 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
         </div>
         <div class="att-list" id="tp-products"></div>
       </div>
-      <div class="form-group"><label>Estimated value</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-value" type="number" step="any" placeholder="e.g. 50000"></div>
-      <div class="form-group"><label>Currency</label><select id="tp-currency"><option value="USD">USD</option><option value="SGD">SGD</option><option value="RMB">RMB</option><option value="IDR">IDR</option><option value="EUR">EUR</option></select></div>
-      <div class="form-group"><label>Expected close <span style="font-size:10px;color:#aaa;font-weight:400">(a period, e.g. Q3 2026 or Dec 2026)</span></label>
+      <div class="form-group tp-cust-only"><label>Estimated value</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-value" type="number" step="any" placeholder="e.g. 50000"></div>
+      <div class="form-group tp-cust-only"><label>Currency</label><select id="tp-currency"><option value="USD">USD</option><option value="SGD">SGD</option><option value="RMB">RMB</option><option value="IDR">IDR</option><option value="EUR">EUR</option></select></div>
+      <div class="form-group tp-cust-only"><label>Expected close <span style="font-size:10px;color:#aaa;font-weight:400">(a period, e.g. Q3 2026 or Dec 2026)</span></label>
         <div style="display:flex;gap:8px">
           <select id="tp-close-period" style="flex:1"><option value="">&mdash;</option><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option></select>
           <input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-close-year" type="number" min="2024" max="2040" placeholder="Year" style="width:84px">
         </div>
       </div>
-      <div class="form-group"><label>Status</label><div id="tp-status-display" style="padding:8px 0"></div></div>
+      <div class="form-group tp-cust-only"><label>Status</label><div id="tp-status-display" style="padding:8px 0"></div></div>
       <div class="form-group" id="tp-payment-wrap" style="display:none"><label>Payment</label><div id="tp-payment-display" style="padding:8px 0"></div></div>
-      <div class="form-section">Contact</div>
-      <div class="form-group"><label>Contact person</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-contact" placeholder="e.g. Mr. Rahman" readonly onfocus="this.removeAttribute('readonly')"></div>
-      <div class="form-group"><label>Position <span style="font-size:10px;color:#aaa;font-weight:400">(optional)</span></label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-position" placeholder="e.g. Head of Supply Chain" readonly onfocus="this.removeAttribute('readonly')"></div>
-      <div class="form-group form-full"><label>Contact info <span style="font-size:10px;color:#aaa;font-weight:400">(email / phone)</span></label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-contact-info" placeholder="e.g. rahman@example.com, +880 ..." readonly onfocus="this.removeAttribute('readonly')"></div>
+      <div class="form-section tp-cust-only">Contact</div>
+      <div class="form-group tp-cust-only"><label>Contact person</label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-contact" placeholder="e.g. Mr. Rahman" readonly onfocus="this.removeAttribute('readonly')"></div>
+      <div class="form-group tp-cust-only"><label>Position <span style="font-size:10px;color:#aaa;font-weight:400">(optional)</span></label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-position" placeholder="e.g. Head of Supply Chain" readonly onfocus="this.removeAttribute('readonly')"></div>
+      <div class="form-group form-full tp-cust-only"><label>Contact info <span style="font-size:10px;color:#aaa;font-weight:400">(email / phone)</span></label><input autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" id="tp-contact-info" placeholder="e.g. rahman@example.com, +880 ..." readonly onfocus="this.removeAttribute('readonly')"></div>
       <div class="form-group form-full"><label>Notes</label><textarea id="tp-notes" placeholder="Background, requirements, competitors&hellip;"></textarea></div>
     </div>
     <div class="modal-actions">
