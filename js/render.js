@@ -132,7 +132,8 @@ function attClipsHtml(list){
     var useTag=dt&&dt!=="Other";
     var label=(useTag?dt:attShortName(a.name)).replace(/&/g,"&amp;").replace(/</g,"&lt;");
     var cls=useTag?" doc-"+dt.toLowerCase():"";
-    return "<a class='pdf-clip"+cls+"' href='"+a.url+"' target='_blank' rel='noopener' onclick='event.stopPropagation()' title=\""+full+"\">&#128206; "+label+"</a>";
+    /* plain click opens the in-app (zoomable) viewer; ctrl/cmd/shift-click still opens a new tab */
+    return "<a class='pdf-clip"+cls+"' href='"+a.url+"' target='_blank' rel='noopener' data-name=\""+full+"\" onclick='event.stopPropagation();if(event.ctrlKey||event.metaKey||event.shiftKey)return true;return trkViewFile(this)' title=\""+full+"\">&#128206; "+label+"</a>";
   }).join(" ");
 }
 /* Which project groups still have a combined "ATB + BTP" summary entry?

@@ -643,7 +643,8 @@ tr.exp-detail td{
   .topbar{padding:14px 16px 0}
   .content-wrap{padding:14px 16px 60px}
   .stat-grid{grid-template-columns:repeat(2,1fr)}
-  .topbar h1{font-size:20px}
+  .topbar h1{font-size:20px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar-actions{flex-shrink:0}
   .form-grid{grid-template-columns:1fr}
   .logo-img{height:28px}
 
@@ -668,6 +669,11 @@ tr.exp-detail td{
 
   /* Cards (Project Groups list) — allow wrapping instead of clipping */
   .card-header{flex-wrap:wrap;row-gap:6px}
+
+  /* By Customer filters: a long model name used to stretch its select
+     past the screen edge (whole page then scrolled sideways) — 2x2 grid */
+  .toolbar .filters{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .filters select{width:100%;min-width:0;text-overflow:ellipsis}
 }
 @media(min-width:901px){
   .menu-toggle{display:none}
@@ -1106,6 +1112,38 @@ tr.exp-detail td{
 /* Tracker viewer: frozen first column + expand toggle */
 .trk-view-modal.trk-view-full{width:98vw;max-width:98vw;height:94vh;max-height:94vh;display:flex;flex-direction:column}
 .trk-view-full .trk-view-body{max-height:none;flex:1}
+
+#trk-view-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Viewer: PDF pages (pdf.js canvases) + zoom controls */
+.trk-view-body.pdfv-body{height:72vh;background:var(--bg-stat);touch-action:pan-x pan-y;overscroll-behavior:contain}
+.trk-view-full .trk-view-body.pdfv-body{height:auto;min-height:0}
+.pdfv-pages{display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px;width:max-content;min-width:100%;box-sizing:border-box}
+.pdfv-page{display:block;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18);border-radius:2px}
+.pdfv-ctl{margin-left:0}
+.pdfv-ctl .pdfv-zoom{min-width:42px;text-align:center}
+.pdfv-ctl button.pdfv-fit{width:auto;padding:0 9px;font-size:11px;font-weight:600}
+
+/* Viewer on phones: take the whole screen, bigger zoom buttons */
+@media (max-width:700px){
+  #modal-trk-view{padding:0}
+  .trk-view-modal,.trk-view-modal.trk-view-full{
+    width:100vw;max-width:100vw;height:100vh;height:100dvh;max-height:none;
+    border-radius:0;border:none;padding:12px 10px 10px;
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  .trk-view-modal .trk-view-body{flex:1;min-height:0;max-height:none}
+  .trk-view-modal .trk-view-body.pdfv-body{height:auto}
+  .trk-view-frame{height:100%}
+  .trk-view-head{flex-wrap:wrap;row-gap:8px}
+  .trk-view-head #trk-view-title{flex:1 1 100%;font-size:14px}
+  #trk-view-expand{display:none}
+  .trk-view-head .att-add,.trk-view-head .btn-cancel{flex:1;text-align:center;padding:10px 12px}
+  .pdfv-ctl{flex:1;justify-content:center;gap:10px}
+  .pdfv-ctl button{width:40px;height:40px;font-size:18px}
+  .pdfv-ctl button.pdfv-fit{padding:0 14px;font-size:13px}
+  .pdfv-ctl .pdfv-zoom{font-size:13px}
+}
 
 /* Tracker viewer: freeze panes (columns AND rows) + controls */
 .trk-sheet-holder td.trk-fz-col{position:sticky;z-index:2;background:var(--bg-modal);box-shadow:1px 0 0 var(--border-strong)}

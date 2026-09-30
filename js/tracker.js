@@ -496,6 +496,7 @@ function trkToggleViewSize(){
   var mm=document.querySelector("#modal-trk-view .modal");
   var full=mm.classList.toggle("trk-view-full");
   document.getElementById("trk-view-expand").textContent=full?"Shrink":"Expand";
+  pdfvLayout();
 }
 function trkOpenViewer(url,name){
   var m=document.getElementById("modal-trk-view");
@@ -510,9 +511,15 @@ function trkOpenViewer(url,name){
   document.getElementById("trk-view-fzctl").style.display=/\.(xlsx|xlsm|xls|csv)$/i.test(String(name))?"flex":"none";
   var body=document.getElementById("trk-view-body");
   var n=String(name).toLowerCase();
+  /* older attachments can have a bare name — fall back to the URL's extension */
+  var isPdf=/\.pdf$/.test(n)||/\.pdf(\?|#|$)/i.test(String(url));
+  document.getElementById("trk-view-pdfctl").style.display=isPdf?"flex":"none";
+  body.classList.toggle("pdfv-body",isPdf);
+  pdfvReset();
   m.classList.add("open");
-  if(/\.pdf$/.test(n)){
-    body.innerHTML="<iframe class='trk-view-frame' src='"+trkEsc(url)+"' title='"+trkEsc(name)+"'></iframe>";
+  if(isPdf){
+    body.innerHTML="<div class='empty'>Loading PDF&hellip;</div>";
+    pdfvOpen(url,name);
   }else if(/\.(png|jpe?g|gif|webp)$/.test(n)){
     body.innerHTML="<img src='"+trkEsc(url)+"' alt='"+trkEsc(name)+"' style='max-width:100%;height:auto;display:block;margin:0 auto'>";
   }else if(/\.(xlsx|xlsm|xls|csv)$/.test(n)){
@@ -522,6 +529,160 @@ function trkOpenViewer(url,name){
     body.innerHTML="<div class='empty'>No inline preview for this file type. <a href='"+trkEsc(url)+"' target='_blank' rel='noopener'>Open / download it</a> instead.</div>";
   }
 }
+/* ===== PDF viewer =====
+   pdf.js draws each page onto a canvas instead of using an <iframe>:
+   phone browsers either won't show a PDF inside an iframe at all
+   (Android) or show it stuck at one size (iOS). Zoom is relative to
+   "fit width" (1 = page as wide as the viewer). Pinch, double-tap,
+   ctrl+wheel (trackpad pinch) and the − / + / Fit buttons all go
+   through pdfvSetZoom; one-finger panning stays native scrolling. */
+var PDFV={doc:null,sizes:[],zoom:1,base:1,token:0};
+var PDFV_MIN=0.5,PDFV_MAX=5;
+function pdfvReset(){
+  PDFV.token++;
+  if(PDFV.doc){try{PDFV.doc.destroy();}catch(e){}}
+  PDFV.doc=null;PDFV.sizes=[];PDFV.zoom=1;
+}
+async function pdfvOpen(url,name){
+  var body=document.getElementById("trk-view-body");
+  var tok=++PDFV.token;
+  try{
+    await loadPdfJs();
+    var doc=await window.pdfjsLib.getDocument({url:url}).promise;
+    var sizes=[];
+    for(var i=1;i<=doc.numPages;i++){
+      var vp=(await doc.getPage(i)).getViewport({scale:1});
+      sizes.push([vp.width,vp.height]);
+    }
+    if(tok!==PDFV.token){doc.destroy();return;}
+    PDFV.doc=doc;PDFV.sizes=sizes;
+    body.innerHTML="<div class='pdfv-pages'>"+sizes.map(function(s,k){
+      return "<canvas class='pdfv-page' data-page='"+(k+1)+"'></canvas>";
+    }).join("")+"</div>";
+    pdfvLayout();
+  }catch(err){
+    if(tok!==PDFV.token)return;
+    /* offline / pdf.js failed — the browser's own viewer beats nothing */
+    body.classList.remove("pdfv-body");
+    document.getElementById("trk-view-pdfctl").style.display="none";
+    body.innerHTML="<iframe class='trk-view-frame' src='"+trkEsc(url)+"' title='"+trkEsc(name)+"'></iframe>";
+  }
+}
+/* fit-width depends on the viewer's width (rotate, Expand) — recompute and redraw */
+function pdfvLayout(){
+  if(!PDFV.doc)return;
+  var avail=document.getElementById("trk-view-body").clientWidth-16;
+  if(avail<=0)return;
+  PDFV.base=avail/Math.max.apply(null,PDFV.sizes.map(function(s){return s[0];}));
+  pdfvRender();
+}
+/* canvases are resized synchronously (so callers can fix the scroll
+   position straight after); the drawing itself is async */
+function pdfvRender(){
+  var doc=PDFV.doc;if(!doc)return;
+  var tok=++PDFV.token;
+  document.getElementById("trk-view-zoom").textContent=Math.round(PDFV.zoom*100)+"%";
+  var scale=PDFV.base*PDFV.zoom;
+  var canvases=document.querySelectorAll("#trk-view-body .pdfv-page");
+  PDFV.sizes.forEach(function(s,i){
+    canvases[i].style.width=Math.floor(s[0]*scale)+"px";
+    canvases[i].style.height=Math.floor(s[1]*scale)+"px";
+  });
+  var dpr=window.devicePixelRatio||1;
+  (async function(){
+    for(var i=0;i<canvases.length;i++){
+      var page=await doc.getPage(i+1);
+      if(tok!==PDFV.token)return;
+      var vp=page.getViewport({scale:scale});
+      /* iOS refuses canvases over ~16M pixels — past that, draw at a
+         lower resolution and let CSS stretch it (soft only at extreme zoom) */
+      var px=Math.min(dpr,Math.sqrt(12e6/(vp.width*vp.height)));
+      var off=document.createElement("canvas");
+      off.width=Math.floor(vp.width*px);off.height=Math.floor(vp.height*px);
+      await page.render({canvasContext:off.getContext("2d"),viewport:vp,transform:[px,0,0,px,0,0]}).promise;
+      if(tok!==PDFV.token)return;
+      /* swap the finished bitmap in at once so pages never flash blank */
+      var c=canvases[i];
+      c.width=off.width;c.height=off.height;
+      c.getContext("2d").drawImage(off,0,0);
+    }
+  })().catch(function(){});
+}
+/* zoom keeping the point (fx,fy) — viewer coordinates — under the finger/cursor */
+function pdfvSetZoom(z,fx,fy){
+  if(!PDFV.doc)return;
+  z=Math.max(PDFV_MIN,Math.min(PDFV_MAX,z));
+  var body=document.getElementById("trk-view-body");
+  if(fx==null){fx=body.clientWidth/2;fy=body.clientHeight/2;}
+  var r=z/PDFV.zoom;
+  var cx=body.scrollLeft+fx,cy=body.scrollTop+fy;
+  PDFV.zoom=z;
+  pdfvRender();
+  body.scrollLeft=cx*r-fx;
+  body.scrollTop=cy*r-fy;
+}
+function pdfvStep(dir){pdfvSetZoom(PDFV.zoom*(dir>0?1.25:0.8));}
+function pdfvFit(){pdfvSetZoom(1,0,0);}
+(function(){
+  var body=document.getElementById("trk-view-body");
+  if(!body)return;
+  var pinch=null,lastTap=0,tapX=0,tapY=0;
+  function mid(e){
+    var r=body.getBoundingClientRect(),a=e.touches[0],b=e.touches[1];
+    return{d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),
+      x:(a.clientX+b.clientX)/2-r.left,y:(a.clientY+b.clientY)/2-r.top};
+  }
+  body.addEventListener("touchstart",function(e){
+    if(!PDFV.doc||e.touches.length!==2)return;
+    var p=mid(e),wrap=body.querySelector(".pdfv-pages");
+    pinch={d:p.d,x:p.x,y:p.y,r:1,wrap:wrap};
+    /* while pinching, just CSS-scale the pages about the pinch centre;
+       the sharp redraw happens once the fingers lift */
+    if(wrap)wrap.style.transformOrigin=(body.scrollLeft+p.x)+"px "+(body.scrollTop+p.y)+"px";
+  },{passive:true});
+  body.addEventListener("touchmove",function(e){
+    if(!pinch||e.touches.length!==2)return;
+    e.preventDefault();
+    var z=Math.max(PDFV_MIN,Math.min(PDFV_MAX,PDFV.zoom*mid(e).d/pinch.d));
+    pinch.r=z/PDFV.zoom;
+    if(pinch.wrap)pinch.wrap.style.transform="scale("+pinch.r+")";
+  },{passive:false});
+  body.addEventListener("touchend",function(e){
+    if(pinch){
+      if(e.touches.length<2){
+        var p=pinch;pinch=null;
+        if(p.wrap)p.wrap.style.transform="";
+        if(Math.abs(p.r-1)>0.01)pdfvSetZoom(PDFV.zoom*p.r,p.x,p.y);
+        lastTap=0;
+      }
+      return;
+    }
+    /* double-tap toggles fit-width <-> 2.5x at the tapped spot */
+    if(!PDFV.doc||e.changedTouches.length!==1||e.touches.length)return;
+    var t=e.changedTouches[0],r=body.getBoundingClientRect();
+    var x=t.clientX-r.left,y=t.clientY-r.top,now=Date.now();
+    if(now-lastTap<320&&Math.abs(x-tapX)<30&&Math.abs(y-tapY)<30){
+      e.preventDefault();lastTap=0;
+      pdfvSetZoom(PDFV.zoom>1.2?1:2.5,x,y);
+    }else{lastTap=now;tapX=x;tapY=y;}
+  });
+  /* iOS Safari: stop its own page-zoom gesture from kicking in over the viewer */
+  body.addEventListener("gesturestart",function(e){if(PDFV.doc)e.preventDefault();});
+  body.addEventListener("dblclick",function(e){
+    if(!PDFV.doc)return;
+    var r=body.getBoundingClientRect();
+    pdfvSetZoom(PDFV.zoom>1.2?1:2.5,e.clientX-r.left,e.clientY-r.top);
+  });
+  /* trackpad pinch arrives as ctrl+wheel */
+  body.addEventListener("wheel",function(e){
+    if(!PDFV.doc||!e.ctrlKey)return;
+    e.preventDefault();
+    var r=body.getBoundingClientRect();
+    pdfvSetZoom(PDFV.zoom*Math.exp(-e.deltaY*0.01),e.clientX-r.left,e.clientY-r.top);
+  },{passive:false});
+  var rt=null;
+  window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(pdfvLayout,200);});
+})();
 function trkLoadScript(src){
   return new Promise(function(res,rej){
     var s=document.createElement("script");
