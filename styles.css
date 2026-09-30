@@ -679,6 +679,57 @@ tr.exp-detail td{
   .menu-toggle{display:none}
 }
 
+/* ==========  PHONES  ========== */
+@media(max-width:700px){
+  /* Tables marked .mcards become one card per row: the first (title)
+     cell spans the card, the rest sit in two columns under their
+     column name (data-label), buttons go bottom-right */
+  table.mcards,table.mcards tbody{display:block;width:100%}
+  table.mcards thead{display:none}
+  table.mcards tr{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding:12px 14px;border-bottom:1px solid var(--divider)}
+  table.mcards tr:last-child{border-bottom:none}
+  table.mcards td{display:block;padding:0;border:none;text-align:left !important;white-space:normal !important;min-width:0;overflow-wrap:anywhere}
+  table.mcards td[data-label]::before{
+    content:attr(data-label);display:block;margin-bottom:3px;
+    font-family:'Montserrat',sans-serif;font-size:10px;font-weight:600;font-style:normal;
+    text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);
+  }
+  table.mcards td.mc-title{grid-column:1/-1;order:-1;font-size:14.5px}
+  .cmp-wrap table.mcards td.mc-title{display:flex;align-items:center;gap:8px}
+  table.mcards td.mc-full,table.mcards td[colspan]{grid-column:1/-1}
+  table.mcards td.mc-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}
+  table.mcards td.mc-actions button{margin-right:0 !important}
+  table.mcards tr.mc-group{display:block;padding:0}
+  table.mcards tr.clickable:hover td{background:none}
+  table.mcards tr.clickable:has(+ tr.exp-detail.open){border-bottom:none;padding-bottom:6px}
+  table.mcards tr.exp-detail{display:none;padding:0 14px 12px}
+  table.mcards tr.exp-detail.open{display:block}
+  table.mcards tr.exp-detail td{padding:8px 10px;border-radius:6px;background:var(--bg-soft)}
+  #buy-search,#sp-search{flex:1 1 100%;width:100% !important}
+  .cmp-head select{flex:1;min-width:0}
+
+  /* Forms open full-screen with Cancel / Save pinned to the bottom,
+     so the buttons never scroll out of reach on a long form */
+  .modal-overlay{padding:0}
+  .modal-overlay .modal:not(.trk-view-modal){
+    width:100%;max-width:100%;height:100vh;height:100dvh;max-height:none;
+    border-radius:0;border:none;padding:16px 16px 0;
+    display:flex;flex-direction:column;
+  }
+  .modal>*{flex-shrink:0}
+  .modal input,.modal select,.modal textarea{min-width:0;max-width:100%;box-sizing:border-box}
+  .modal .form-grid{grid-template-columns:minmax(0,1fr)}
+  .modal .trk-suggest{min-width:0}
+  .modal>:has(+ .modal-actions){margin-bottom:20px}
+  .modal-actions{
+    position:sticky;bottom:0;z-index:5;margin:auto -16px 0;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:var(--bg-modal);border-top:1px solid var(--border);
+    flex-wrap:wrap;
+  }
+  .modal-actions>*{flex:1 1 auto;margin-right:0 !important;white-space:nowrap}
+}
+
 /* Custom mode-only adjustments */
 .theme-icon-sun,.theme-icon-moon{display:none}
 :root[data-theme="light"] .theme-icon-moon{display:block}

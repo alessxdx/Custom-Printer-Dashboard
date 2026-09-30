@@ -723,14 +723,14 @@ function renderModel(){
     const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
     const f=flagImg(tx.country,18);
     rows+=`<tr class="clickable" onclick="toggleRow(${i})">
-      <td style="color:var(--text-muted);white-space:nowrap;font-size:12px">${dDisplay(tx)||"\u2014"}</td>
-      <td style="font-weight:600;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Montserrat',sans-serif">${f} ${tx.customer}</td>
-      <td style="color:var(--text-muted);font-size:12px">${tx.project||"\u2014"}</td>
-      <td style="color:var(--text-muted)">${tx.country}</td>
-      <td>${bStatus(tx.status)}</td>
-      <td>${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
-      <td style="text-align:right;font-weight:600">${tx.price.toLocaleString()} ${tx.currency}</td>
-      <td style="text-align:right;color:#aaa;font-size:12px">${margin?`$${margin} (${mPct}%)`:"—"}</td>
+      <td data-label="Date" style="color:var(--text-muted);white-space:nowrap;font-size:12px">${dDisplay(tx)||"\u2014"}</td>
+      <td class="mc-title" style="font-weight:600;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Montserrat',sans-serif">${f} ${tx.customer}</td>
+      <td data-label="Project" style="color:var(--text-muted);font-size:12px">${tx.project||"\u2014"}</td>
+      <td data-label="Country" style="color:var(--text-muted)">${tx.country}</td>
+      <td data-label="Status">${bStatus(tx.status)}</td>
+      <td data-label="Terms">${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
+      <td data-label="Price" style="text-align:right;font-weight:600">${tx.price.toLocaleString()} ${tx.currency}</td>
+      <td data-label="Margin" style="text-align:right;color:#aaa;font-size:12px">${margin?`$${margin} (${mPct}%)`:"—"}</td>
     </tr><tr class="exp-detail ${expandedRows[i]?"open":""}" id="erow-${i}">
       <td colspan="8"><strong>Project:</strong> ${tx.project} | <strong>Qty:</strong> ${tx.qty} | <strong>PN:</strong> ${tx.pn||"\u2014"}${tx.notes.length?" | "+tx.notes.join(" \xb7 "):""}</td>
     </tr>`;
@@ -739,7 +739,7 @@ function renderModel(){
     <span class="cmp-lbl">Compare model</span>
     <select id="model-sel" onchange="renderModel()">${opts}</select>
     <span class="cmp-hint">${txs.length} records \u2014 click row for detail</span>
-  </div><div style="overflow-x:auto"><table>
+  </div><div style="overflow-x:auto"><table class="mcards">
     <thead><tr><th>Date</th><th>Customer</th><th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th style="text-align:right">Price</th><th style="text-align:right">Margin</th></tr></thead>
     <tbody>${rows||'<tr><td colspan="7" class="empty">No data.</td></tr>'}</tbody>
   </table></div></div>`;
@@ -766,9 +766,9 @@ function renderBuying(){
   function makeRow(b){
     var grpTag=b.group?"<div style='font-size:10px;color:var(--accent-text);margin-top:2px'>"+b.group+"</div>":"";
     var spCell=b.specialPrice?
-      "<td style='text-align:right'><div style='font-weight:600;color:var(--badge-special-fg)'>$"+b.specialPrice.toFixed(2)+" "+b.currency+"</div><div style='font-size:10px;color:var(--text-faint);margin-top:1px'>"+(b.specialCustomer||"Special")+"</div></td>":
-      "<td style='text-align:right;color:var(--text-faint);font-size:12px'>—</td>";
-    return "<tr><td style='font-weight:500'>"+b.model+grpTag+"</td><td style='font-size:11px;color:var(--text-muted);font-family:monospace'>"+(b.pn||"—")+"</td><td style='text-align:right;font-weight:600;color:var(--accent-text)'>$"+b.price.toFixed(2)+" "+b.currency+"</td>"+spCell+"<td style='text-align:right;white-space:nowrap'><button class='edit-btn' onclick='editBuying("+b._i+")' style='margin-right:8px'>Edit</button><button class='delete-btn' onclick='sbDeleteBuying("+b._i+")'>Remove</button></td></tr>";
+      "<td data-label='Special price' style='text-align:right'><div style='font-weight:600;color:var(--badge-special-fg)'>$"+b.specialPrice.toFixed(2)+" "+b.currency+"</div><div style='font-size:10px;color:var(--text-faint);margin-top:1px'>"+(b.specialCustomer||"Special")+"</div></td>":
+      "<td data-label='Special price' style='text-align:right;color:var(--text-faint);font-size:12px'>—</td>";
+    return "<tr><td class='mc-title' style='font-weight:500'>"+b.model+grpTag+"</td><td data-label='Part number' class='mc-full' style='font-size:11px;color:var(--text-muted);font-family:monospace'>"+(b.pn||"—")+"</td><td data-label='Buying price' style='text-align:right;font-weight:600;color:var(--accent-text)'>$"+b.price.toFixed(2)+" "+b.currency+"</td>"+spCell+"<td class='mc-actions' style='text-align:right;white-space:nowrap'><button class='edit-btn' onclick='editBuying("+b._i+")' style='margin-right:8px'>Edit</button><button class='delete-btn' onclick='sbDeleteBuying("+b._i+")'>Remove</button></td></tr>";
   }
 
   var rows="";
@@ -776,7 +776,7 @@ function renderBuying(){
   Object.keys(groups).sort().forEach(function(grp){
     var isExp=!!expandedGroups[grp];
     var grpId=grp.replace(/[^a-zA-Z0-9]/g,"-");
-    rows+="<tr style='background:var(--accent-soft);cursor:pointer' onclick='toggleBuyGroup(event,this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
+    rows+="<tr class='mc-group' style='background:var(--accent-soft);cursor:pointer' onclick='toggleBuyGroup(event,this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
       "<td colspan='5' style='font-size:11px;font-weight:600;color:var(--accent-text);padding:8px 12px'>"+
         "<span id='buy-grp-icon-"+grpId+"'>"+(isExp?"▲":"▼")+"</span> "+grp+" ("+groups[grp].length+" items)"+
       "</td></tr>";
@@ -801,11 +801,12 @@ function renderBuying(){
       "</select>"+
       "<span id='buy-count' style='font-size:11px;color:var(--text-muted)'>"+sorted.length+" / "+BUYING.length+" items</span>"+
     "</div>"+
-    "<div style='overflow-x:auto'><table><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th style='text-align:right'>Special price</th><th></th></tr></thead>"+
+    "<div style='overflow-x:auto'><table class='mcards'><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th style='text-align:right'>Special price</th><th></th></tr></thead>"+
     "<tbody id='buy-tbody'>"+(rows||"<tr><td colspan='5' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+"</tbody></table></div>"+
     "</div>";
   var inp=document.getElementById("buy-search");
-  if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
+  /* not on touch screens: focusing would pop the keyboard up on every visit */
+  if(inp&&!matchMedia("(pointer:coarse)").matches){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
 }
 
 function toggleBuyGroup(evtOrEl,grpArg){
@@ -864,13 +865,13 @@ function renderSpares(){
     var pn=s.pn||"—";
     var terms=s.terms||"—";
     return "<tr>"+
-      "<td style='font-weight:500'>"+s.name+"</td>"+
-      "<td style='font-size:11px;color:var(--text-muted);font-family:monospace'>"+pn+"</td>"+
-      "<td style='color:var(--text-muted);font-size:12px'>"+s.customer+"</td>"+
-      "<td style='text-align:right;font-weight:600;color:var(--accent-text)'>"+s.price.toLocaleString()+" "+s.currency+"</td>"+
-      "<td style='font-size:12px;color:var(--text-muted)'>"+(s.terms||"—")+"</td>"+
-      "<td style='font-size:11px;color:var(--text-faint);font-style:italic'>"+s.note+"</td>"+
-      "<td style='text-align:right;white-space:nowrap'>"+
+      "<td class='mc-title' style='font-weight:500'>"+s.name+"</td>"+
+      "<td data-label='Part number' class='mc-full' style='font-size:11px;color:var(--text-muted);font-family:monospace'>"+pn+"</td>"+
+      "<td data-label='Customer' style='color:var(--text-muted);font-size:12px'>"+s.customer+"</td>"+
+      "<td data-label='Unit price' style='text-align:right;font-weight:600;color:var(--accent-text)'>"+s.price.toLocaleString()+" "+s.currency+"</td>"+
+      "<td data-label='Terms' style='font-size:12px;color:var(--text-muted)'>"+(s.terms||"—")+"</td>"+
+      "<td data-label='Note' class='mc-full' style='font-size:11px;color:var(--text-faint);font-style:italic'>"+(s.note||"—")+"</td>"+
+      "<td class='mc-actions' style='text-align:right;white-space:nowrap'>"+
         "<button class='edit-btn' onclick='editSpare("+s._i+")' style='margin-right:8px'>Edit</button>"+
         "<button class='delete-btn' onclick='deleteSpare("+s._i+")'>Remove</button>"+
       "</td>"+
@@ -898,7 +899,7 @@ function renderSpares(){
       "</select>"+
       "<span id='sp-count' style='font-size:11px;color:var(--text-muted)'>"+filtered.length+" / "+SPARES.length+" items</span>"+
     "</div>"+
-    "<div style='overflow-x:auto'><table><thead><tr>"+
+    "<div style='overflow-x:auto'><table class='mcards'><thead><tr>"+
       "<th>Part name</th><th>Part number</th><th>Customer ref</th>"+
       "<th style='text-align:right'>Unit price</th><th>Terms</th><th>Note</th><th></th>"+
     "</tr></thead>"+
@@ -907,7 +908,8 @@ function renderSpares(){
     "</tbody></table></div>"+
     "</div>";
   var inp=document.getElementById("sp-search");
-  if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
+  /* not on touch screens: focusing would pop the keyboard up on every visit */
+  if(inp&&!matchMedia("(pointer:coarse)").matches){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
 }
 
 function editSpare(i){
