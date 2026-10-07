@@ -27,8 +27,10 @@ var TRK_CLOSED_STATUSES=["Won","Lost"];
 var TRK_OFFICES=["China","Indonesia","Singapore"];
 
 /* ===== converters ===== */
-function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",payment:r.payment||"",solution:r.solution||"",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",expectedPeriod:r.expected_period||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",createdAt:r.created_at||""};}
-function trkPToDb(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,payment:p.payment||null,solution:p.solution||null,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,expected_period:p.expectedPeriod||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
+function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",payment:r.payment||"",solution:r.solution||"",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",expectedPeriod:r.expected_period||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",nextFollowup:r.next_followup||"",createdAt:r.created_at||""};}
+var TRK_HAS_FU=true;
+function trkPToDb(p){var r=trkPToDbBase(p);if(TRK_HAS_FU)r.next_followup=p.nextFollowup||null;return r;}
+function trkPToDbBase(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,payment:p.payment||null,solution:p.solution||null,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,expected_period:p.expectedPeriod||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
 function dbToTrkE(r){return{_id:r.id,projectId:r.project_id,date:r.entry_date||"",type:r.entry_type||"Note",title:r.title||"",details:r.details||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
 function trkEToDb(e){return{project_id:e.projectId,entry_date:e.date||null,entry_type:e.type,title:e.title||null,details:e.details||null,attachments:e.attachments||[]};}
 
@@ -127,22 +129,50 @@ function trkLastActivityMap(){
   return m;
 }
 /* ===== follow-up reminder =====
-   A project still waiting on us (Enquiry, Quoted, Others, or Won but
-   not fully paid) goes "quiet" once its newest entry is 14+ days old.
-   Returns the days since that entry, or 0 when it isn't due. */
+   Only for projects still waiting on us (Enquiry, Quoted, Others, or Won
+   but not fully paid):
+   - a "next follow-up" date, when set, decides: due once that day
+     arrives, quietly scheduled before. Any entry dated on/after it
+     counts as the follow-up done, so it then stops applying.
+   - otherwise the project goes "quiet" once its newest entry is 14+
+     days old.
+   Returns null when nothing applies, else {due,kind,days,date}. */
 var TRK_STALE_DAYS=14;
-function trkStaleDays(p,act){
-  var open=TRK_ACTIVE_STATUSES.indexOf(p.status)>-1||p.status==="Other"||(p.status==="Won"&&p.payment!=="Fully paid");
-  if(!open)return 0;
+function trkDaysBetween(a,b){return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/864e5);}
+function trkToday(){var d=new Date();return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}
+function trkLastDate(p,act){
   var a=(act||trkLastActivityMap())[p._id];
-  var last=a?a.d:(p.createdAt||"").slice(0,10);
-  if(!last)return 0;
-  var days=Math.floor((new Date(new Date().toDateString())-new Date(last+"T00:00:00"))/864e5);
-  return days>=TRK_STALE_DAYS?days:0;
+  return a?a.d:(p.createdAt||"").slice(0,10);
 }
-function trkStaleBadge(days){
-  if(!days)return"";
-  return "<span class='trk-badge trk-stale"+(days>=30?" trk-stale-hot":"")+"' title='No timeline entry for "+days+" days'>&#9200; Quiet "+days+"d</span>";
+/* the follow-up date still in force (blank once an entry covers it) */
+function trkActiveFollowup(p,act){
+  var f=p.nextFollowup;
+  if(!f)return"";
+  var last=trkLastDate(p,act);
+  return last&&last>=f?"":f;
+}
+function trkFollow(p,act){
+  var open=TRK_ACTIVE_STATUSES.indexOf(p.status)>-1||p.status==="Other"||(p.status==="Won"&&p.payment!=="Fully paid");
+  if(!open)return null;
+  var today=trkToday(),f=trkActiveFollowup(p,act);
+  if(f){
+    var late=trkDaysBetween(f,today);
+    return {due:late>=0,kind:"followup",days:late,date:f};
+  }
+  var last=trkLastDate(p,act);
+  if(!last)return null;
+  var days=trkDaysBetween(last,today);
+  return days>=TRK_STALE_DAYS?{due:true,kind:"quiet",days:days,date:last}:null;
+}
+function trkFollowDue(p,act){var f=trkFollow(p,act);return f&&f.due?f:null;}
+function trkFollowBadge(f){
+  if(!f)return"";
+  if(f.kind==="quiet")
+    return "<span class='trk-badge trk-stale"+(f.days>=30?" trk-stale-hot":"")+"' title='No timeline entry for "+f.days+" days'>&#9200; Quiet "+f.days+"d</span>";
+  var nice=trkFmtDate(f.date).replace(/ \d{4}$/,"");
+  if(!f.due)return "<span class='trk-badge trk-fu' title='Next follow-up "+trkFmtDate(f.date)+"'>&#128197; Follow up "+nice+"</span>";
+  if(f.days===0)return "<span class='trk-badge trk-stale' title='Follow-up planned for today'>&#9200; Follow up today</span>";
+  return "<span class='trk-badge trk-stale trk-stale-hot' title='Follow-up was planned for "+trkFmtDate(f.date)+"'>&#9200; Follow-up overdue "+f.days+"d</span>";
 }
 function trkEntriesFor(pid){
   return TRK_ENTRIES.filter(function(e){return e.projectId===pid;})
@@ -230,6 +260,10 @@ async function trkLoad(force){
   TRK_MISSING=false;
   TRK_PROJECTS=res[0].map(dbToTrkP);
   TRK_ENTRIES=res[1].map(dbToTrkE);
+  /* next_followup is a later column; until it exists the follow-up
+     fields stay hidden and saves leave it out */
+  TRK_HAS_FU=!res[0].length||("next_followup" in res[0][0]);
+  document.querySelectorAll(".trk-fu-field").forEach(function(el){el.style.display=TRK_HAS_FU?"":"none";});
   TRK_LOADED=true;
   return true;
 }
@@ -386,7 +420,8 @@ function trkSearchFields(p){
     trkSearchField("Notes",p.notes,false),
     trkSearchField("Value",p.estValue!==null?p.estValue.toLocaleString()+" "+p.currency:"",true,p.estValue!==null?String(p.estValue):""),
     trkSearchField("Expected",trkPeriodLabel(p),true,trkDateWords(p.expectedDate)+" "+(p.expectedPeriod||"")),
-    trkSearchField("Started",trkFmtDate(first),true,trkDateWords(first))
+    trkSearchField("Started",trkFmtDate(first),true,trkDateWords(first)),
+    trkSearchField("Follow-up",p.nextFollowup?"follow up "+trkFmtDate(p.nextFollowup):"",true,trkDateWords(p.nextFollowup))
   ];
   trkEntriesFor(p._id).forEach(function(e){
     var att=(e.attachments||[]).map(function(a){return a.name;}).join(", ");
@@ -498,7 +533,7 @@ function trkRenderList(bodyOnly){
     return {label:(s==="Other"?"Others":s)+(n?" ("+n+")":""),value:s};
   }).filter(Boolean));
   var act=trkLastActivityMap();
-  var staleN=TRK_PROJECTS.filter(function(p){return trkStaleDays(p,act);}).length;
+  var staleN=TRK_PROJECTS.filter(function(p){return trkFollowDue(p,act);}).length;
   if(staleN||TRK_FSTATUS==="stale")chips.splice(1,0,{label:"⏰ Needs follow-up ("+staleN+")",value:"stale",cls:" trk-chip-stale"});
   chips=chips.map(function(c){
     return "<button class='trk-chip"+(c.cls||"")+(TRK_FSTATUS===c.value?" active":"")+"' onclick='trkSetStatusFilter(\""+c.value+"\")'>"+trkEsc(c.label)+"</button>";
@@ -528,7 +563,7 @@ function trkRenderList(bodyOnly){
   var list=TRK_PROJECTS.filter(function(p){
     /* Lost projects stay out of the default view — they only appear
        when the Lost chip itself is selected (or a search finds them). */
-    if(!(TRK_FSTATUS==="stale"?trkStaleDays(p,act):TRK_FSTATUS?p.status===TRK_FSTATUS:(q||p.status!=="Lost"))||(TRK_FOFFICE&&p.office!==TRK_FOFFICE)||(TRK_FSOL&&p.solution!==TRK_FSOL))return false;
+    if(!(TRK_FSTATUS==="stale"?trkFollowDue(p,act):TRK_FSTATUS?p.status===TRK_FSTATUS:(q||p.status!=="Lost"))||(TRK_FOFFICE&&p.office!==TRK_FOFFICE)||(TRK_FSOL&&p.solution!==TRK_FSOL))return false;
     if(!q)return true;
     var h=trkSearchProject(p,q);
     if(h)hits[p._id]=h;
@@ -536,7 +571,7 @@ function trkRenderList(bodyOnly){
   }).sort(function(a,b){
     if(q&&hits[a._id].score!==hits[b._id].score)return hits[b._id].score-hits[a._id].score;
     /* the follow-up list puts the longest-forgotten first */
-    if(TRK_FSTATUS==="stale")return trkStaleDays(b,act)-trkStaleDays(a,act);
+    if(TRK_FSTATUS==="stale")return trkFollowDue(b,act).days-trkFollowDue(a,act).days;
     var ca=TRK_CLOSED_STATUSES.indexOf(a.status)>-1?1:0;
     var cb=TRK_CLOSED_STATUSES.indexOf(b.status)>-1?1:0;
     if(ca!==cb)return ca-cb;
@@ -569,7 +604,7 @@ function trkRenderList(bodyOnly){
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
       (hit&&hit.why?"<div class='trk-card-why'>&#128269; "+hit.why+"</div>":"")+
       "<div class='trk-card-meta'>"+
-        trkStaleBadge(trkStaleDays(p,act))+
+        trkFollowBadge(trkFollow(p,act))+
         trkSolutionBadge(p)+
         (p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
         (p.estValue!==null?"<span>"+trkValueHtml(p)+"</span>":"")+
@@ -617,7 +652,7 @@ function trkRenderList(bodyOnly){
   }
 
   var body=(q?"<div class='trk-search-count'>"+list.length+" project"+(list.length===1?"":"s")+" match <strong>"+trkEsc(TRK_Q.trim())+"</strong></div>":"")+
-    (cards||"<div class='empty'>"+(q?"Nothing matches that search. Try part of a name, a model, a month (e.g. <em>oct 2026</em>) or initials (e.g. <em>PAL</em>).":TRK_FSTATUS==="stale"?"All caught up &mdash; every open project has an update from the last "+TRK_STALE_DAYS+" days.":TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
+    (cards||"<div class='empty'>"+(q?"Nothing matches that search. Try part of a name, a model, a month (e.g. <em>oct 2026</em>) or initials (e.g. <em>PAL</em>).":TRK_FSTATUS==="stale"?"All caught up &mdash; no follow-ups due and every open project has an update from the last "+TRK_STALE_DAYS+" days.":TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
   /* Typing only swaps the list body, so the search box keeps focus. */
   if(bodyOnly&&document.getElementById("trk-list-body")){
     document.getElementById("trk-list-body").innerHTML=body;
@@ -658,6 +693,7 @@ function trkRenderDetail(){
         infoRow("Products of interest",trkProductChips(p))+
         infoRow("Estimated value",p.estValue!==null?trkValueHtml(p):"")+
         infoRow("Expected close",trkPeriodLabel(p))+
+        infoRow("Next follow-up",trkActiveFollowup(p)?trkFollowBadge(trkFollow(p))||trkFmtDate(p.nextFollowup):"")+
         infoRow("Contact",trkEsc(p.contactName)+
           (p.contactPosition?" <span class='trk-contact-pos'>&middot; "+trkEsc(p.contactPosition)+"</span>":"")+
           (p.contactInfo?" <span class='trk-value-usd'>"+trkEsc(p.contactInfo)+"</span>":""))+
@@ -1297,6 +1333,7 @@ function trkOpenProjectModal(){
   trkSyncPaymentVis("Enquiry");
   document.getElementById("btn-lost-trk-project").style.display="none";
   document.getElementById("tp-currency").value="USD";
+  trkFollowupMin(document.getElementById("tp-followup"));
   m.classList.add("open");
 }
 /* the Payment field only applies to Won projects */
@@ -1379,6 +1416,8 @@ function trkEditProject(){
   document.getElementById("tp-position").value=p.contactPosition;
   document.getElementById("tp-contact-info").value=p.contactInfo;
   document.getElementById("tp-notes").value=p.notes;
+  document.getElementById("tp-followup").value=trkActiveFollowup(p);
+  trkFollowupMin(document.getElementById("tp-followup"));
   m.classList.add("open");
 }
 async function trkSaveProject(){
@@ -1421,7 +1460,8 @@ async function trkSaveProject(){
     contactName:other?"":document.getElementById("tp-contact").value.trim(),
     contactPosition:other?"":document.getElementById("tp-position").value.trim(),
     contactInfo:other?"":document.getElementById("tp-contact-info").value.trim(),
-    notes:document.getElementById("tp-notes").value.trim()
+    notes:document.getElementById("tp-notes").value.trim(),
+    nextFollowup:document.getElementById("tp-followup").value||""
   };
   /* keep expected_date at the period's last day for overdue checks */
   p.expectedDate=trkPeriodEnd(p.expectedPeriod);
@@ -1535,10 +1575,28 @@ function trkOpenEntryModal(){
   document.getElementById("te-details").value="";
   document.getElementById("te-payment").value="Partially paid";
   trkSyncEntryPaymentVis();
+  trkPrefillFollowup();
   var fi=document.getElementById("te-files");if(fi)fi.value="";
   TRK_ATT=[];
   trkRenderAttList();
   m.classList.add("open");
+}
+/* Logging an entry is when you know when to chase next, so the entry
+   form carries the project's next follow-up date (shared, not per entry). */
+function trkPrefillFollowup(){
+  var p=TRK_PROJECTS.find(function(x){return x._id===TRK_SEL;});
+  var el=document.getElementById("te-followup");
+  el.value=p?trkActiveFollowup(p):"";
+  trkFollowupMin(el);
+}
+/* An entry on/after the date counts as the follow-up done, so the picker
+   starts tomorrow — a date already covered would clear itself at once. */
+function trkFollowupMin(el){var d=new Date();d.setDate(d.getDate()+1);el.min=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}
+function trkFollowupIn(id,days){
+  var el=document.getElementById(id);
+  if(days===null){el.value="";return;}
+  var d=new Date();d.setDate(d.getDate()+days);
+  el.value=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
 }
 /* the payment-level select only applies to Payment received entries */
 function trkSyncEntryPaymentVis(){
@@ -1556,6 +1614,7 @@ function trkEditEntry(ev,id){
   document.getElementById("te-date").value=e.date?String(e.date).slice(0,10):"";
   document.getElementById("te-type").value=e.type;
   trkSyncEntryPaymentVis();
+  trkPrefillFollowup();
   document.getElementById("te-title").value=e.title;
   document.getElementById("te-details").value=e.details;
   var fi=document.getElementById("te-files");if(fi)fi.value="";
@@ -1603,6 +1662,16 @@ async function trkSaveEntry(){
       TRK_ENTRIES.push(entry);
     }
   }catch(err){hideLoad();alert("Save failed: "+err.message);return;}
+  /* The follow-up date lives on the project; save it when it changed. */
+  var fuProj=TRK_PROJECTS.find(function(x){return x._id===TRK_SEL;});
+  var fu=document.getElementById("te-followup").value||"";
+  if(TRK_HAS_FU&&fuProj&&fu!==trkActiveFollowup(fuProj)){
+    try{
+      var rf=await fetch(SB_URL+"/rest/v1/tracker_projects?id=eq."+fuProj._id,{method:"PATCH",headers:sbH(),body:JSON.stringify({next_followup:fu||null})});
+      if(!rf.ok)throw new Error("HTTP "+rf.status);
+      fuProj.nextFollowup=fu;
+    }catch(err){console.error("Follow-up update failed:",err);alert("The entry was saved, but the follow-up date wasn't: "+err.message);}
+  }
   /* Status re-derives in renderTracker below; payment is event-driven
      and only a Payment received entry moves it. */
   if(entry.type==="Payment received"){

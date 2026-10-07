@@ -86,3 +86,6 @@ alter table purchase_orders enable row level security;
 alter table po_lines enable row level security;
 create policy "purchase_orders_all" on purchase_orders for all using (true) with check (true);
 create policy "po_lines_all" on po_lines for all using (true) with check (true);
+
+-- 2026-10-07: optional next follow-up date per tracker project
+alter table tracker_projects add column if not exists next_followup date;

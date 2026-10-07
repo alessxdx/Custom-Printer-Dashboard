@@ -1365,3 +1365,11 @@ tr.exp-detail td{
 .trk-badge.trk-stale{background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:600}
 .trk-badge.trk-stale.trk-stale-hot{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
 .trk-chip.trk-chip-stale:not(.active){color:#92400e;border-color:#fcd34d;background:#fffbeb}
+.trk-badge.trk-fu{background:var(--bg-soft);color:var(--text-muted);border:1px solid var(--border);font-weight:500}
+.trk-fu-quick{display:inline-flex;gap:4px}
+.trk-fu-quick button{
+  font-family:'Montserrat',sans-serif;font-size:11px;font-weight:500;
+  padding:5px 8px;border:1px solid var(--border);border-radius:6px;
+  background:var(--bg-soft);color:var(--text-muted);cursor:pointer;
+}
+.trk-fu-quick button:hover{background:var(--bg-hover);color:var(--text-strong)}
