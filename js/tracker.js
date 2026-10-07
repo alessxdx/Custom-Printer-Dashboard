@@ -12,6 +12,7 @@ var TRK_PROJECTS=[],TRK_ENTRIES=[];
 var TRK_LOADED=false,TRK_MISSING=false;
 var TRK_SEL=null;            /* project id shown in detail view */
 var TRK_FSTATUS="",TRK_FOFFICE="",TRK_FSOL="";
+var TRK_Q="";                 /* list search box text */
 var TRK_ATT=[];              /* entry-modal attachment staging */
 
 /* Pipeline: Enquiry → Quoted → Won / Lost. (Negotiation and On hold
@@ -313,7 +314,166 @@ function trkSetStatusFilter(s){TRK_FSTATUS=s;renderTracker();}
 function trkSetOfficeFilter(s){TRK_FOFFICE=s;renderTracker();}
 function trkSetSolutionFilter(s){TRK_FSOL=s;renderTracker();}
 
-function trkRenderList(){
+/* ===== smart search =====
+   Nothing is hard-coded: every project is indexed from its own fields
+   and timeline entries, and each query word is matched loosely —
+     exact / start of a word   "phili"  → Philippine Airlines
+     initials                  "PAL"    → Philippine AirLines (letters may
+                                          run on inside a word, fzf-style)
+     inside a word / squashed  "180", "tk 180" → TK180
+     small typos               "phillipines" → Philippines
+     dates                     "oct", "october 2026", "2026-10", "10/2026", "Q4"
+   Every query word must match somewhere; the best matches rank first. */
+var TRK_FULL_MONTHS=["january","february","march","april","may","june","july","august","september","october","november","december"];
+function trkNorm(s){
+  return String(s===null||s===undefined?"":s).normalize("NFD").replace(/[̀-ͯ]/g,"")
+    .toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+}
+function trkSearchQuery(raw){
+  var n=trkNorm(raw);
+  if(!n)return null;
+  return {tokens:n.split(" "),compact:n.replace(/ /g,"")};
+}
+/* Every way someone might type a date: 7 Oct 2026, October 2026,
+   2026-10-07, 2026-10, 07/10/2026, 10/2026, Q4 2026. */
+function trkDateWords(d){
+  var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||"");
+  if(!m)return"";
+  var y=m[1],mo=+m[2],day=+m[3];
+  return [y+"-"+m[2]+"-"+m[3],y+"-"+m[2],day+" "+TRK_MONTHS[mo-1]+" "+y,TRK_FULL_MONTHS[mo-1]+" "+y,
+    m[3]+"/"+m[2]+"/"+y,mo+"/"+y,"q"+Math.ceil(mo/3)+" "+y].join(" ");
+}
+/* filler words that don't count towards initials ("Bank of X" → BX too) */
+var TRK_SEARCH_STOP={of:1,and:1,the:1,"for":1,inc:1,co:1,ltd:1,corp:1,pt:1,tbk:1};
+/* "entity" fields are short names (customer, products, contact…) — the
+   only ones loose tricks like initials and squashed matching run on, so
+   long notes don't throw up false hits. */
+function trkSearchField(label,text,shown,extra,entity){
+  var n=trkNorm(text+(extra?" "+extra:""));
+  var words=n?n.split(" "):[];
+  return {label:label,raw:String(text||""),shown:shown,entity:!!entity,words:words,compact:words.join(""),
+    sig:words.filter(function(w){return !TRK_SEARCH_STOP[w];})};
+}
+function trkSearchFields(p){
+  var first=trkFirstDate(p);
+  var f=[
+    trkSearchField("Name",p.name,true,"",true),
+    trkSearchField("Customer",p.customer,true,"",true),
+    trkSearchField("Country",p.country,true,"",true),
+    trkSearchField("Office",p.office?p.office+" office":"",true),
+    trkSearchField("Status",[p.status,p.payment].filter(Boolean).join(" · "),true),
+    trkSearchField("Solution",p.solution,true,"",true),
+    trkSearchField("Products",(p.products||[]).join(", "),true,"",true),
+    trkSearchField("Contact",[p.contactName,p.contactPosition,p.contactInfo].filter(Boolean).join(" · "),false,"",true),
+    trkSearchField("Notes",p.notes,false),
+    trkSearchField("Value",p.estValue!==null?p.estValue.toLocaleString()+" "+p.currency:"",true,p.estValue!==null?String(p.estValue):""),
+    trkSearchField("Expected",trkPeriodLabel(p),true,trkDateWords(p.expectedDate)+" "+(p.expectedPeriod||"")),
+    trkSearchField("Started",trkFmtDate(first),true,trkDateWords(first))
+  ];
+  trkEntriesFor(p._id).forEach(function(e){
+    var att=(e.attachments||[]).map(function(a){return a.name;}).join(", ");
+    f.push(trkSearchField(trkFmtDate(e.date)+" · "+e.type,
+      [e.title,e.details,att].filter(Boolean).join(" — ")||e.type,false,e.type+" "+trkDateWords(e.date)));
+  });
+  return f;
+}
+/* Optimal-string-alignment distance, bailing out once it passes max. */
+function trkEditDist(a,b,max){
+  if(Math.abs(a.length-b.length)>max)return max+1;
+  var prev2=null,prev=[],i,j;
+  for(j=0;j<=b.length;j++)prev[j]=j;
+  for(i=1;i<=a.length;i++){
+    var cur=[i],best=i;
+    for(j=1;j<=b.length;j++){
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+      if(prev2&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1])cur[j]=Math.min(cur[j],prev2[j-2]+1);
+      if(cur[j]<best)best=cur[j];
+    }
+    if(best>max)return max+1;
+    prev2=prev;prev=cur;
+  }
+  return prev[b.length];
+}
+/* Initials: first letter starts a word, each next letter starts the
+   following word (CP → Cebu Pacific) or, when loose, may also continue
+   inside the current one (PAL → Philippine AirLines). Spans 2+ words. */
+function trkAcronym(t,words,loose){
+  function go(ti,wi,pos,span){
+    if(ti===t.length)return span>=2;
+    var c=t[ti],w=words[wi];
+    if(loose)for(var k=pos;k<w.length;k++)if(w[k]===c&&go(ti+1,wi,k+1,span))return true;
+    var nx=words[wi+1];
+    return !!nx&&nx[0]===c&&go(ti+1,wi+1,1,span+1);
+  }
+  for(var i=0;i<words.length-1;i++)if(words[i][0]===t[0]&&go(1,i,1,1))return true;
+  return false;
+}
+function trkTokenScore(t,f){
+  var best=0,num=/^\d+$/.test(t);
+  for(var i=0;i<f.words.length;i++){
+    var w=f.words[i];
+    if(w===t)return 10;
+    if(w.indexOf(t)===0)best=Math.max(best,8);
+    else if(t.length>=3&&w.indexOf(t)>0)best=Math.max(best,5);
+    /* typos: same first letter, 1 slip from 5 letters, 2 from 8 */
+    else if(!num&&t.length>=5&&best<3&&w[0]===t[0]){
+      var max=t.length>=8?2:1;
+      if(trkEditDist(t,w.slice(0,t.length),max)<=max||trkEditDist(t,w,max)<=max)best=3;
+    }
+  }
+  if(f.entity&&best<8&&!num&&t.length>=2&&f.sig.length>1){
+    if(trkAcronym(t,f.sig,false))best=9;
+    else if(best<7&&trkAcronym(t,f.sig,true))best=7;
+  }
+  if(f.entity&&best<4&&t.length>=3&&f.compact.indexOf(t)>-1)best=4;
+  return best;
+}
+function trkSearchProject(p,q){
+  var fields=trkSearchFields(p),score=0,why=null;
+  for(var i=0;i<q.tokens.length;i++){
+    var t=q.tokens[i],top=0,topF=null;
+    fields.forEach(function(f){
+      var s=trkTokenScore(t,f);
+      /* on-card fields win ties, so the reason line only shows when the
+         match really is somewhere you can't see */
+      if(s>top||(s===top&&s>0&&f.shown&&!topF.shown)){top=s;topF=f;}
+    });
+    if(!top)return null;
+    /* hits in the name or customer outrank e.g. the country */
+    score+=top+(topF.shown?1:0)+(topF.label==="Name"||topF.label==="Customer"?1:0);
+    if(!topF.shown&&!why)why=topF;
+  }
+  /* the whole query squashed together, e.g. "tk 180" inside "TK180" */
+  if(q.tokens.length>1&&q.compact.length>=4&&fields.some(function(f){return f.entity&&f.compact.indexOf(q.compact)>-1;}))score+=5;
+  return {score:score,why:why?"<span class='trk-why-label'>"+trkEsc(why.label)+":</span> "+trkSnippet(why.raw,q):""};
+}
+/* Escape text, marking the part of each word a query word matched. */
+function trkHighlight(text,q){
+  return String(text||"").split(/([^A-Za-z0-9À-ɏ]+)/).map(function(part){
+    var n=trkNorm(part);
+    if(!n)return trkEsc(part);
+    var len=0;
+    q.tokens.forEach(function(t){
+      if(n.indexOf(t)===0){if(t.length>len&&len>=0)len=t.length;}
+      else if(t.length>=3&&n.indexOf(t)>0)len=-1;
+    });
+    if(len>0)return "<mark>"+trkEsc(part.slice(0,len))+"</mark>"+trkEsc(part.slice(len));
+    if(len<0)return "<mark>"+trkEsc(part)+"</mark>";
+    return trkEsc(part);
+  }).join("");
+}
+/* A short window of the hidden text around the first word that matched. */
+function trkSnippet(raw,q){
+  var words=raw.split(/\s+/),at=0;
+  for(var i=0;i<words.length;i++){
+    var n=trkNorm(words[i]);
+    if(n&&q.tokens.some(function(t){return n.indexOf(t)>-1;})){at=i;break;}
+  }
+  var from=Math.max(0,at-6),to=Math.min(words.length,at+14);
+  return (from?"&hellip;":"")+trkHighlight(words.slice(from,to).join(" "),q)+(to<words.length?"&hellip;":"");
+}
+
+function trkRenderList(bodyOnly){
   var chips=[{label:"All",value:""}].concat(TRK_STATUSES.map(function(s){
     var n=TRK_PROJECTS.filter(function(p){return p.status===s;}).length;
     if(s==="Other"&&!n)return null; /* chip appears once one exists */
@@ -341,11 +501,19 @@ function trkRenderList(){
      the top. Closed projects (Won/Lost) sink below the live pipeline. */
   var act=trkLastActivityMap();
   function actOf(p){return act[p._id]||{d:(p.createdAt||"").slice(0,10),c:p.createdAt||""};}
+  /* A search looks through everything, Lost included, unless a status
+     chip narrows it; each hit carries a score and a "why it matched". */
+  var q=trkSearchQuery(TRK_Q),hits={};
   var list=TRK_PROJECTS.filter(function(p){
     /* Lost projects stay out of the default view — they only appear
-       when the Lost chip itself is selected. */
-    return (TRK_FSTATUS?p.status===TRK_FSTATUS:p.status!=="Lost")&&(!TRK_FOFFICE||p.office===TRK_FOFFICE)&&(!TRK_FSOL||p.solution===TRK_FSOL);
+       when the Lost chip itself is selected (or a search finds them). */
+    if(!(TRK_FSTATUS?p.status===TRK_FSTATUS:(q||p.status!=="Lost"))||(TRK_FOFFICE&&p.office!==TRK_FOFFICE)||(TRK_FSOL&&p.solution!==TRK_FSOL))return false;
+    if(!q)return true;
+    var h=trkSearchProject(p,q);
+    if(h)hits[p._id]=h;
+    return !!h;
   }).sort(function(a,b){
+    if(q&&hits[a._id].score!==hits[b._id].score)return hits[b._id].score-hits[a._id].score;
     var ca=TRK_CLOSED_STATUSES.indexOf(a.status)>-1?1:0;
     var cb=TRK_CLOSED_STATUSES.indexOf(b.status)>-1?1:0;
     if(ca!==cb)return ca-cb;
@@ -368,13 +536,15 @@ function trkRenderList(){
     /* Customer, country and the project's own start date share one line,
        so the heading is just the project name. */
     var pdate=trkProjectDate(p);
-    var custLine=[trkEsc(p.customer),trkEsc(p.country),pdate?"<span class='trk-card-date'>"+pdate+"</span>":""]
+    var hl=q?function(t){return trkHighlight(t,q);}:trkEsc,hit=hits[p._id];
+    var custLine=[hl(p.customer),hl(p.country),pdate?"<span class='trk-card-date'>"+pdate+"</span>":""]
       .filter(Boolean).join(" &middot; ");
     if(custLine&&flag)custLine=flag+" "+custLine;
     return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+(p.office?" po-of-"+poOfficeSlug(p.office):"")+"'"+(edge?" style='border-left-color:"+edge+"'":"")+" onclick='trkOpen(\""+p._id+"\")'>"+
-      "<div class='trk-card-top'><span class='trk-card-name'>"+trkDisplayName(p)+"</span><span style='white-space:nowrap'>"+trkStatusBadge(p.status)+trkPaymentBadge(p)+"</span></div>"+
+      "<div class='trk-card-top'><span class='trk-card-name'>"+(q?hl(p.name):trkDisplayName(p))+"</span><span style='white-space:nowrap'>"+trkStatusBadge(p.status)+trkPaymentBadge(p)+"</span></div>"+
       (custLine?"<div class='trk-card-cust'>"+custLine+"</div>":"")+
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
+      (hit&&hit.why?"<div class='trk-card-why'>&#128269; "+hit.why+"</div>":"")+
       "<div class='trk-card-meta'>"+
         trkSolutionBadge(p)+
         (p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
@@ -394,7 +564,7 @@ function trkRenderList(){
      The flat list remains when nothing is tagged yet or the solution
      filter already narrows the list to one group. */
   var cards;
-  if(TRK_FSOL||!list.some(function(p){return p.solution;})){
+  if(q||TRK_FSOL||!list.some(function(p){return p.solution;})){
     cards=list.map(cardHtml).join("");
   }else{
     var order=TRK_SOLUTIONS.slice(),extra=[];
@@ -422,10 +592,21 @@ function trkRenderList(){
     }).join("");
   }
 
+  var body=(q?"<div class='trk-search-count'>"+list.length+" project"+(list.length===1?"":"s")+" match <strong>"+trkEsc(TRK_Q.trim())+"</strong></div>":"")+
+    (cards||"<div class='empty'>"+(q?"Nothing matches that search. Try part of a name, a model, a month (e.g. <em>oct 2026</em>) or initials (e.g. <em>PAL</em>).":TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
+  /* Typing only swaps the list body, so the search box keeps focus. */
+  if(bodyOnly&&document.getElementById("trk-list-body")){
+    document.getElementById("trk-list-body").innerHTML=body;
+    return;
+  }
+  var search="<div class='trk-search'><span class='trk-search-ico'>&#128269;</span>"+
+    "<input id='trk-search' type='search' value='"+trkEsc(TRK_Q)+"' placeholder='Search customer, model, month, notes, initials&hellip;' autocomplete='off' data-1p-ignore data-lpignore='true' data-bwignore data-form-type='other' readonly onfocus=\"this.removeAttribute('readonly')\" oninput='trkSearchInput(this.value)'>"+
+    "</div>";
   document.getElementById("content").innerHTML=
-    "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div><div class='trk-filters'>"+solSel+officeSel+"</div></div>"+
-    (cards||"<div class='empty'>"+(TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
+    "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div><div class='trk-filters'>"+search+solSel+officeSel+"</div></div>"+
+    "<div id='trk-list-body'>"+body+"</div>";
 }
+function trkSearchInput(v){TRK_Q=v;trkRenderList(true);}
 
 function trkOpen(id){TRK_SEL=id;renderTracker();}
 function trkBack(){TRK_SEL=null;renderTracker();}
