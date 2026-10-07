@@ -1360,3 +1360,8 @@ tr.exp-detail td{
 .trk-card-why{font-size:11.5px;color:var(--text-muted);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trk-why-label{font-weight:600;color:var(--text)}
 @media (max-width:640px){.trk-search input{width:100%}}
+
+/* Tracker: follow-up reminder — open projects with no entry for 14+ days */
+.trk-badge.trk-stale{background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:600}
+.trk-badge.trk-stale.trk-stale-hot{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+.trk-chip.trk-chip-stale:not(.active){color:#92400e;border-color:#fcd34d;background:#fffbeb}

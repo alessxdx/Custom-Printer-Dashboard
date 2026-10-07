@@ -126,6 +126,24 @@ function trkLastActivityMap(){
   });
   return m;
 }
+/* ===== follow-up reminder =====
+   A project still waiting on us (Enquiry, Quoted, Others, or Won but
+   not fully paid) goes "quiet" once its newest entry is 14+ days old.
+   Returns the days since that entry, or 0 when it isn't due. */
+var TRK_STALE_DAYS=14;
+function trkStaleDays(p,act){
+  var open=TRK_ACTIVE_STATUSES.indexOf(p.status)>-1||p.status==="Other"||(p.status==="Won"&&p.payment!=="Fully paid");
+  if(!open)return 0;
+  var a=(act||trkLastActivityMap())[p._id];
+  var last=a?a.d:(p.createdAt||"").slice(0,10);
+  if(!last)return 0;
+  var days=Math.floor((new Date(new Date().toDateString())-new Date(last+"T00:00:00"))/864e5);
+  return days>=TRK_STALE_DAYS?days:0;
+}
+function trkStaleBadge(days){
+  if(!days)return"";
+  return "<span class='trk-badge trk-stale"+(days>=30?" trk-stale-hot":"")+"' title='No timeline entry for "+days+" days'>&#9200; Quiet "+days+"d</span>";
+}
 function trkEntriesFor(pid){
   return TRK_ENTRIES.filter(function(e){return e.projectId===pid;})
     .sort(function(a,b){
@@ -478,8 +496,12 @@ function trkRenderList(bodyOnly){
     var n=TRK_PROJECTS.filter(function(p){return p.status===s;}).length;
     if(s==="Other"&&!n)return null; /* chip appears once one exists */
     return {label:(s==="Other"?"Others":s)+(n?" ("+n+")":""),value:s};
-  }).filter(Boolean)).map(function(c){
-    return "<button class='trk-chip"+(TRK_FSTATUS===c.value?" active":"")+"' onclick='trkSetStatusFilter(\""+c.value+"\")'>"+trkEsc(c.label)+"</button>";
+  }).filter(Boolean));
+  var act=trkLastActivityMap();
+  var staleN=TRK_PROJECTS.filter(function(p){return trkStaleDays(p,act);}).length;
+  if(staleN||TRK_FSTATUS==="stale")chips.splice(1,0,{label:"⏰ Needs follow-up ("+staleN+")",value:"stale",cls:" trk-chip-stale"});
+  chips=chips.map(function(c){
+    return "<button class='trk-chip"+(c.cls||"")+(TRK_FSTATUS===c.value?" active":"")+"' onclick='trkSetStatusFilter(\""+c.value+"\")'>"+trkEsc(c.label)+"</button>";
   }).join("");
 
   var officeSel="<select class='trk-office-filter' onchange='trkSetOfficeFilter(this.value)'>"+
@@ -499,7 +521,6 @@ function trkRenderList(bodyOnly){
   /* Most recently active project first — the "Last: …" line on each card
      is what drives the order, so logging an entry brings that project to
      the top. Closed projects (Won/Lost) sink below the live pipeline. */
-  var act=trkLastActivityMap();
   function actOf(p){return act[p._id]||{d:(p.createdAt||"").slice(0,10),c:p.createdAt||""};}
   /* A search looks through everything, Lost included, unless a status
      chip narrows it; each hit carries a score and a "why it matched". */
@@ -507,13 +528,15 @@ function trkRenderList(bodyOnly){
   var list=TRK_PROJECTS.filter(function(p){
     /* Lost projects stay out of the default view — they only appear
        when the Lost chip itself is selected (or a search finds them). */
-    if(!(TRK_FSTATUS?p.status===TRK_FSTATUS:(q||p.status!=="Lost"))||(TRK_FOFFICE&&p.office!==TRK_FOFFICE)||(TRK_FSOL&&p.solution!==TRK_FSOL))return false;
+    if(!(TRK_FSTATUS==="stale"?trkStaleDays(p,act):TRK_FSTATUS?p.status===TRK_FSTATUS:(q||p.status!=="Lost"))||(TRK_FOFFICE&&p.office!==TRK_FOFFICE)||(TRK_FSOL&&p.solution!==TRK_FSOL))return false;
     if(!q)return true;
     var h=trkSearchProject(p,q);
     if(h)hits[p._id]=h;
     return !!h;
   }).sort(function(a,b){
     if(q&&hits[a._id].score!==hits[b._id].score)return hits[b._id].score-hits[a._id].score;
+    /* the follow-up list puts the longest-forgotten first */
+    if(TRK_FSTATUS==="stale")return trkStaleDays(b,act)-trkStaleDays(a,act);
     var ca=TRK_CLOSED_STATUSES.indexOf(a.status)>-1?1:0;
     var cb=TRK_CLOSED_STATUSES.indexOf(b.status)>-1?1:0;
     if(ca!==cb)return ca-cb;
@@ -546,6 +569,7 @@ function trkRenderList(bodyOnly){
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
       (hit&&hit.why?"<div class='trk-card-why'>&#128269; "+hit.why+"</div>":"")+
       "<div class='trk-card-meta'>"+
+        trkStaleBadge(trkStaleDays(p,act))+
         trkSolutionBadge(p)+
         (p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
         (p.estValue!==null?"<span>"+trkValueHtml(p)+"</span>":"")+
@@ -564,7 +588,7 @@ function trkRenderList(bodyOnly){
      The flat list remains when nothing is tagged yet or the solution
      filter already narrows the list to one group. */
   var cards;
-  if(q||TRK_FSOL||!list.some(function(p){return p.solution;})){
+  if(q||TRK_FSOL||TRK_FSTATUS==="stale"||!list.some(function(p){return p.solution;})){
     cards=list.map(cardHtml).join("");
   }else{
     var order=TRK_SOLUTIONS.slice(),extra=[];
@@ -593,7 +617,7 @@ function trkRenderList(bodyOnly){
   }
 
   var body=(q?"<div class='trk-search-count'>"+list.length+" project"+(list.length===1?"":"s")+" match <strong>"+trkEsc(TRK_Q.trim())+"</strong></div>":"")+
-    (cards||"<div class='empty'>"+(q?"Nothing matches that search. Try part of a name, a model, a month (e.g. <em>oct 2026</em>) or initials (e.g. <em>PAL</em>).":TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
+    (cards||"<div class='empty'>"+(q?"Nothing matches that search. Try part of a name, a model, a month (e.g. <em>oct 2026</em>) or initials (e.g. <em>PAL</em>).":TRK_FSTATUS==="stale"?"All caught up &mdash; every open project has an update from the last "+TRK_STALE_DAYS+" days.":TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
   /* Typing only swaps the list body, so the search box keeps focus. */
   if(bodyOnly&&document.getElementById("trk-list-body")){
     document.getElementById("trk-list-body").innerHTML=body;
