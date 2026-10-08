@@ -728,11 +728,11 @@ function renderModel(){
   if(srch!==window._cmpLastSearch){expandedRows={};window._cmpLastSearch=srch;}
   const nCols=searching?8:7;
   const opts=models.map(m=>`<option value="${m}"${m===current?" selected":""}>${m}</option>`).join("");
-  /* Same customer, model and price is one row: the latest one is kept (txs is
+  /* Same customer and price is one row, even across models (ATB/BTP pairs): the latest one is kept (txs is
      newest first) and the others only show up as extra projects in its detail */
   const uniq=[],seen={};
   txs.forEach(tx=>{
-    const k=[tx.customer,tx.displayModel||tx.model,tx.price,tx.currency].join("|");
+    const k=[tx.customer,tx.price,tx.currency].join("|");
     if(seen[k]){seen[k].dupes.push(tx);return;}
     seen[k]={tx:tx,dupes:[]};uniq.push(seen[k]);
   });
@@ -744,14 +744,15 @@ function renderModel(){
     const list=byCust[c];
     rows+=`<tr class="mc-group cmp-cust"><td colspan="${nCols}">${c}<span>${list.length} price${list.length!==1?"s":""}</span></td></tr>`;
     list.forEach(u=>{
-      const tx=u.tx,n=u.dupes.length;
+      const tx=u.tx,all=[tx].concat(u.dupes);
       const margin=tx.bp&&tx.currency==="USD"?(tx.price-tx.bp).toFixed(0):null;
       const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
-      const projects=[tx].concat(u.dupes).map(t=>t.project).filter(Boolean);
+      const projects=[...new Set(all.map(t=>t.project).filter(Boolean))],more=projects.length-1;
+      const mdls=[...new Set(all.map(t=>t.displayModel||t.model))];
       rows+=`<tr class="clickable" onclick="toggleRow(${i})">
         <td data-label="Date" style="color:var(--text-muted);white-space:nowrap;font-size:12px">${dDisplay(tx)||"—"}</td>
-        ${searching?`<td class="mc-title" style="font-weight:600">${tx.displayModel||tx.model}</td>`:""}
-        <td${searching?' data-label="Project"':' class="mc-title"'} style="color:var(--text-muted);font-size:12px">${tx.project||"—"}${n?`<span class="cmp-more">+${n} more</span>`:""}</td>
+        ${searching?`<td class="mc-title" style="font-weight:600">${mdls.join("<br>")}</td>`:""}
+        <td${searching?' data-label="Project"':' class="mc-title"'} style="color:var(--text-muted);font-size:12px">${tx.project||"—"}${more>0?`<span class="cmp-more">+${more} more</span>`:""}</td>
         <td data-label="Country" style="color:var(--text-muted)"><span class="cmp-country">${flagImg(tx.country,18)}${tx.country}</span></td>
         <td data-label="Status">${bStatus(tx.status)}</td>
         <td data-label="Terms">${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
