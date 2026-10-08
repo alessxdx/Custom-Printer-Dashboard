@@ -994,6 +994,7 @@ function renderContent(){
   else if(currentTab==="projects")renderProjects();
   else if(currentTab==="tracker")renderTracker();
   else if(currentTab==="po")renderPOs();
+  else if(currentTab==="pricing")renderPricing();
   else if(currentTab==="model")renderModel();
   else if(currentTab==="buying")renderBuying();
   else if(currentTab==="spares")renderSpares();

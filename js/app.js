@@ -12,6 +12,7 @@ var TAB_TITLES = {
   groups: "Project Groups",
   tracker: "Project Tracker",
   po: "Purchase Orders",
+  pricing: "Pricing Calculator",
   projects: "By Project",
   model: "Model Comparison",
   buying: "Buying Prices",
@@ -35,7 +36,7 @@ function navTo(tab, sel){
      restores the customer stat row the tracker replaced. */
   if(typeof TRK_SEL !== "undefined") TRK_SEL = (tab === "tracker" && sel) ? sel : null;
   if(typeof MD_SEL !== "undefined" && tab === "customers"){ MD_SEL = sel || null; MD_SEL_ROUTED = !!sel; }
-  if(currentTab !== "tracker" && currentTab !== "po" && typeof renderStats === "function") renderStats();
+  if(currentTab !== "tracker" && currentTab !== "po" && currentTab !== "pricing" && typeof renderStats === "function") renderStats();
   /* restore the toolbar add button's label/visibility when leaving tracker */
   if(typeof trkSyncToolbar === "function") trkSyncToolbar();
   var title = document.getElementById("page-title");
