@@ -442,6 +442,12 @@ body{
   border-radius:5px;border:1px solid var(--border);
   background:var(--bg-input);color:var(--text);font-weight:500;
 }
+.cmp-head #model-search{
+  font-family:inherit;font-size:13px;padding:6px 10px;width:240px;
+  border-radius:5px;border:1px solid var(--border);
+  background:var(--bg-input);color:var(--text);
+}
+.cmp-head select.cmp-off{opacity:.45}
 .cmp-hint{font-size:11px;color:var(--text-faint)}
 
 table{width:100%;border-collapse:collapse}
@@ -707,6 +713,7 @@ tr.exp-detail td{
   table.mcards tr.exp-detail td{padding:8px 10px;border-radius:6px;background:var(--bg-soft)}
   #buy-search,#sp-search{flex:1 1 100%;width:100% !important}
   .cmp-head select{flex:1;min-width:0}
+  .cmp-head #model-search{flex:1 1 100%;width:100%}
 
   /* Forms open full-screen with Cancel / Save pinned to the bottom,
      so the buttons never scroll out of reach on a long form */

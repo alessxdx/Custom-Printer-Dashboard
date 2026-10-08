@@ -715,7 +715,18 @@ function renderModel(){
   const models=allModels.filter(m=>!Object.values(MODEL_GROUPS).flat().includes(m)||Object.keys(MODEL_GROUPS).includes(m)).sort();
   const sel=document.getElementById("model-sel"),current=sel?sel.value:models[0];
   const groupModels=MODEL_GROUPS[current]||[current];
-  const txs=cmpAll.filter(t=>groupModels.includes(t.displayModel||t.model)&&t.model!=="TK180 Metal Cutter ARINC (ATB) + TK180 Metal Non Cutter ARINC (BTP)").sort((a,b)=>parseDV(b.date)-parseDV(a.date));
+  /* Free-text search overrides the dropdown: every word must appear in the
+     model name, so "tk180" pulls in plastic, metal, every warranty variant */
+  const srchEl=document.getElementById("model-search"),srch=srchEl?srchEl.value:(window._cmpSearch||"");
+  window._cmpSearch=srch;
+  const words=srch.toLowerCase().split(/\s+/).filter(Boolean);
+  const searching=words.length>0;
+  const matches=t=>searching
+    ?words.every(w=>((t.displayModel||"")+" "+t.model).toLowerCase().includes(w))
+    :groupModels.includes(t.displayModel||t.model);
+  const txs=cmpAll.filter(t=>matches(t)&&t.model!=="TK180 Metal Cutter ARINC (ATB) + TK180 Metal Non Cutter ARINC (BTP)").sort((a,b)=>parseDV(b.date)-parseDV(a.date));
+  if(srch!==window._cmpLastSearch){expandedRows={};window._cmpLastSearch=srch;}
+  const nCols=searching?9:8;
   const opts=models.map(m=>`<option value="${m}"${m===current?" selected":""}>${m}</option>`).join("");
   let rows="";
   txs.forEach((tx,i)=>{
@@ -725,6 +736,7 @@ function renderModel(){
     rows+=`<tr class="clickable" onclick="toggleRow(${i})">
       <td data-label="Date" style="color:var(--text-muted);white-space:nowrap;font-size:12px">${dDisplay(tx)||"\u2014"}</td>
       <td class="mc-title" style="font-weight:600;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Montserrat',sans-serif">${f} ${tx.customer}</td>
+      ${searching?`<td data-label="Model" style="font-size:12px">${tx.displayModel||tx.model}</td>`:""}
       <td data-label="Project" style="color:var(--text-muted);font-size:12px">${tx.project||"\u2014"}</td>
       <td data-label="Country" style="color:var(--text-muted)">${tx.country}</td>
       <td data-label="Status">${bStatus(tx.status)}</td>
@@ -732,17 +744,20 @@ function renderModel(){
       <td data-label="Price" style="text-align:right;font-weight:600">${tx.price.toLocaleString()} ${tx.currency}</td>
       <td data-label="Margin" style="text-align:right;color:#aaa;font-size:12px">${margin?`$${margin} (${mPct}%)`:"—"}</td>
     </tr><tr class="exp-detail ${expandedRows[i]?"open":""}" id="erow-${i}">
-      <td colspan="8"><strong>Project:</strong> ${tx.project} | <strong>Qty:</strong> ${tx.qty} | <strong>PN:</strong> ${tx.pn||"\u2014"}${tx.notes.length?" | "+tx.notes.join(" \xb7 "):""}</td>
+      <td colspan="${nCols}"><strong>Project:</strong> ${tx.project} | <strong>Qty:</strong> ${tx.qty} | <strong>PN:</strong> ${tx.pn||"\u2014"}${tx.notes.length?" | "+tx.notes.join(" \xb7 "):""}</td>
     </tr>`;
   });
   document.getElementById("content").innerHTML=`<div class="cmp-wrap"><div class="cmp-head">
     <span class="cmp-lbl">Compare model</span>
-    <select id="model-sel" onchange="renderModel()">${opts}</select>
-    <span class="cmp-hint">${txs.length} records \u2014 click row for detail</span>
+    <select id="model-sel" onchange="renderModel()"${searching?' class="cmp-off" title="Clear the search to use the dropdown"':""}>${opts}</select>
+    <input id="model-search" type="search" placeholder="Search models, e.g. tk180 metal" oninput="renderModel()" value="${srch.replace(/"/g,"&quot;")}">
+    <span class="cmp-hint">${txs.length} records${searching?` across ${new Set(txs.map(t=>t.displayModel||t.model)).size} models`:""} \u2014 click row for detail</span>
   </div><div style="overflow-x:auto"><table class="mcards">
-    <thead><tr><th>Date</th><th>Customer</th><th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th style="text-align:right">Price</th><th style="text-align:right">Margin</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="7" class="empty">No data.</td></tr>'}</tbody>
+    <thead><tr><th>Date</th><th>Customer</th>${searching?"<th>Model</th>":""}<th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th style="text-align:right">Price</th><th style="text-align:right">Margin</th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="${nCols}" class="empty">${searching?"No models match “"+srch.replace(/</g,"&lt;")+"”.":"No data."}</td></tr>`}</tbody>
   </table></div></div>`;
+  /* the whole tab re-renders on each keystroke, so put the caret back */
+  if(srchEl&&document.activeElement===document.body){const inp=document.getElementById("model-search");inp.focus();inp.setSelectionRange(srch.length,srch.length);}
 }
 function toggleRow(i){expandedRows[i]=!expandedRows[i];const el=document.getElementById("erow-"+i);if(el)el.classList.toggle("open",expandedRows[i]);}
 function renderBuying(){
