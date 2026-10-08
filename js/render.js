@@ -865,11 +865,12 @@ function renderSpares(){
   var sortVal=document.getElementById("sp-sort")?document.getElementById("sp-sort").value:"name";
   var searchLow=searchVal.toLowerCase();
   var filtered=SPARES.map(function(s,i){return Object.assign({},s,{_i:i});});
-  if(searchLow)filtered=filtered.filter(function(s){
-    return s.name.toLowerCase().indexOf(searchLow)!==-1||
-      (s.pn||"").toLowerCase().indexOf(searchLow)!==-1||
-      (s.customer||"").toLowerCase().indexOf(searchLow)!==-1||
-      (s.note||"").toLowerCase().indexOf(searchLow)!==-1;
+  /* every word must appear somewhere in the row, in any order, so
+     "tk180 cutter" finds every cutter part for any TK180 variant */
+  var words=searchLow.split(/\s+/).filter(Boolean);
+  if(words.length)filtered=filtered.filter(function(s){
+    var hay=[s.name,s.pn,s.customer,s.note].join(" ").toLowerCase();
+    return words.every(function(w){return hay.indexOf(w)!==-1;});
   });
   if(sortVal==="name")filtered.sort(function(a,b){return a.name.localeCompare(b.name);});
   else if(sortVal==="price-asc")filtered.sort(function(a,b){return a.price-b.price;});
