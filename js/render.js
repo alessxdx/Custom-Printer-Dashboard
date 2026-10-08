@@ -766,7 +766,12 @@ function renderBuying(){
   var searchLow=searchVal.toLowerCase();
   var expandedGroups=window._buyGroups||{};
   var sorted=BUYING.map(function(b,i){return {model:b.model,pn:b.pn,price:b.price,currency:b.currency,specialPrice:b.specialPrice,specialCustomer:b.specialCustomer,group:b.group,_i:i};});
-  if(searchLow) sorted=sorted.filter(function(b){return b.model.toLowerCase().indexOf(searchLow)!==-1||(b.pn||"").toLowerCase().indexOf(searchLow)!==-1;});
+  /* every word must appear in the model, part number or group, in any order */
+  var words=searchLow.split(/\s+/).filter(Boolean);
+  if(words.length) sorted=sorted.filter(function(b){
+    var hay=[b.model,b.pn,b.group].join(" ").toLowerCase();
+    return words.every(function(w){return hay.indexOf(w)!==-1;});
+  });
   if(sortBuy==="price-asc")sorted.sort(function(a,b){return a.price-b.price;});
   else if(sortBuy==="price-desc")sorted.sort(function(a,b){return b.price-a.price;});
   else sorted.sort(function(a,b){return a.model.localeCompare(b.model);});
@@ -789,7 +794,8 @@ function renderBuying(){
   var rows="";
   noGroup.forEach(function(b){rows+=makeRow(b);});
   Object.keys(groups).sort().forEach(function(grp){
-    var isExp=!!expandedGroups[grp];
+    /* open every group while searching so matches aren't hidden behind a header */
+    var isExp=words.length>0||!!expandedGroups[grp];
     var grpId=grp.replace(/[^a-zA-Z0-9]/g,"-");
     rows+="<tr class='mc-group' style='background:var(--accent-soft);cursor:pointer' onclick='toggleBuyGroup(event,this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
       "<td colspan='5' style='font-size:11px;font-weight:600;color:var(--accent-text);padding:8px 12px'>"+
