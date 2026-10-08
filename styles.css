@@ -448,6 +448,13 @@ body{
   background:var(--bg-input);color:var(--text);
 }
 .cmp-head select.cmp-off{opacity:.45}
+.cmp-wrap tr.cmp-cust td{
+  background:var(--bg-soft);font-weight:600;font-size:13px;
+  padding-top:14px;padding-bottom:8px;color:var(--text);
+}
+.cmp-wrap tr.cmp-cust td span{margin-left:10px;font-size:11px;font-weight:500;color:var(--text-faint)}
+.cmp-country{display:inline-flex;align-items:center;gap:7px}
+.cmp-more{display:block;margin-top:2px;font-size:11px;color:var(--accent-text)}
 .cmp-hint{font-size:11px;color:var(--text-faint)}
 
 table{width:100%;border-collapse:collapse}
@@ -714,6 +721,7 @@ tr.exp-detail td{
   #buy-search,#sp-search{flex:1 1 100%;width:100% !important}
   .cmp-head select{flex:1;min-width:0}
   .cmp-head #model-search{flex:1 1 100%;width:100%}
+  .cmp-wrap tr.cmp-cust td{padding:12px 14px 8px}
 
   /* Forms open full-screen with Cancel / Save pinned to the bottom,
      so the buttons never scroll out of reach on a long form */

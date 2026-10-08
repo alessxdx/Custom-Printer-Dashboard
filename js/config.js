@@ -55,7 +55,9 @@ function countryCode(name){
 function flagImg(country, size){
   const s = size||28;
   const svg = FLAGS[country];
-  if(svg) return `<div style="width:${s}px;height:${s}px;border-radius:50%;overflow:hidden;flex-shrink:0">${svg.replace(/width="36"/g,`width="${s}"`).replace(/height="36"/g,`height="${s}"`)}</div>`;
+  if(svg) return `<div style="width:${s}px;height:${s}px;border-radius:50%;overflow:hidden;flex-shrink:0">${svg.replace(/<svg[^>]*>/,tag=>tag.replace(/width="36"/,`width="${s}"`).replace(/height="36"/,`height="${s}"`))}</div>`;
+  /* only the outer <svg> gets resized: rects inside also say width="36" and
+     shrinking them too left half of each flag blank */
   /* No hand-drawn SVG — any other country falls back to flagcdn.com. */
   const code = countryCode(country);
   if(code) return '<div style="width:'+s+'px;height:'+s+'px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="https://flagcdn.com/h80/'+code+'.png" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.style.display=\'none\'"></div>';

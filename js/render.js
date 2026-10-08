@@ -726,34 +726,51 @@ function renderModel(){
     :groupModels.includes(t.displayModel||t.model);
   const txs=cmpAll.filter(t=>matches(t)&&t.model!=="TK180 Metal Cutter ARINC (ATB) + TK180 Metal Non Cutter ARINC (BTP)").sort((a,b)=>parseDV(b.date)-parseDV(a.date));
   if(srch!==window._cmpLastSearch){expandedRows={};window._cmpLastSearch=srch;}
-  const nCols=searching?9:8;
+  const nCols=searching?8:7;
   const opts=models.map(m=>`<option value="${m}"${m===current?" selected":""}>${m}</option>`).join("");
-  let rows="";
-  txs.forEach((tx,i)=>{
-    const margin=tx.bp&&tx.currency==="USD"?(tx.price-tx.bp).toFixed(0):null;
-    const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
-    const f=flagImg(tx.country,18);
-    rows+=`<tr class="clickable" onclick="toggleRow(${i})">
-      <td data-label="Date" style="color:var(--text-muted);white-space:nowrap;font-size:12px">${dDisplay(tx)||"\u2014"}</td>
-      <td class="mc-title" style="font-weight:600;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Montserrat',sans-serif">${f} ${tx.customer}</td>
-      ${searching?`<td data-label="Model" style="font-size:12px">${tx.displayModel||tx.model}</td>`:""}
-      <td data-label="Project" style="color:var(--text-muted);font-size:12px">${tx.project||"\u2014"}</td>
-      <td data-label="Country" style="color:var(--text-muted)">${tx.country}</td>
-      <td data-label="Status">${bStatus(tx.status)}</td>
-      <td data-label="Terms">${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
-      <td data-label="Price" style="text-align:right;font-weight:600">${tx.price.toLocaleString()} ${tx.currency}</td>
-      <td data-label="Margin" style="text-align:right;color:#aaa;font-size:12px">${margin?`$${margin} (${mPct}%)`:"—"}</td>
-    </tr><tr class="exp-detail ${expandedRows[i]?"open":""}" id="erow-${i}">
-      <td colspan="${nCols}"><strong>Project:</strong> ${tx.project} | <strong>Qty:</strong> ${tx.qty} | <strong>PN:</strong> ${tx.pn||"\u2014"}${tx.notes.length?" | "+tx.notes.join(" \xb7 "):""}</td>
-    </tr>`;
+  /* Same customer, model and price is one row: the latest one is kept (txs is
+     newest first) and the others only show up as extra projects in its detail */
+  const uniq=[],seen={};
+  txs.forEach(tx=>{
+    const k=[tx.customer,tx.displayModel||tx.model,tx.price,tx.currency].join("|");
+    if(seen[k]){seen[k].dupes.push(tx);return;}
+    seen[k]={tx:tx,dupes:[]};uniq.push(seen[k]);
   });
+  const byCust={};
+  uniq.forEach(u=>{(byCust[u.tx.customer]=byCust[u.tx.customer]||[]).push(u);});
+  const custs=Object.keys(byCust).sort((a,b)=>a.localeCompare(b));
+  let rows="",i=0;
+  custs.forEach(c=>{
+    const list=byCust[c];
+    rows+=`<tr class="mc-group cmp-cust"><td colspan="${nCols}">${c}<span>${list.length} price${list.length!==1?"s":""}</span></td></tr>`;
+    list.forEach(u=>{
+      const tx=u.tx,n=u.dupes.length;
+      const margin=tx.bp&&tx.currency==="USD"?(tx.price-tx.bp).toFixed(0):null;
+      const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
+      const projects=[tx].concat(u.dupes).map(t=>t.project).filter(Boolean);
+      rows+=`<tr class="clickable" onclick="toggleRow(${i})">
+        <td data-label="Date" style="color:var(--text-muted);white-space:nowrap;font-size:12px">${dDisplay(tx)||"—"}</td>
+        ${searching?`<td class="mc-title" style="font-weight:600">${tx.displayModel||tx.model}</td>`:""}
+        <td${searching?' data-label="Project"':' class="mc-title"'} style="color:var(--text-muted);font-size:12px">${tx.project||"—"}${n?`<span class="cmp-more">+${n} more</span>`:""}</td>
+        <td data-label="Country" style="color:var(--text-muted)"><span class="cmp-country">${flagImg(tx.country,18)}${tx.country}</span></td>
+        <td data-label="Status">${bStatus(tx.status)}</td>
+        <td data-label="Terms">${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
+        <td data-label="Price" style="text-align:right;font-weight:600">${tx.price.toLocaleString()} ${tx.currency}</td>
+        <td data-label="Margin" style="text-align:right;color:#aaa;font-size:12px">${margin?`$${margin} (${mPct}%)`:"—"}</td>
+      </tr><tr class="exp-detail ${expandedRows[i]?"open":""}" id="erow-${i}">
+        <td colspan="${nCols}"><strong>Project${projects.length>1?"s":""}:</strong> ${projects.join(", ")||"—"} | <strong>Qty:</strong> ${tx.qty} | <strong>PN:</strong> ${tx.pn||"—"}${tx.notes.length?" | "+tx.notes.join(" \xb7 "):""}</td>
+      </tr>`;
+      i++;
+    });
+  });
+  const hidden=txs.length-uniq.length;
   document.getElementById("content").innerHTML=`<div class="cmp-wrap"><div class="cmp-head">
     <span class="cmp-lbl">Compare model</span>
     <select id="model-sel" onchange="renderModel()"${searching?' class="cmp-off" title="Clear the search to use the dropdown"':""}>${opts}</select>
     <input id="model-search" type="search" placeholder="Search models, e.g. tk180 metal" oninput="renderModel()" value="${srch.replace(/"/g,"&quot;")}">
-    <span class="cmp-hint">${txs.length} records${searching?` across ${new Set(txs.map(t=>t.displayModel||t.model)).size} models`:""} \u2014 click row for detail</span>
+    <span class="cmp-hint">${uniq.length} prices from ${custs.length} customer${custs.length!==1?"s":""}${searching?` across ${new Set(txs.map(t=>t.displayModel||t.model)).size} models`:""}${hidden?` (${hidden} duplicate${hidden!==1?"s":""} hidden)`:""} \u2014 click row for detail</span>
   </div><div style="overflow-x:auto"><table class="mcards">
-    <thead><tr><th>Date</th><th>Customer</th>${searching?"<th>Model</th>":""}<th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th style="text-align:right">Price</th><th style="text-align:right">Margin</th></tr></thead>
+    <thead><tr><th>Date</th>${searching?"<th>Model</th>":""}<th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th style="text-align:right">Price</th><th style="text-align:right">Margin</th></tr></thead>
     <tbody>${rows||`<tr><td colspan="${nCols}" class="empty">${searching?"No models match “"+srch.replace(/</g,"&lt;")+"”.":"No data."}</td></tr>`}</tbody>
   </table></div></div>`;
   /* the whole tab re-renders on each keystroke, so put the caret back */
