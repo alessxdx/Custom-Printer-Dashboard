@@ -13,7 +13,7 @@
    the fallback). Everything is USD.
 
    Views: Calculator (one product + qty, plus what real customers
-   paid for it), Price list (every Buying Prices item), Rules.
+   paid for it), Price list (every sheet item), Rules.
    ============================================================ */
 
 var PR_PROFILES=[];
@@ -26,17 +26,40 @@ var PR_LIST_Q="",PR_LIST_TYPE="";
    add-on rows (30+30 / 25+25 / 15+15) are folded into one figure. */
 var PR_STD_TYPES=[{name:"End user",markups:[1,0.6,0.6]},{name:"Dealer",markups:[0.6,0.35,0.35]}];
 var PR_DEFAULTS=[
-  {name:"Accessories & spares",match:"roll holder, kit, spare parts, tph",sortOrder:1,
+  {name:"TK180 accessories (TK180 - vietnam.xlsx)",match:"roll holder",sortOrder:1,
    tiers:[{min:1,mult:1.2,addon:0},{min:10,mult:1.2,addon:0},{min:100,mult:1.2,addon:0}],types:PR_STD_TYPES},
-  {name:"TK180 printers",match:"tk180",sortOrder:2,
+  {name:"TK180 printers (TK180 - vietnam.xlsx)",match:"tk180",sortOrder:2,
    tiers:[{min:1,mult:1.2,addon:60},{min:10,mult:1.2,addon:50},{min:100,mult:1.18,addon:30}],types:PR_STD_TYPES},
-  {name:"Standard printers",match:"",sortOrder:3,
+  {name:"D4X (D4X.xlsx)",match:"",sortOrder:3,
    tiers:[{min:1,mult:1.2,addon:30},{min:10,mult:1.2,addon:25},{min:100,mult:1.18,addon:20}],types:PR_STD_TYPES}
 ];
 
+/* For now the calculator covers ONLY the products in the two Excel
+   sheets the user supplied (not the whole Buying Prices list). Buying
+   cost is worked out exactly as the sheet does: special price if the
+   sheet has one, else list price × (1 − discount). `match` = default
+   words for the "What customers paid" lookup. */
+var PR_SHEETS=[
+  {file:"D4X.xlsx",url:"pricing/D4X.xlsx"},
+  {file:"TK180 - vietnam.xlsx",url:"pricing/TK180-vietnam.xlsx"}
+];
+var PR_ITEMS=[
+  {sheet:"D4X.xlsx",model:"LABEL PRINTER D4X ETH USB",pn:"911PZ010100J33",list:276,disc:54,match:"d4x -bluetooth"},
+  {sheet:"D4X.xlsx",model:"LABEL PRINTER D4X ETH USB BLUETOOTH",pn:"911PZ010200J33",list:348,disc:54,match:"d4x bluetooth"},
+  {sheet:"TK180 - vietnam.xlsx",model:"PRINTER TK180 METAL ETH USB RS232 CUTTER",pn:"911HL011300733",special:394,match:"tk180 metal cutter -non"},
+  {sheet:"TK180 - vietnam.xlsx",model:"PRINTER TK180 ETH USB RS232 AVIATION (Plastic casing)",pn:"911HL020900733",special:287.59,match:"tk180 plastic -non"},
+  {sheet:"TK180 - vietnam.xlsx",model:"PRINTER TK180 METAL USB RS232 AVIATION NON-CUTTER",pn:"911HL010400733",special:300,match:"tk180 metal non cutter"},
+  {sheet:"TK180 - vietnam.xlsx",model:"ROLL HOLDER KIT FOR TK180 METAL",pn:"974HL010000009",list:103,disc:55,match:"roll holder metal -plastic"},
+  {sheet:"TK180 - vietnam.xlsx",model:"ROLL HOLDER KIT FOR TK180 PLASTIC",pn:"974HL020000004",special:46.8,match:"roll holder plastic"}
+];
+function prItemCost(b){return b.special!==undefined?b.special:b.list*(1-b.disc/100);}
+function prItemCostNote(b){
+  return b.special!==undefined?"special price ("+b.sheet+")":prMoney(b.list)+" price list − "+b.disc+"% ("+b.sheet+")";
+}
+function prSheetUrl(s){return SB_URL+"/storage/v1/object/public/documents/"+s.url;}
+
 /* Calculator selection — a per-viewer convenience, kept in localStorage */
-var PR_SEL={product:"",qty:1,type:0,profile:"",cost:"",special:false,
-  customName:"",customList:"",customDisc:"",match:null,test:""};
+var PR_SEL={product:"",qty:1,type:0,profile:"",cost:"",match:null,test:""};
 try{var _prs=JSON.parse(localStorage.getItem("cpd_pricing")||"null");if(_prs)PR_SEL=Object.assign(PR_SEL,_prs);}catch(e){}
 function prSaveSel(){try{localStorage.setItem("cpd_pricing",JSON.stringify(PR_SEL));}catch(e){}}
 
@@ -100,14 +123,9 @@ function prMoney(v,dp){
 }
 function prPct(v){return (Math.round(v*10)/10).toFixed(1)+"%";}
 
-/* ===== products ===== */
-function prProducts(){
-  return BUYING.slice().sort(function(a,b){
-    var ga=a.group?1:0,gb=b.group?1:0;
-    return (ga-gb)||String(a.group||"").localeCompare(String(b.group||""))||a.model.localeCompare(b.model);
-  });
-}
-function prFindProduct(name){return BUYING.find(function(b){return b.model===name;})||null;}
+/* ===== products (the two Excel sheets only) ===== */
+function prProducts(){return PR_ITEMS;}
+function prFindProduct(name){return PR_ITEMS.find(function(b){return b.model===name;})||null;}
 function prAutoProfile(text){
   var hay=String(text||"").toLowerCase(),fallback=null;
   for(var i=0;i<PR_PROFILES.length;i++){
@@ -118,35 +136,36 @@ function prAutoProfile(text){
   }
   return fallback||PR_PROFILES[0]||null;
 }
-function prProductProfile(b){return prAutoProfile(b?(b.model+" "+(b.group||"")):"");}
+function prProductProfile(b){return prAutoProfile(b?b.model:"");}
 
 /* The calculator's current product, buying cost and profile */
 function prCurrent(){
-  var custom=PR_SEL.product==="__custom";
-  var b=custom?null:prFindProduct(PR_SEL.product);
-  var name=custom?(PR_SEL.customName||"Custom product"):(b?b.model:"");
-  var baseCost=null,costNote="";
-  if(custom){
-    var lp=parseFloat(PR_SEL.customList),dc=parseFloat(PR_SEL.customDisc);
-    if(!isNaN(lp)){baseCost=lp*(1-(isNaN(dc)?0:dc/100));costNote=prMoney(lp)+" list"+(isNaN(dc)||!dc?"":" − "+dc+"%");}
-  }else if(b){
-    var useSp=PR_SEL.special&&b.specialPrice;
-    baseCost=useSp?b.specialPrice:b.price;
-    costNote=useSp?"special price"+(b.specialCustomer?" ("+b.specialCustomer+")":""):"from Buying Prices";
-  }
+  /* a saved pick that is no longer in the sheets falls back to the first item */
+  if(!prFindProduct(PR_SEL.product)&&PR_ITEMS.length){PR_SEL.product=PR_ITEMS[0].model;PR_SEL.match=null;PR_SEL.cost="";}
+  var b=prFindProduct(PR_SEL.product);
+  var baseCost=b?prItemCost(b):null,costNote=b?prItemCostNote(b):"";
   var ov=parseFloat(PR_SEL.cost);
   var cost=!isNaN(ov)?ov:baseCost;
   if(!isNaN(ov))costNote="entered manually";
   var profile=null;
   if(PR_SEL.profile)profile=PR_PROFILES.find(function(p){return p._id===PR_SEL.profile;})||null;
-  if(!profile)profile=custom?prAutoProfile(name):prProductProfile(b);
-  return{custom:custom,b:b,name:name,cost:cost,baseCost:baseCost,costNote:costNote,profile:profile,pn:b?b.pn:""};
+  if(!profile)profile=prProductProfile(b);
+  return{b:b,name:b?b.model:"",cost:cost,baseCost:baseCost,costNote:costNote,profile:profile,pn:b?b.pn:"",match:b?b.match:""};
 }
 
 /* ===== shell ===== */
 function prSyncToolbar(){
   var btn=document.querySelector("#toolbar .btn-add");
   if(btn&&currentTab==="pricing")btn.style.display="none";
+}
+/* The source Excel files, previewed with the tracker's in-app viewer */
+function prSheetsHtml(){
+  return "<div class='pr-sheets'><span class='pr-sheets-l'>Reference sheets</span>"+
+    PR_SHEETS.map(function(s){
+      return "<a class='pr-sheet' href=\""+prEsc(prSheetUrl(s))+"\" data-name=\""+prEsc(s.file)+"\" onclick='return trkViewFile(this)'>"+
+        "<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='8' y1='13' x2='16' y2='13'/><line x1='8' y1='17' x2='16' y2='17'/><line x1='12' y1='11' x2='12' y2='19'/></svg>"+
+        prEsc(s.file)+"</a>";
+    }).join("")+"</div>";
 }
 function renderPricing(){
   var content=document.getElementById("content");
@@ -161,7 +180,7 @@ function renderPricing(){
   var chips="<div class='trk-toolbar'><div class='trk-chips'>"+
     [["calc","Calculator"],["list","Price list"],["rules","Pricing rules"]].map(function(v){
       return "<button class='trk-chip"+(PR_VIEW===v[0]?" active":"")+"' onclick='prSetView(\""+v[0]+"\")'>"+v[1]+"</button>";
-    }).join("")+"</div></div>";
+    }).join("")+"</div>"+prSheetsHtml()+"</div>";
   var banner=PR_MISSING?"<div class='pr-banner'>Using the built-in rules from your Excel sheets. To edit and save rules for the whole team, run <b>pricing-setup.sql</b> once in the Supabase SQL editor, then reload.</div>":"";
   var body=PR_VIEW==="list"?prListHtml():PR_VIEW==="rules"?prRulesHtml():prCalcHtml();
   content.innerHTML="<div class='pr-wrap'>"+chips+banner+body+"</div>";
@@ -173,34 +192,23 @@ function prSetView(v){PR_VIEW=v;renderPricing();}
 function prProductOptions(sel){
   var out="<option value=''>— Select a product —</option>",lastGroup=null;
   prProducts().forEach(function(b){
-    var g=b.group||"Printers";
-    if(g!==lastGroup){if(lastGroup!==null)out+="</optgroup>";out+="<optgroup label='"+prEsc(g)+"'>";lastGroup=g;}
+    if(b.sheet!==lastGroup){if(lastGroup!==null)out+="</optgroup>";out+="<optgroup label='"+prEsc(b.sheet)+"'>";lastGroup=b.sheet;}
     out+="<option value=\""+prEsc(b.model)+"\""+(b.model===sel?" selected":"")+">"+prEsc(b.model)+"</option>";
   });
   if(lastGroup!==null)out+="</optgroup>";
-  out+="<option value='__custom'"+(sel==="__custom"?" selected":"")+">✎ Custom product (enter list price)…</option>";
   return out;
 }
 function prCalcHtml(){
   var c=prCurrent();
   var profOpts="<option value=''>Auto"+(c.profile&&!PR_SEL.profile?" — "+prEsc(c.profile.name):"")+"</option>"+
     PR_PROFILES.map(function(p){return "<option value='"+prEsc(p._id)+"'"+(PR_SEL.profile===p._id?" selected":"")+">"+prEsc(p.name)+"</option>";}).join("");
-  var customFields=c.custom?
-    "<div class='pr-field'><label>Product name</label><input id='pr-cname' value=\""+prEsc(PR_SEL.customName)+"\" placeholder='e.g. D4X ETH USB' oninput='prInput(\"customName\",this.value)'></div>"+
-    "<div class='pr-row2'>"+
-      "<div class='pr-field'><label>List price (USD)</label><input type='number' step='any' value=\""+prEsc(PR_SEL.customList)+"\" placeholder='e.g. 276' oninput='prInput(\"customList\",this.value)'></div>"+
-      "<div class='pr-field'><label>Discount %</label><input type='number' step='any' value=\""+prEsc(PR_SEL.customDisc)+"\" placeholder='e.g. 54' oninput='prInput(\"customDisc\",this.value)'></div>"+
-    "</div>":"";
-  var special=(c.b&&c.b.specialPrice)?
-    "<label class='pr-check'><input type='checkbox'"+(PR_SEL.special?" checked":"")+" onchange='PR_SEL.special=this.checked;PR_SEL.cost=\"\";prSaveSel();renderPricing()'> Use special price "+prMoney(c.b.specialPrice)+(c.b.specialCustomer?" ("+prEsc(c.b.specialCustomer)+")":"")+"</label>":"";
-  var hasProduct=!!(c.b||c.custom);
+  var hasProduct=!!c.b;
   var inputs=
     "<div class='pr-card pr-inputs'>"+
       "<div class='pr-field'><label>Product</label><select id='pr-product' onchange='prPickProduct(this.value)'>"+prProductOptions(PR_SEL.product)+"</select></div>"+
-      customFields+
       (hasProduct?
       "<div class='pr-field'><label>Buying cost per unit (USD)</label><input id='pr-cost' type='number' step='any' value=\""+prEsc(PR_SEL.cost)+"\" placeholder=\""+(c.baseCost!==null?prEsc(Math.round(c.baseCost*100)/100):"")+"\" oninput='prInput(\"cost\",this.value)'>"+
-        "<span class='pr-hint' id='pr-cost-note'></span>"+special+"</div>"+
+        "<span class='pr-hint' id='pr-cost-note'></span></div>"+
       "<div class='pr-field'><label>Pricing rule</label><select onchange='PR_SEL.profile=this.value;prSaveSel();renderPricing()'>"+profOpts+"</select></div>"+
       "<div class='pr-row2'>"+
         "<div class='pr-field'><label>Customer quantity</label><input id='pr-qty' type='number' min='1' step='1' value=\""+prEsc(PR_SEL.qty)+"\" oninput='prInput(\"qty\",this.value)'></div>"+
@@ -209,28 +217,18 @@ function prCalcHtml(){
       "<div class='pr-field'><label>Customer type</label><div class='pr-seg' id='pr-types'></div></div>":"")+
     "</div>";
   if(!hasProduct){
-    return "<div class='pr-calc'>"+inputs+"<div class='pr-card pr-result'><div class='empty'>Pick a product to see its selling prices.<br><span style='font-size:12px'>Products come from the Buying Prices tab — or choose “Custom product” to price something not listed there.</span></div></div></div>";
+    return "<div class='pr-calc'>"+inputs+"<div class='pr-card pr-result'><div class='empty'>Pick a product to see its selling prices.<br><span style='font-size:12px'>Products and buying costs come from the two reference Excel sheets (D4X and TK180 Vietnam).</span></div></div></div>";
   }
   return "<div class='pr-calc'>"+inputs+"<div class='pr-card pr-result' id='pr-result'></div></div>"+
     "<div class='pr-card pr-cmp' id='pr-cmp'></div>";
 }
 function prPickProduct(v){
-  PR_SEL.product=v;PR_SEL.cost="";PR_SEL.special=false;PR_SEL.profile="";PR_SEL.match=null;
+  PR_SEL.product=v;PR_SEL.cost="";PR_SEL.profile="";PR_SEL.match=null;
   prSaveSel();renderPricing();
 }
 /* Typing only refreshes the result panels, so inputs keep focus */
 function prInput(field,val){
   PR_SEL[field]=val;prSaveSel();
-  if(field==="customName"){
-    /* the auto rule follows the name; keep the select label in step */
-    var sel=document.querySelector(".pr-inputs select:not(#pr-product)");
-    var c=prCurrent();
-    if(sel&&!PR_SEL.profile&&sel.options[0])sel.options[0].textContent="Auto"+(c.profile?" — "+c.profile.name:"");
-  }
-  if(field==="customList"||field==="customDisc"){
-    var ci=document.getElementById("pr-cost"),c2=prCurrent();
-    if(ci)ci.placeholder=c2.baseCost!==null?String(Math.round(c2.baseCost*100)/100):"";
-  }
   prUpdateCalc();
 }
 function prSetType(i){PR_SEL.type=i;prSaveSel();prUpdateCalc();}
@@ -248,7 +246,7 @@ function prUpdateCalc(){
     return "<button type='button' class='"+(i===PR_SEL.type?"active":"")+"' onclick='prSetType("+i+")'>"+prEsc(t.name)+"</button>";
   }).join("");
   if(c.cost===null||isNaN(c.cost)){
-    res.innerHTML="<div class='empty'>Enter a buying cost"+(c.custom?" or list price":"")+".</div>";
+    res.innerHTML="<div class='empty'>Enter a buying cost"+""+".</div>";
     var cmp0=document.getElementById("pr-cmp");if(cmp0)cmp0.innerHTML="";
     return;
   }
@@ -358,7 +356,7 @@ function prMatchInput(v){PR_SEL.match=v;prSaveSel();var c=prCurrent();prUpdateCm
 function prUpdateCmp(c,p,keepInput){
   var el=document.getElementById("pr-cmp");
   if(!el||!p)return;
-  var q=PR_SEL.match===null?prDefaultMatch(c.name):PR_SEL.match;
+  var q=PR_SEL.match===null?(c.match||prDefaultMatch(c.name)):PR_SEL.match;
   var rows=prHistory(c,q);
   var body;
   if(!rows.length){
@@ -408,7 +406,7 @@ function prUpdateCmp(c,p,keepInput){
   el.innerHTML=head+"<div id='pr-cmp-body'>"+body+"</div>";
 }
 
-/* ===== price list (every Buying Prices item) ===== */
+/* ===== price list (every item in the two sheets) ===== */
 function prListSearch(v){
   PR_LIST_Q=v;
   var el=document.getElementById("pr-list-body");
@@ -416,15 +414,15 @@ function prListSearch(v){
 }
 function prListBody(){
   var q=PR_LIST_Q.trim().toLowerCase();
-  var items=prProducts().filter(function(b){return !q||(b.model+" "+(b.pn||"")+" "+(b.group||"")).toLowerCase().indexOf(q)!==-1;});
+  var items=prProducts().filter(function(b){return !q||(b.model+" "+(b.pn||"")+" "+b.sheet).toLowerCase().indexOf(q)!==-1;});
   if(!items.length)return "<div class='empty'>No products match.</div>";
   var lastGroup=null,html="";
   items.forEach(function(b){
-    var g=b.group||"Printers";
+    var g=b.sheet;
     if(g!==lastGroup){html+="<div class='po-month'>"+prEsc(g)+"</div>";lastGroup=g;}
     var p=prProductProfile(b);
     if(!p)return;
-    var cost=b.price;
+    var cost=prItemCost(b);
     var types=p.types.map(function(t,k){return{t:t,k:k};}).filter(function(x){return !PR_LIST_TYPE||x.t.name===PR_LIST_TYPE;});
     var cells=p.tiers.map(function(t,i){
       var cogs=prCogs(cost,t);
@@ -438,13 +436,13 @@ function prListBody(){
     html+="<div class='pr-pl-row' onclick='prOpenInCalc(this.dataset.m)' data-m=\""+prEsc(b.model)+"\" title='Open in calculator'>"+
       "<div class='pr-pl-name'><div class='pr-cust-n'>"+prEsc(b.model)+"</div>"+
         "<span class='pr-sub'>"+(b.pn?"<span class='pr-mono'>"+prEsc(b.pn)+"</span> · ":"")+"buy "+prMoney(cost,2)+" · "+prEsc(p.name)+"</span>"+
-        (b.specialPrice?"<span class='pr-sub'>special "+prMoney(b.specialPrice,2)+(b.specialCustomer?" ("+prEsc(b.specialCustomer)+")":"")+" — not used here</span>":"")+
+        "<span class='pr-sub'>"+prEsc(prItemCostNote(b))+"</span>"+
       "</div><div class='pr-pl-tiers'>"+cells+"</div></div>";
   });
   return html;
 }
 function prOpenInCalc(model){prPickProductSilent(model);PR_VIEW="calc";renderPricing();window.scrollTo(0,0);}
-function prPickProductSilent(v){PR_SEL.product=v;PR_SEL.cost="";PR_SEL.special=false;PR_SEL.profile="";PR_SEL.match=null;prSaveSel();}
+function prPickProductSilent(v){PR_SEL.product=v;PR_SEL.cost="";PR_SEL.profile="";PR_SEL.match=null;prSaveSel();}
 function prListHtml(){
   var typeNames=[];
   PR_PROFILES.forEach(function(p){p.types.forEach(function(t){if(typeNames.indexOf(t.name)===-1)typeNames.push(t.name);});});
@@ -454,7 +452,7 @@ function prListHtml(){
         typeNames.map(function(n){return "<option"+(PR_LIST_TYPE===n?" selected":"")+">"+prEsc(n)+"</option>";}).join("")+"</select>"+
     "</div>"+
     "<div class='pr-card pr-pl'><div id='pr-list-body'>"+prListBody()+"</div></div>"+
-    "<div class='pr-foot'>Uses each item's regular buying price from Buying Prices and its automatic pricing rule. Click a product to open it in the calculator.</div>";
+    "<div class='pr-foot'>Products and buying costs exactly as in the two reference Excel sheets. Click a product to open it in the calculator.</div>";
 }
 
 /* ===== rules editor ===== */

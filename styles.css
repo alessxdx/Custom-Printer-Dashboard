@@ -1494,3 +1494,7 @@ table.pr-matrix,table.pr-rules,table.pr-hist{width:100%;border-collapse:collapse
 }
 .stat-grid:empty{display:none}
 @media (max-width:640px){.pr-matrix{font-size:12px}.pr-matrix td:first-child .pr-sub{display:none}.pr-matrix td:first-child{white-space:normal}}
+.pr-sheets{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pr-sheets-l{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-right:2px}
+.pr-sheet{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--badge-po-fg);background:var(--badge-po-bg);border-radius:7px;padding:5px 10px;text-decoration:none;cursor:pointer}
+.pr-sheet:hover{filter:brightness(.96)}
