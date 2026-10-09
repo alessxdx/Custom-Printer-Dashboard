@@ -732,6 +732,17 @@ function trkCalToggleSide(show){
   try{localStorage.setItem("cpd_trk_side",TRK_CAL_SIDE?"1":"0");}catch(e){}
   trkRenderList(true);
 }
+/* age bands folded shut in the side panel (remembered per browser);
+   toggled in place so the panel keeps its scroll position */
+var TRK_CAL_FOLD=(function(){try{return (localStorage.getItem("cpd_trk_fold")||"").split(",").filter(Boolean);}catch(e){return [];}})();
+function trkCalToggleBand(btn,tone){
+  var at=TRK_CAL_FOLD.indexOf(tone);
+  if(at>-1)TRK_CAL_FOLD.splice(at,1);else TRK_CAL_FOLD.push(tone);
+  try{localStorage.setItem("cpd_trk_fold",TRK_CAL_FOLD.join(","));}catch(e){}
+  var band=btn.parentNode,shut=at===-1;
+  band.classList.toggle("trk-cal-folded",shut);
+  btn.setAttribute("aria-expanded",shut?"false":"true");
+}
 function trkSetView(v){
   TRK_VIEW=v==="cal"?"cal":"list";
   try{localStorage.setItem("cpd_trk_view",TRK_VIEW);}catch(e){}
@@ -867,7 +878,11 @@ function trkCalendarHtml(list,act){
       bands.map(function(b){
         var rows=open.filter(function(it){return it.tone===b.tone;});
         if(!rows.length)return"";
-        return "<div class='trk-cal-sec trk-cal-sec-"+b.tone+"'>"+b.label+"<span>"+rows.length+"</span></div>"+rows.map(row).join("");
+        var shut=TRK_CAL_FOLD.indexOf(b.tone)>-1;
+        return "<div class='trk-cal-band"+(shut?" trk-cal-folded":"")+"'>"+
+          "<button class='trk-cal-sec trk-cal-sec-"+b.tone+"' aria-expanded='"+(shut?"false":"true")+"' onclick='trkCalToggleBand(this,\""+b.tone+"\")'>"+
+            "<i class='trk-cal-chev'>&#9662;</i>"+b.label+"<span>"+rows.length+"</span></button>"+
+          "<div class='trk-cal-band-rows'>"+rows.map(row).join("")+"</div></div>";
       }).join("")||"<div class='trk-cal-empty'>No open projects in this view.</div>";
   }
 
