@@ -12,7 +12,11 @@ var TRK_PROJECTS=[],TRK_ENTRIES=[];
 var TRK_LOADED=false,TRK_MISSING=false;
 var TRK_SEL=null;            /* project id shown in detail view */
 /* status chips are multi-select: an array of statuses, or ["stale"] alone */
-var TRK_FSTATUS=[],TRK_FOFFICE="",TRK_FSOL="";
+/* Status chips: the live pipeline is on by default; Won and Lost sit
+   at the end, off until picked. */
+var TRK_CHIP_ORDER=["Enquiry","Quoted","Other","Won","Lost"];
+var TRK_FSTATUS_DEFAULT=["Enquiry","Quoted","Other"];
+var TRK_FSTATUS=TRK_FSTATUS_DEFAULT.slice(),TRK_FOFFICE="",TRK_FSOL="";
 var TRK_Q="";                 /* list search box text */
 var TRK_ATT=[];              /* entry-modal attachment staging */
 
@@ -373,15 +377,23 @@ function renderTracker(){
 }
 
 function trkStaleOn(){return TRK_FSTATUS[0]==="stale";}
-/* "All" clears, "Needs follow-up" is exclusive (it re-sorts the list),
-   any other chip toggles on or off alongside the rest */
+function trkAllStatusesOn(){
+  return TRK_CHIP_ORDER.every(function(s){return TRK_FSTATUS.indexOf(s)>-1;});
+}
+function trkDefaultStatusesOn(){
+  return TRK_FSTATUS.length===TRK_FSTATUS_DEFAULT.length&&
+    TRK_FSTATUS_DEFAULT.every(function(s){return TRK_FSTATUS.indexOf(s)>-1;});
+}
+/* "All" turns every status on (again: back to the default),
+   "Needs follow-up" is exclusive (it re-sorts the list), any other chip
+   toggles on or off; switching the last one off returns to the default */
 function trkSetStatusFilter(s){
-  if(!s)TRK_FSTATUS=[];
-  else if(s==="stale")TRK_FSTATUS=trkStaleOn()?[]:["stale"];
+  if(!s)TRK_FSTATUS=trkAllStatusesOn()?TRK_FSTATUS_DEFAULT.slice():TRK_CHIP_ORDER.slice();
+  else if(s==="stale")TRK_FSTATUS=trkStaleOn()?TRK_FSTATUS_DEFAULT.slice():["stale"];
   else{
     var cur=TRK_FSTATUS.filter(function(x){return x!=="stale";}),at=cur.indexOf(s);
     if(at>-1)cur.splice(at,1);else cur.push(s);
-    TRK_FSTATUS=cur;
+    TRK_FSTATUS=cur.length?cur:TRK_FSTATUS_DEFAULT.slice();
   }
   renderTracker();
 }
@@ -549,7 +561,7 @@ function trkSnippet(raw,q){
 }
 
 function trkRenderList(bodyOnly){
-  var chips=[{label:"All",value:""}].concat(TRK_STATUSES.map(function(s){
+  var chips=[{label:"All",value:""}].concat(TRK_CHIP_ORDER.map(function(s){
     var n=TRK_PROJECTS.filter(function(p){return p.status===s;}).length;
     if(s==="Other"&&!n)return null; /* chip appears once one exists */
     return {label:(s==="Other"?"Others":s)+(n?" ("+n+")":""),value:s};
@@ -558,7 +570,7 @@ function trkRenderList(bodyOnly){
   var staleN=TRK_PROJECTS.filter(function(p){return trkFollowDue(p,act);}).length;
   if(staleN||trkStaleOn())chips.splice(1,0,{label:"⏰ Needs follow-up ("+staleN+")",value:"stale",cls:" trk-chip-stale"});
   chips=chips.map(function(c){
-    return "<button class='trk-chip"+(c.cls||"")+((c.value?TRK_FSTATUS.indexOf(c.value)>-1:!TRK_FSTATUS.length)?" active":"")+"' onclick='trkSetStatusFilter(\""+c.value+"\")'>"+trkEsc(c.label)+"</button>";
+    return "<button class='trk-chip"+(c.cls||"")+((c.value?TRK_FSTATUS.indexOf(c.value)>-1:trkAllStatusesOn())?" active":"")+"' onclick='trkSetStatusFilter(\""+c.value+"\")'>"+trkEsc(c.label)+"</button>";
   }).join("");
 
   var officeSel="<select class='trk-office-filter' onchange='trkSetOfficeFilter(this.value)'>"+
@@ -579,13 +591,12 @@ function trkRenderList(bodyOnly){
      is what drives the order, so logging an entry brings that project to
      the top. Closed projects (Won/Lost) sink below the live pipeline. */
   function actOf(p){return act[p._id]||{d:(p.createdAt||"").slice(0,10),c:p.createdAt||""};}
-  /* A search looks through everything, Lost included, unless a status
-     chip narrows it; each hit carries a score and a "why it matched". */
+  /* With the default chips, a search looks through everything (Won and
+     Lost included); a changed chip selection narrows it. Each hit
+     carries a score and a "why it matched". */
   var q=trkSearchQuery(TRK_Q),hits={};
   var list=TRK_PROJECTS.filter(function(p){
-    /* Lost projects stay out of the default view — they only appear
-       when the Lost chip itself is selected (or a search finds them). */
-    if(!(trkStaleOn()?trkFollowDue(p,act):TRK_FSTATUS.length?TRK_FSTATUS.indexOf(p.status)>-1:(q||p.status!=="Lost"))||(TRK_FOFFICE&&p.office!==TRK_FOFFICE)||(TRK_FSOL&&p.solution!==TRK_FSOL))return false;
+    if(!(trkStaleOn()?trkFollowDue(p,act):(q&&trkDefaultStatusesOn())||TRK_FSTATUS.indexOf(p.status)>-1)||(TRK_FOFFICE&&p.office!==TRK_FOFFICE)||(TRK_FSOL&&p.solution!==TRK_FSOL))return false;
     if(!q)return true;
     var h=trkSearchProject(p,q);
     if(h)hits[p._id]=h;
