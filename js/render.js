@@ -860,9 +860,55 @@ function toggleBuyGroup(evtOrEl,grpArg){
   window.scrollTo(0,scrollY);
 }
 
+/* Notes are split by what they are: quick updates (no value), records with
+   an amount, and the shipping-term reference cards. Newest first in the
+   first two; the terms are A-Z and folded away since they rarely change. */
 function renderOthers(){
-  const rows=OTHERS.map((o,i)=>`<div class="others-row"><div style="flex:1">${o.date?`<div class="others-date">${o.date}</div>`:""}<div class="others-desc">${o.desc}</div>${o.sub?`<div class="others-sub">${o.sub}</div>`:""}</div><div style="display:flex;align-items:start;gap:12px;flex-shrink:0"><div class="others-val">${o.value}</div><button class="edit-btn" onclick="editOther(${i})">Edit</button><button class="delete-btn" onclick="deleteOther(${i})">Remove</button></div></div>`).join("");
-  document.getElementById("content").innerHTML=`<div class="others-card">${rows}</div>`;
+  const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  const all=OTHERS.map((o,i)=>({o:o,i:i}));
+  const newest=(a,b)=>(b.o.created||"").localeCompare(a.o.created||"")||b.i-a.i;
+  const isTerm=x=>x.o.value==="Shipping term";
+  /* a lone dash was the old way round the required value field */
+  const hasVal=x=>!/^[\s\-–—]*$/.test(x.o.value||"");
+  const updates=all.filter(x=>!hasVal(x)).sort(newest);
+  const records=all.filter(x=>hasVal(x)&&!isTerm(x)).sort(newest);
+  const terms=all.filter(isTerm).sort((a,b)=>a.o.desc.localeCompare(b.o.desc));
+  const row=(x,quick)=>{const o=x.o,i=x.i;return `<div class="others-row${quick?" others-quick":""}"><div style="flex:1;min-width:0">${o.date?`<div class="others-date">${esc(o.date)}</div>`:""}<div class="others-desc">${esc(o.desc)}</div>${o.sub?`<div class="others-sub">${esc(o.sub)}</div>`:""}</div><div class="others-acts">${hasVal(x)&&!isTerm(x)?`<div class="others-val">${esc(o.value)}</div>`:""}<button class="edit-btn" onclick="editOther(${i})">Edit</button>${quick?`<button class="others-x" title="Delete" onclick="deleteOtherQuick(${i})">×</button>`:`<button class="delete-btn" onclick="deleteOther(${i})">Remove</button>`}</div></div>`;};
+  const section=(title,list,quick,empty)=>`<div class="others-sec"><div class="others-sec-h">${title}<span>${list.length}</span></div>${list.length?list.map(x=>row(x,quick)).join(""):`<div class="others-empty">${empty}</div>`}</div>`;
+  document.getElementById("content").innerHTML=`<div class="others-card">
+    <div class="others-compose"><textarea id="others-quick" rows="1" placeholder="Write a quick update… (Enter to post, Shift+Enter for a new line)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();postOtherQuick();}"></textarea><button class="btn-save" onclick="postOtherQuick()">Post</button></div>
+    ${section("Updates",updates,true,"No updates yet. Anything you post above lands here and can be deleted with one click.")}
+    ${records.length?section("Records",records,false,""):""}
+    ${terms.length?`<details class="others-sec"><summary class="others-sec-h">Shipping terms<span>${terms.length}</span></summary>${terms.map(x=>row(x,false)).join("")}</details>`:""}
+  </div>`;
+}
+async function postOtherQuick(){
+  const el=document.getElementById("others-quick"),text=el.value.trim();
+  if(!text)return;
+  const d=new Date(),no={date:d.getDate()+" "+d.toLocaleString("en-GB",{month:"short"})+" "+d.getFullYear(),desc:text,value:"",sub:"",created:d.toISOString()};
+  el.value="";
+  const r=await sbInsert("others",oToDb(no));if(r&&r[0]){no._id=r[0].id;no.created=r[0].created_at||no.created;}
+  OTHERS.push(no);renderContent();
+  const again=document.getElementById("others-quick");if(again)again.focus();
+}
+/* One click, no confirm box: the toast's Undo puts it straight back */
+async function deleteOtherQuick(i){
+  const item=OTHERS[i];if(!item)return;
+  OTHERS.splice(i,1);renderContent();
+  if(item._id)await sbDelete("others",item._id);
+  showUndoToast("Update deleted",async function(){
+    const back=Object.assign({},item);delete back._id;
+    const r=await sbInsert("others",oToDb(back));if(r&&r[0])back._id=r[0].id;
+    OTHERS.push(back);renderContent();
+  });
+}
+function showUndoToast(msg,onUndo){
+  let t=document.getElementById("undo-toast");if(t)t.remove();
+  t=document.createElement("div");t.id="undo-toast";t.className="undo-toast";
+  t.innerHTML=`<span>${msg}</span><button>Undo</button>`;
+  t.querySelector("button").onclick=function(){t.remove();onUndo();};
+  document.body.appendChild(t);
+  setTimeout(function(){if(t.parentNode)t.remove();},6000);
 }
 let SPARES=[
   {name:"TK180 TPH",pn:"43000000045700",price:118,currency:"USD",customer:"Philippines Airlines",terms:"DDP",note:"Quotation 17 Apr 2026"},

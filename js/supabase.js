@@ -116,7 +116,7 @@ function txRemoveAttachment(e,i){
 function txSetDoctype(val,i){if(TX_ATT[i])TX_ATT[i].doctype=val;}
 function dbToB(r){return{_id:r.id,model:r.model,pn:r.pn||"",price:Number(r.price),currency:r.currency,specialPrice:r.special_price?Number(r.special_price):undefined,specialCustomer:r.special_customer||"",group:r.grp||""};}
 function bToDb(b){return{model:b.model,pn:b.pn||"",price:b.price,currency:b.currency,special_price:b.specialPrice||null,special_customer:b.specialCustomer||null,grp:b.group||null};}
-function dbToO(r){return{_id:r.id,date:r.date||"",desc:r.description||"",value:r.value||"",sub:r.sub||""};}
+function dbToO(r){return{_id:r.id,date:r.date||"",desc:r.description||"",value:r.value||"",sub:r.sub||"",created:r.created_at||""};}
 function oToDb(o){return{date:o.date||"",description:o.desc,value:o.value,sub:o.sub||""};}
 function dbToS(r){return{_id:r.id,name:r.name||"",pn:r.pn||"",price:Number(r.price)||0,currency:r.currency||"USD",customer:r.customer||"",terms:r.terms||"",note:r.note||""};}
 function sToDb(s){return{name:s.name,pn:s.pn||"",price:s.price,currency:s.currency||"USD",customer:s.customer||"",terms:s.terms||"",note:s.note||""};}
@@ -320,7 +320,7 @@ async function sbSaveBuying(){
 }
 async function sbSaveOther(){
   var desc=document.getElementById("o-desc").value.trim(),value=document.getElementById("o-value").value.trim();
-  if(!desc||!value){alert("Please fill in Description and Value.");return;}
+  if(!desc){alert("Please fill in Description.");return;}
   var no={date:document.getElementById("o-date").value.trim(),desc:desc,value:value,sub:document.getElementById("o-sub").value.trim()};
   showLoad("Saving...");var r=await sbInsert("others",oToDb(no));if(r&&r[0])no._id=r[0].id;
   OTHERS.push(no);hideLoad();closeOtherModal();renderContent();
@@ -440,8 +440,8 @@ function editOther(i){
   saveBtnO.onclick=async function(){
     var desc=document.getElementById("o-desc").value.trim();
     var value=document.getElementById("o-value").value.trim();
-    if(!desc||!value){alert("Please fill in Description and Value.");return;}
-    var updated={date:document.getElementById("o-date").value.trim(),desc:desc,value:value,sub:document.getElementById("o-sub").value.trim(),_id:o._id};
+    if(!desc){alert("Please fill in Description.");return;}
+    var updated={date:document.getElementById("o-date").value.trim(),desc:desc,value:value,sub:document.getElementById("o-sub").value.trim(),_id:o._id,created:o.created};
     showLoad("Updating...");
     if(o._id){
       await fetch(SB_URL+"/rest/v1/others?id=eq."+o._id,{method:"PATCH",headers:sbH(),body:JSON.stringify(oToDb(updated))});

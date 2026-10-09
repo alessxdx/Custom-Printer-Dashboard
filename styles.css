@@ -499,6 +499,40 @@ tr.exp-detail td{
 .others-desc{font-size:13px;font-weight:500;color:var(--text-strong)}
 .others-sub{font-size:12px;color:var(--text-muted);margin-top:4px;line-height:1.6;max-width:600px}
 .others-val{font-size:13px;font-weight:600;color:var(--text-strong);white-space:nowrap;text-align:right;flex-shrink:0}
+.others-acts{display:flex;align-items:start;gap:12px;flex-shrink:0}
+.others-quick .others-desc{white-space:pre-wrap;font-weight:400}
+.others-x{
+  border:none;background:none;cursor:pointer;color:var(--text-faint);
+  font-size:18px;line-height:1;padding:0 4px;border-radius:4px;
+}
+.others-x:hover{color:var(--danger,#e5484d);background:var(--bg-hover)}
+.others-compose{display:flex;gap:10px;align-items:flex-end;padding:14px 16px;border-bottom:1px solid var(--divider);background:var(--bg-soft)}
+.others-compose textarea{
+  flex:1;min-width:0;resize:vertical;min-height:38px;
+  font-family:inherit;font-size:13px;padding:9px 12px;border-radius:6px;
+  border:1px solid var(--border);background:var(--bg-input);color:var(--text);
+}
+.others-compose .btn-save{flex-shrink:0}
+.others-sec + .others-sec{border-top:1px solid var(--divider)}
+.others-sec-h{
+  padding:12px 16px 8px;font-size:10.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);
+  border-bottom:1px solid var(--divider);
+}
+.others-sec-h span{margin-left:8px;color:var(--text-faint);font-weight:500}
+details.others-sec > summary{cursor:pointer;list-style:none}
+details.others-sec > summary::-webkit-details-marker{display:none}
+details.others-sec > summary::before{content:"\25B8";display:inline-block;margin-right:6px;transition:transform .15s}
+details.others-sec[open] > summary::before{transform:rotate(90deg)}
+details.others-sec:not([open]) > summary{border-bottom:none}
+.others-empty{padding:14px 16px;font-size:12px;color:var(--text-faint)}
+.undo-toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;
+  display:flex;align-items:center;gap:14px;padding:10px 14px 10px 16px;
+  background:var(--text-strong);color:var(--bg);border-radius:8px;font-size:13px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25);
+}
+.undo-toast button{border:none;background:none;color:inherit;text-decoration:underline;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px}
 
 .empty{padding:36px;text-align:center;font-size:13px;color:var(--text-faint)}
 
