@@ -1453,7 +1453,8 @@ details.others-sec:not([open]) > summary{border-bottom:none}
 .trk-cal-row+.trk-cal-row{border-top:1px solid var(--border);border-radius:0}
 .trk-cal-row:hover{background:var(--bg-hover)}
 .trk-cal-row-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
-.trk-cal-row-name{font-size:12.5px;font-weight:600;color:var(--text-strong);min-width:0}
+/* one line in the side panel; the full name is in the tooltip */
+.trk-cal-row-name{flex:1;font-size:12.5px;font-weight:600;color:var(--text-strong);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .trk-cal-pill{flex:none;font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px}
 .trk-cal-row-sub{font-size:11.5px;color:var(--text-muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trk-cal-row-sub .trk-cal-key{white-space:nowrap}

@@ -898,7 +898,7 @@ function trkCalendarHtml(list,act){
   /* side panel row: name, age pill, latest entry */
   function row(it){
     return "<div class='trk-cal-row' onclick='trkOpen(\""+it.p._id+"\")'>"+
-      "<div class='trk-cal-row-top'><span class='trk-cal-row-name'>"+trkEsc(it.p.name)+"</span>"+
+      "<div class='trk-cal-row-top'><span class='trk-cal-row-name' title='"+trkEsc(it.p.name)+"'>"+trkEsc(it.p.name)+"</span>"+
       (it.tone==="closed"?"":"<span class='trk-cal-pill trk-cal-"+it.tone+"'>"+(it.n<=0?"today":it.n+"d ago")+"</span>")+"</div>"+
       "<div class='trk-cal-row-sub'>"+trkFmtDate(it.e.date)+" &middot; "+trkEsc(it.e.type)+(it.e.title?" &mdash; "+trkEsc(it.e.title):"")+"</div>"+
     "</div>";
@@ -909,7 +909,7 @@ function trkCalendarHtml(list,act){
     side="<div class='trk-cal-side-h'><button class='trk-cal-back' onclick='trkCalPick(\""+sel+"\")'>&lsaquo; All open projects</button></div>"+
       "<div class='trk-cal-sec'>"+trkFmtDate(sel)+(sel===today?" &middot; today":"")+"</div>"+
       s.fu.map(function(f){
-        return "<div class='trk-cal-row' onclick='trkOpen(\""+f.p._id+"\")'><div class='trk-cal-row-top'><span class='trk-cal-row-name'>"+trkEsc(f.p.name)+"</span></div>"+
+        return "<div class='trk-cal-row' onclick='trkOpen(\""+f.p._id+"\")'><div class='trk-cal-row-top'><span class='trk-cal-row-name' title='"+trkEsc(f.p.name)+"'>"+trkEsc(f.p.name)+"</span></div>"+
           "<div class='trk-cal-row-sub'><span class='trk-cal-key trk-cal-fu-"+f.st+"'>"+TRK_CAL_FU[f.st].ico+" "+TRK_CAL_FU[f.st].label+"</span></div></div>";
       }).join("")+
       (s.ev.map(row).join("")||(s.fu.length?"":"<div class='trk-cal-empty'>No project had its latest update on this day.</div>"));
