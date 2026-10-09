@@ -579,6 +579,9 @@ function trkRenderList(bodyOnly){
     if(q&&hits[a._id].score!==hits[b._id].score)return hits[b._id].score-hits[a._id].score;
     /* the follow-up list puts the longest-forgotten first */
     if(TRK_FSTATUS==="stale")return trkFollowDue(b,act).days-trkFollowDue(a,act).days;
+    /* completed projects (won, paid, delivered) go to the very bottom */
+    var xa=trkIsDone(a)?1:0,xb=trkIsDone(b)?1:0;
+    if(xa!==xb)return xa-xb;
     var ca=TRK_CLOSED_STATUSES.indexOf(a.status)>-1?1:0;
     var cb=TRK_CLOSED_STATUSES.indexOf(b.status)>-1?1:0;
     if(ca!==cb)return ca-cb;
@@ -648,8 +651,11 @@ function trkRenderList(bodyOnly){
       var grp=list.filter(function(p){return (p.solution||"")===s;});
       if(!grp.length)return"";
       /* Inside a sector the newest entry wins outright — closed
-         projects don't sink here, per the user's preference. */
+         projects don't sink here, per the user's preference — except
+         completed ones (won, paid, delivered), which go to the bottom. */
       grp.sort(function(a,b){
+        var xa=trkIsDone(a)?1:0,xb=trkIsDone(b)?1:0;
+        if(xa!==xb)return xa-xb;
         var da=actOf(a),db=actOf(b);
         if(da.d!==db.d)return db.d.localeCompare(da.d);
         if(da.c!==db.c)return db.c.localeCompare(da.c);
