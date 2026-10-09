@@ -807,7 +807,7 @@ function trkCalPick(d){
   if(TRK_CAL_SEL){TRK_CAL_M=d.slice(0,7);TRK_CAL_SIDE=true;}
   trkRenderList(true);
 }
-function trkCalShort(p){return p.customer||p.name||"";}
+function trkCalShort(p){return p.name||p.customer||"";}
 /* update-age band: fresh / warm (14d+) / hot (30d+); closed = done/lost */
 function trkCalTone(p,days){
   if(!trkIsOpen(p))return "closed";
