@@ -661,7 +661,9 @@ function trkRenderList(bodyOnly){
      Once anything is tagged, cards sit under small solution headers
      (Custom, Posiva, Fire fighting, Others…), untagged projects last.
      The flat list remains when nothing is tagged yet or the solution
-     filter already narrows the list to one group. */
+     filter already narrows the list to one group. Each heading folds
+     its group away (remembered per browser) and keeps a count of the
+     group's projects needing a follow-up, so nothing hides unnoticed. */
   var cards;
   if(q||TRK_FSOL||trkStaleOn()||!list.some(function(p){return p.solution;})){
     cards=list.map(cardHtml).join("");
@@ -687,11 +689,24 @@ function trkRenderList(bodyOnly){
         if(da.c!==db.c)return db.c.localeCompare(da.c);
         return (b.createdAt||"").localeCompare(a.createdAt||"");
       });
-      return "<div class='trk-group-head"+(s?"":" trk-group-untagged")+"'>"+
-        (s?"<span class='trk-sol-dot' style='background:"+trkSolutionColor(s)+"'></span>"+trkEsc(s):"No tag yet")+
-        "<span class='trk-group-count'>"+grp.length+"</span></div>"+
-        grp.map(cardHtml).join("");
+      var key=s||TRK_GROUP_NONE,shut=TRK_GFOLD.indexOf(key)>-1;
+      var due=grp.filter(function(p){return trkFollowDue(p,act);}).length;
+      return "<div class='trk-group"+(shut?" trk-group-folded":"")+"'>"+
+        "<button class='trk-group-head"+(s?"":" trk-group-untagged")+"' aria-expanded='"+(shut?"false":"true")+"' data-key='"+trkEsc(key)+"' onclick='trkToggleGroup(this)'>"+
+          "<i class='trk-group-chev'>&#9662;</i>"+
+          (s?"<span class='trk-sol-dot' style='background:"+trkSolutionColor(s)+"'></span>"+trkEsc(s):"No tag yet")+
+          "<span class='trk-group-count'>"+grp.length+"</span>"+
+          (due?"<span class='trk-badge trk-stale' title='Projects in this group needing a follow-up'>&#9200; "+due+" need follow-up</span>":"")+
+        "</button>"+
+        "<div class='trk-group-body'>"+grp.map(cardHtml).join("")+"</div></div>";
     }).join("");
+    /* expand / collapse every group at once */
+    if(cards){
+      var allShut=order.every(function(s){
+        return !list.some(function(p){return (p.solution||"")===s;})||TRK_GFOLD.indexOf(s||TRK_GROUP_NONE)>-1;
+      });
+      cards="<div class='trk-group-all'><button onclick='trkFoldAllGroups("+(allShut?"false":"true")+")'>"+(allShut?"&#9662; Expand all":"&#9656; Collapse all")+"</button></div>"+cards;
+    }
   }
 
   var body=TRK_VIEW==="cal"?trkCalendarHtml(list,act):(q?"<div class='trk-search-count'>"+list.length+" project"+(list.length===1?"":"s")+" match <strong>"+trkEsc(TRK_Q.trim())+"</strong></div>":"")+
@@ -713,6 +728,38 @@ function trkRenderList(bodyOnly){
     "<div id='trk-list-body'>"+body+"</div>";
 }
 function trkSearchInput(v){TRK_Q=v;trkRenderList(true);}
+
+/* folded solution groups in the list (remembered per browser) */
+var TRK_GROUP_NONE="__untagged";
+var TRK_GFOLD=(function(){try{return JSON.parse(localStorage.getItem("cpd_trk_gfold")||"[]");}catch(e){return [];}})();
+function trkSaveGFold(){try{localStorage.setItem("cpd_trk_gfold",JSON.stringify(TRK_GFOLD));}catch(e){}}
+/* toggled in place so the page keeps its scroll position */
+function trkToggleGroup(btn){
+  var key=btn.getAttribute("data-key"),at=TRK_GFOLD.indexOf(key),shut=at===-1;
+  if(shut)TRK_GFOLD.push(key);else TRK_GFOLD.splice(at,1);
+  trkSaveGFold();
+  btn.parentNode.classList.toggle("trk-group-folded",shut);
+  btn.setAttribute("aria-expanded",shut?"false":"true");
+  trkSyncFoldAll();
+}
+function trkFoldAllGroups(shut){
+  document.querySelectorAll(".trk-group-head[data-key]").forEach(function(btn){
+    var key=btn.getAttribute("data-key"),at=TRK_GFOLD.indexOf(key);
+    if(shut&&at===-1)TRK_GFOLD.push(key);
+    if(!shut&&at>-1)TRK_GFOLD.splice(at,1);
+    btn.parentNode.classList.toggle("trk-group-folded",shut);
+    btn.setAttribute("aria-expanded",shut?"false":"true");
+  });
+  trkSaveGFold();
+  trkSyncFoldAll();
+}
+function trkSyncFoldAll(){
+  var b=document.querySelector(".trk-group-all button");
+  if(!b)return;
+  var allShut=!document.querySelector(".trk-group:not(.trk-group-folded)");
+  b.innerHTML=allShut?"&#9662; Expand all":"&#9656; Collapse all";
+  b.setAttribute("onclick","trkFoldAllGroups("+(allShut?"false":"true")+")");
+}
 
 /* ===== calendar view =====
    Same projects as the list (status chips, search, office and solution

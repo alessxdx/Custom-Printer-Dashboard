@@ -1188,13 +1188,25 @@ details.others-sec:not([open]) > summary{border-bottom:none}
 
 /* Tracker: solution group headers in the project list */
 .trk-group-head{
-  display:flex;align-items:center;gap:10px;
-  margin:26px 2px 12px;
-  font-size:19px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  margin:22px 0 12px;padding:6px 2px;border:0;border-bottom:1px solid var(--border);
+  background:none;cursor:pointer;
+  font-family:'Montserrat',sans-serif;font-size:19px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   color:var(--text-strong);
 }
+.trk-group-head:hover .trk-group-chev{color:var(--text-strong)}
 .trk-group-head .trk-sol-dot{width:12px;height:12px}
-.trk-toolbar+.trk-group-head{margin-top:8px}
+.trk-group-head .trk-badge{letter-spacing:0;text-transform:none;margin-left:4px}
+.trk-group-chev{font-style:normal;font-size:13px;color:var(--text-faint);transition:transform .15s;width:14px}
+.trk-group-folded .trk-group-chev{transform:rotate(-90deg)}
+.trk-group-folded .trk-group-body{display:none}
+.trk-group-folded .trk-group-head{margin-bottom:0}
+.trk-group-all{display:flex;justify-content:flex-end;margin:4px 0 -14px}
+.trk-group-all button{
+  font-family:'Montserrat',sans-serif;font-size:11.5px;font-weight:600;cursor:pointer;
+  background:none;border:0;padding:2px 4px;color:var(--text-muted);
+}
+.trk-group-all button:hover{color:var(--accent-text);text-decoration:underline}
 .trk-group-count{font-size:14px;font-weight:500;letter-spacing:0;color:var(--text-faint)}
 .trk-group-untagged{color:var(--text-faint)}
 
