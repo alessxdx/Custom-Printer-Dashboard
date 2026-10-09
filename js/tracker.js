@@ -159,9 +159,11 @@ function trkActiveFollowup(p,act){
   var last=trkLastDate(p,act);
   return last&&last>=f?"":f;
 }
+function trkIsOpen(p){
+  return TRK_ACTIVE_STATUSES.indexOf(p.status)>-1||p.status==="Other"||(p.status==="Won"&&p.payment!=="Fully paid");
+}
 function trkFollow(p,act){
-  var open=TRK_ACTIVE_STATUSES.indexOf(p.status)>-1||p.status==="Other"||(p.status==="Won"&&p.payment!=="Fully paid");
-  if(!open)return null;
+  if(!trkIsOpen(p))return null;
   var today=trkToday(),f=trkActiveFollowup(p,act);
   if(f){
     var late=trkDaysBetween(f,today);
@@ -681,7 +683,7 @@ function trkRenderList(bodyOnly){
     }).join("");
   }
 
-  var body=(q?"<div class='trk-search-count'>"+list.length+" project"+(list.length===1?"":"s")+" match <strong>"+trkEsc(TRK_Q.trim())+"</strong></div>":"")+
+  var body=TRK_VIEW==="cal"?trkCalendarHtml(list,act):(q?"<div class='trk-search-count'>"+list.length+" project"+(list.length===1?"":"s")+" match <strong>"+trkEsc(TRK_Q.trim())+"</strong></div>":"")+
     (cards||"<div class='empty'>"+(q?"Nothing matches that search. Try part of a name, a model, a month (e.g. <em>oct 2026</em>) or initials (e.g. <em>PAL</em>).":trkStaleOn()?"All caught up &mdash; no follow-ups due and every open project has an update from the last "+TRK_STALE_DAYS+" days.":TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
   /* Typing only swaps the list body, so the search box keeps focus. */
   if(bodyOnly&&document.getElementById("trk-list-body")){
@@ -691,11 +693,154 @@ function trkRenderList(bodyOnly){
   var search="<div class='trk-search'><span class='trk-search-ico'>&#128269;</span>"+
     "<input id='trk-search' type='search' value='"+trkEsc(TRK_Q)+"' placeholder='Search customer, model, month, notes, initials&hellip;' autocomplete='off' data-1p-ignore data-lpignore='true' data-bwignore data-form-type='other' readonly onfocus=\"this.removeAttribute('readonly')\" oninput='trkSearchInput(this.value)'>"+
     "</div>";
+  var viewSw="<div class='trk-viewsw' role='group' aria-label='View'>"+
+    "<button class='"+(TRK_VIEW!=="cal"?"active":"")+"' onclick='trkSetView(\"list\")'>&#9776; List</button>"+
+    "<button class='"+(TRK_VIEW==="cal"?"active":"")+"' onclick='trkSetView(\"cal\")'>&#128197; Calendar</button>"+
+    "</div>";
   document.getElementById("content").innerHTML=
-    "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div><div class='trk-filters'>"+search+solSel+officeSel+"</div></div>"+
+    "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div><div class='trk-filters'>"+search+solSel+officeSel+viewSw+"</div></div>"+
     "<div id='trk-list-body'>"+body+"</div>";
 }
 function trkSearchInput(v){TRK_Q=v;trkRenderList(true);}
+
+/* ===== calendar view =====
+   Same projects as the list (status chips, search, office and solution
+   filters all apply), laid out by day:
+   - every timeline entry on the day it is dated — "when did I last
+     update this?"
+   - each project's next follow-up on its day: done (an entry on/after
+     it exists), due today, overdue, or still upcoming — "have I
+     followed up yet?"
+   The side panel shows the picked day in full and the open projects,
+   longest without an update first. Only the latest follow-up date is
+   stored per project, so older follow-ups show as the entries that
+   covered them. */
+var TRK_VIEW=(function(){try{return localStorage.getItem("cpd_trk_view")==="cal"?"cal":"list";}catch(e){return "list";}})();
+var TRK_CAL_M="";   /* "YYYY-MM" shown; blank = this month */
+var TRK_CAL_SEL=""; /* picked day; blank = today */
+function trkSetView(v){
+  TRK_VIEW=v==="cal"?"cal":"list";
+  try{localStorage.setItem("cpd_trk_view",TRK_VIEW);}catch(e){}
+  trkRenderList();
+}
+function trkYmd(dt){return dt.getFullYear()+"-"+("0"+(dt.getMonth()+1)).slice(-2)+"-"+("0"+dt.getDate()).slice(-2);}
+function trkCalShift(n){
+  var m=(TRK_CAL_M||trkToday().slice(0,7)).split("-");
+  TRK_CAL_M=trkYmd(new Date(+m[0],+m[1]-1+n,1)).slice(0,7);
+  trkRenderList(true);
+}
+function trkCalToday(){TRK_CAL_M="";TRK_CAL_SEL="";trkRenderList(true);}
+function trkCalPick(d){
+  TRK_CAL_SEL=d;
+  TRK_CAL_M=d.slice(0,7);
+  trkRenderList(true);
+}
+function trkCalShort(p){
+  var n=p.customer||p.name||"";
+  return n.length>22?n.slice(0,21)+"…":n;
+}
+/* follow-up state on its planned day */
+function trkCalFuState(p,act,today){
+  var f=p.nextFollowup;
+  if(!f)return null;
+  var last=trkLastDate(p,act);
+  if(last&&last>=f)return "done";
+  if(!trkIsOpen(p))return null;
+  return f<today?"late":(f===today?"today":"plan");
+}
+var TRK_CAL_FU={
+  done:{ico:"&#10003;",label:"Followed up"},
+  late:{ico:"&#9200;",label:"Follow-up overdue"},
+  today:{ico:"&#9200;",label:"Follow up today"},
+  plan:{ico:"&#128197;",label:"Follow-up planned"}
+};
+function trkCalendarHtml(list,act){
+  var today=trkToday(),month=TRK_CAL_M||today.slice(0,7),sel=TRK_CAL_SEL||today;
+  var ym=month.split("-"),y=+ym[0],mo=+ym[1]-1;
+  var byId={};
+  list.forEach(function(p){byId[p._id]=p;});
+  /* index the visible projects' entries and follow-ups by day */
+  var days={};
+  function slot(d){return days[d]||(days[d]={ev:[],fu:[]});}
+  TRK_ENTRIES.forEach(function(e){if(byId[e.projectId]&&e.date)slot(e.date).ev.push(e);});
+  list.forEach(function(p){
+    var st=trkCalFuState(p,act,today);
+    if(st)slot(p.nextFollowup).fu.push({p:p,st:st});
+  });
+  Object.keys(days).forEach(function(d){
+    days[d].ev.sort(function(a,b){return (a.createdAt||"").localeCompare(b.createdAt||"");});
+  });
+  function fuChip(f,full){
+    return "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-"+f.st+"' title='"+trkEsc(TRK_CAL_FU[f.st].label+": "+f.p.name)+"'>"+
+      TRK_CAL_FU[f.st].ico+" "+(full?TRK_CAL_FU[f.st].label:trkEsc(trkCalShort(f.p)))+"</span>";
+  }
+  function cellBody(d){
+    var s=days[d];
+    if(!s)return"";
+    var items=s.fu.map(function(f){return fuChip(f,false);}).concat(s.ev.map(function(e){
+      var p=byId[e.projectId];
+      return "<span class='trk-cal-ev trk-t-"+trkTypeSlug(e.type)+"' title='"+trkEsc(p.name+" — "+e.type+(e.title?": "+e.title:""))+"'><i class='trk-cal-dot'></i>"+trkEsc(trkCalShort(p))+"</span>";
+    }));
+    var max=3,more=items.length-max;
+    return items.slice(0,max).join("")+(more>0?"<span class='trk-cal-more'>+"+more+" more</span>":"")+
+      /* phones: dots only */
+      "<span class='trk-cal-dots'>"+
+        s.fu.map(function(f){return "<i class='trk-cal-dot trk-cal-fu-"+f.st+"'></i>";}).join("")+
+        s.ev.map(function(e){return "<span class='trk-t-"+trkTypeSlug(e.type)+"'><i class='trk-cal-dot'></i></span>";}).join("")+
+      "</span>";
+  }
+  /* Monday-first grid */
+  var first=new Date(y,mo,1),lead=(first.getDay()+6)%7,nDays=new Date(y,mo+1,0).getDate();
+  var cells="",total=Math.ceil((lead+nDays)/7)*7;
+  for(var i=0;i<total;i++){
+    var dt=new Date(y,mo,1-lead+i),d=trkYmd(dt),wd=dt.getDay();
+    var cls="trk-cal-cell"+(dt.getMonth()!==mo?" trk-cal-out":"")+(wd===0||wd===6?" trk-cal-wkend":"")+(d===today?" trk-cal-today":"")+(d===sel?" trk-cal-sel":"");
+    cells+="<div class='"+cls+"' onclick='trkCalPick(\""+d+"\")'><div class='trk-cal-num'>"+dt.getDate()+"</div>"+cellBody(d)+"</div>";
+  }
+  var head="<div class='trk-cal-head'>"+
+    "<button class='trk-cal-nav' onclick='trkCalShift(-1)' aria-label='Previous month'>&lsaquo;</button>"+
+    "<span class='trk-cal-title'>"+first.toLocaleString("en-GB",{month:"long",year:"numeric"})+"</span>"+
+    "<button class='trk-cal-nav' onclick='trkCalShift(1)' aria-label='Next month'>&rsaquo;</button>"+
+    "<button class='trk-chip' onclick='trkCalToday()'>Today</button>"+
+    "<span class='trk-cal-legend'>"+
+      "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-done'>&#10003; followed up</span>"+
+      "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-late'>&#9200; overdue</span>"+
+      "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-plan'>&#128197; planned</span>"+
+      "<span class='trk-cal-ev'><i class='trk-cal-dot'></i>update logged</span>"+
+    "</span></div>";
+  var grid="<div class='trk-cal-grid'>"+
+    ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w){return "<div class='trk-cal-wd'>"+w+"</div>";}).join("")+
+    cells+"</div>";
+
+  /* the picked day, in full */
+  var s=days[sel],dayHtml="";
+  if(s){
+    dayHtml=s.fu.map(function(f){
+      return "<div class='trk-cal-row' onclick='trkOpen(\""+f.p._id+"\")'>"+fuChip(f,true)+"<div class='trk-cal-row-name'>"+trkEsc(f.p.name)+"</div></div>";
+    }).join("")+s.ev.slice().reverse().map(function(e){
+      var p=byId[e.projectId],txt=e.title||e.details;
+      return "<div class='trk-cal-row' onclick='trkOpen(\""+p._id+"\")'>"+trkTypeBadge(e.type)+"<div class='trk-cal-row-name'>"+trkEsc(p.name)+"</div>"+
+        (txt?"<div class='trk-cal-row-sub'>"+trkEsc(txt.length>140?txt.slice(0,139)+"…":txt)+"</div>":"")+"</div>";
+    }).join("");
+  }
+  var dayPanel="<div class='trk-cal-box trk-cal-day'><div class='trk-cal-side-h'>"+trkFmtDate(sel)+(sel===today?" &middot; today":"")+"</div>"+
+    (dayHtml||"<div class='trk-cal-empty'>Nothing logged or planned on this day.</div>")+"</div>";
+
+  /* open projects, longest without an update first */
+  var open=list.filter(trkIsOpen).map(function(p){return {p:p,last:trkLastDate(p,act)};})
+    .sort(function(a,b){return (a.last||"").localeCompare(b.last||"");});
+  var lastPanel="<div class='trk-cal-box trk-cal-last'><div class='trk-cal-side-h'>Last update &middot; open projects</div>"+
+    (open.map(function(o){
+      var ago=o.last?trkDaysBetween(o.last,today):null;
+      return "<div class='trk-cal-row' onclick='trkOpen(\""+o.p._id+"\")'>"+
+        "<div class='trk-cal-row-top'><span class='trk-cal-row-name'>"+trkEsc(o.p.name)+"</span>"+
+        (o.last?"<button class='trk-cal-ago"+(ago>=30?" hot":ago>=TRK_STALE_DAYS?" warm":"")+"' title='Show this day on the calendar' onclick='event.stopPropagation();trkCalPick(\""+o.last+"\")'>"+(ago===0?"today":ago+"d ago")+"</button>":"")+"</div>"+
+        "<div class='trk-cal-row-sub'>"+(o.last?"Last update "+trkFmtDate(o.last):"No updates yet")+trkFollowBadge(trkFollow(o.p,act))+"</div>"+
+      "</div>";
+    }).join("")||"<div class='trk-cal-empty'>No open projects in this view.</div>")+"</div>";
+
+  return "<div class='trk-cal'><div class='trk-cal-main'>"+head+grid+"</div><div class='trk-cal-side'>"+dayPanel+lastPanel+"</div></div>";
+}
 
 function trkOpen(id){TRK_SEL=id;renderTracker();}
 function trkBack(){TRK_SEL=null;renderTracker();}
