@@ -11,7 +11,8 @@
 var TRK_PROJECTS=[],TRK_ENTRIES=[];
 var TRK_LOADED=false,TRK_MISSING=false;
 var TRK_SEL=null;            /* project id shown in detail view */
-var TRK_FSTATUS="",TRK_FOFFICE="",TRK_FSOL="";
+/* status chips are multi-select: an array of statuses, or ["stale"] alone */
+var TRK_FSTATUS=[],TRK_FOFFICE="",TRK_FSOL="";
 var TRK_Q="";                 /* list search box text */
 var TRK_ATT=[];              /* entry-modal attachment staging */
 
@@ -369,7 +370,19 @@ function renderTracker(){
   trkRenderList();
 }
 
-function trkSetStatusFilter(s){TRK_FSTATUS=s;renderTracker();}
+function trkStaleOn(){return TRK_FSTATUS[0]==="stale";}
+/* "All" clears, "Needs follow-up" is exclusive (it re-sorts the list),
+   any other chip toggles on or off alongside the rest */
+function trkSetStatusFilter(s){
+  if(!s)TRK_FSTATUS=[];
+  else if(s==="stale")TRK_FSTATUS=trkStaleOn()?[]:["stale"];
+  else{
+    var cur=TRK_FSTATUS.filter(function(x){return x!=="stale";}),at=cur.indexOf(s);
+    if(at>-1)cur.splice(at,1);else cur.push(s);
+    TRK_FSTATUS=cur;
+  }
+  renderTracker();
+}
 function trkSetOfficeFilter(s){TRK_FOFFICE=s;renderTracker();}
 function trkSetSolutionFilter(s){TRK_FSOL=s;renderTracker();}
 
@@ -541,9 +554,9 @@ function trkRenderList(bodyOnly){
   }).filter(Boolean));
   var act=trkLastActivityMap();
   var staleN=TRK_PROJECTS.filter(function(p){return trkFollowDue(p,act);}).length;
-  if(staleN||TRK_FSTATUS==="stale")chips.splice(1,0,{label:"⏰ Needs follow-up ("+staleN+")",value:"stale",cls:" trk-chip-stale"});
+  if(staleN||trkStaleOn())chips.splice(1,0,{label:"⏰ Needs follow-up ("+staleN+")",value:"stale",cls:" trk-chip-stale"});
   chips=chips.map(function(c){
-    return "<button class='trk-chip"+(c.cls||"")+(TRK_FSTATUS===c.value?" active":"")+"' onclick='trkSetStatusFilter(\""+c.value+"\")'>"+trkEsc(c.label)+"</button>";
+    return "<button class='trk-chip"+(c.cls||"")+((c.value?TRK_FSTATUS.indexOf(c.value)>-1:!TRK_FSTATUS.length)?" active":"")+"' onclick='trkSetStatusFilter(\""+c.value+"\")'>"+trkEsc(c.label)+"</button>";
   }).join("");
 
   var officeSel="<select class='trk-office-filter' onchange='trkSetOfficeFilter(this.value)'>"+
@@ -570,7 +583,7 @@ function trkRenderList(bodyOnly){
   var list=TRK_PROJECTS.filter(function(p){
     /* Lost projects stay out of the default view — they only appear
        when the Lost chip itself is selected (or a search finds them). */
-    if(!(TRK_FSTATUS==="stale"?trkFollowDue(p,act):TRK_FSTATUS?p.status===TRK_FSTATUS:(q||p.status!=="Lost"))||(TRK_FOFFICE&&p.office!==TRK_FOFFICE)||(TRK_FSOL&&p.solution!==TRK_FSOL))return false;
+    if(!(trkStaleOn()?trkFollowDue(p,act):TRK_FSTATUS.length?TRK_FSTATUS.indexOf(p.status)>-1:(q||p.status!=="Lost"))||(TRK_FOFFICE&&p.office!==TRK_FOFFICE)||(TRK_FSOL&&p.solution!==TRK_FSOL))return false;
     if(!q)return true;
     var h=trkSearchProject(p,q);
     if(h)hits[p._id]=h;
@@ -578,7 +591,7 @@ function trkRenderList(bodyOnly){
   }).sort(function(a,b){
     if(q&&hits[a._id].score!==hits[b._id].score)return hits[b._id].score-hits[a._id].score;
     /* the follow-up list puts the longest-forgotten first */
-    if(TRK_FSTATUS==="stale")return trkFollowDue(b,act).days-trkFollowDue(a,act).days;
+    if(trkStaleOn())return trkFollowDue(b,act).days-trkFollowDue(a,act).days;
     /* completed projects (won, paid, delivered) go to the very bottom */
     var xa=trkIsDone(a)?1:0,xb=trkIsDone(b)?1:0;
     if(xa!==xb)return xa-xb;
@@ -637,7 +650,7 @@ function trkRenderList(bodyOnly){
      The flat list remains when nothing is tagged yet or the solution
      filter already narrows the list to one group. */
   var cards;
-  if(q||TRK_FSOL||TRK_FSTATUS==="stale"||!list.some(function(p){return p.solution;})){
+  if(q||TRK_FSOL||trkStaleOn()||!list.some(function(p){return p.solution;})){
     cards=list.map(cardHtml).join("");
   }else{
     var order=TRK_SOLUTIONS.slice(),extra=[];
@@ -669,7 +682,7 @@ function trkRenderList(bodyOnly){
   }
 
   var body=(q?"<div class='trk-search-count'>"+list.length+" project"+(list.length===1?"":"s")+" match <strong>"+trkEsc(TRK_Q.trim())+"</strong></div>":"")+
-    (cards||"<div class='empty'>"+(q?"Nothing matches that search. Try part of a name, a model, a month (e.g. <em>oct 2026</em>) or initials (e.g. <em>PAL</em>).":TRK_FSTATUS==="stale"?"All caught up &mdash; no follow-ups due and every open project has an update from the last "+TRK_STALE_DAYS+" days.":TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
+    (cards||"<div class='empty'>"+(q?"Nothing matches that search. Try part of a name, a model, a month (e.g. <em>oct 2026</em>) or initials (e.g. <em>PAL</em>).":trkStaleOn()?"All caught up &mdash; no follow-ups due and every open project has an update from the last "+TRK_STALE_DAYS+" days.":TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
   /* Typing only swaps the list body, so the search box keeps focus. */
   if(bodyOnly&&document.getElementById("trk-list-body")){
     document.getElementById("trk-list-body").innerHTML=body;
