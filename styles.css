@@ -1372,6 +1372,13 @@ details.others-sec:not([open]) > summary{border-bottom:none}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .trk-cal-wkend .trk-cal-ev:not(.trk-cal-fu){background:var(--bg-stat)}
+.trk-cal-cell .trk-cal-last-ev{display:flex;align-items:center}
+.trk-cal-ev-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.trk-cal-age{flex:none;margin-left:4px;font-weight:700;font-size:10px;opacity:.85}
+.trk-cal-ev.trk-cal-last-ev.warm{background:#fef3c7;color:#92400e}
+.trk-cal-ev.trk-cal-last-ev.hot{background:#fee2e2;color:#991b1b}
+.trk-cal-dots .warm .trk-cal-dot{box-shadow:0 0 0 2px #f59e0b}
+.trk-cal-dots .hot .trk-cal-dot{box-shadow:0 0 0 2px #dc2626}
 .trk-cal-legend .trk-cal-ev,.trk-cal-row .trk-cal-ev{display:inline-block}
 .trk-cal-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:5px;vertical-align:1px}
 .trk-t-meeting .trk-cal-dot{background:var(--badge-po-fg)}

@@ -706,8 +706,9 @@ function trkSearchInput(v){TRK_Q=v;trkRenderList(true);}
 /* ===== calendar view =====
    Same projects as the list (status chips, search, office and solution
    filters all apply), laid out by day:
-   - every timeline entry on the day it is dated — "when did I last
-     update this?"
+   - each project once, on the day of its LATEST timeline entry, tinted
+     by how long it has gone without an update (amber 14d+, red 30d+
+     for open projects) — "when did I last hear about this?"
    - each project's next follow-up on its day: done (an entry on/after
      it exists), due today, overdue, or still upcoming — "have I
      followed up yet?"
@@ -762,7 +763,10 @@ function trkCalendarHtml(list,act){
   /* index the visible projects' entries and follow-ups by day */
   var days={};
   function slot(d){return days[d]||(days[d]={ev:[],fu:[]});}
-  TRK_ENTRIES.forEach(function(e){if(byId[e.projectId]&&e.date)slot(e.date).ev.push(e);});
+  list.forEach(function(p){
+    var e=trkEntriesFor(p._id)[0];
+    if(e&&e.date)slot(e.date).ev.push(e);
+  });
   list.forEach(function(p){
     var st=trkCalFuState(p,act,today);
     if(st)slot(p.nextFollowup).fu.push({p:p,st:st});
@@ -774,19 +778,26 @@ function trkCalendarHtml(list,act){
     return "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-"+f.st+"' title='"+trkEsc(TRK_CAL_FU[f.st].label+": "+f.p.name)+"'>"+
       TRK_CAL_FU[f.st].ico+" "+(full?TRK_CAL_FU[f.st].label:trkEsc(trkCalShort(f.p)))+"</span>";
   }
+  /* days since the latest entry; only open projects get the warning tint */
+  function age(e){
+    var p=byId[e.projectId],n=trkDaysBetween(e.date,today);
+    if(!trkIsOpen(p)||n<0)return {n:n,cls:"",txt:""};
+    return {n:n,cls:n>=30?" hot":n>=TRK_STALE_DAYS?" warm":"",txt:n===0?"today":n+"d"};
+  }
   function cellBody(d){
     var s=days[d];
     if(!s)return"";
     var items=s.fu.map(function(f){return fuChip(f,false);}).concat(s.ev.map(function(e){
-      var p=byId[e.projectId];
-      return "<span class='trk-cal-ev trk-t-"+trkTypeSlug(e.type)+"' title='"+trkEsc(p.name+" — "+e.type+(e.title?": "+e.title:""))+"'><i class='trk-cal-dot'></i>"+trkEsc(trkCalShort(p))+"</span>";
+      var p=byId[e.projectId],a=age(e);
+      return "<span class='trk-cal-ev trk-cal-last-ev trk-t-"+trkTypeSlug(e.type)+a.cls+"' title='"+trkEsc(p.name+" — latest: "+e.type+(e.title?": "+e.title:"")+(a.txt?" ("+(a.n===0?"today":a.n+" days ago")+")":""))+"'>"+
+        "<i class='trk-cal-dot'></i><span class='trk-cal-ev-name'>"+trkEsc(trkCalShort(p))+"</span>"+(a.txt?"<b class='trk-cal-age'>"+a.txt+"</b>":"")+"</span>";
     }));
     var max=3,more=items.length-max;
     return items.slice(0,max).join("")+(more>0?"<span class='trk-cal-more'>+"+more+" more</span>":"")+
       /* phones: dots only */
       "<span class='trk-cal-dots'>"+
         s.fu.map(function(f){return "<i class='trk-cal-dot trk-cal-fu-"+f.st+"'></i>";}).join("")+
-        s.ev.map(function(e){return "<span class='trk-t-"+trkTypeSlug(e.type)+"'><i class='trk-cal-dot'></i></span>";}).join("")+
+        s.ev.map(function(e){return "<span class='trk-t-"+trkTypeSlug(e.type)+age(e).cls+"'><i class='trk-cal-dot'></i></span>";}).join("")+
       "</span>";
   }
   /* Monday-first grid */
@@ -806,7 +817,9 @@ function trkCalendarHtml(list,act){
       "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-done'>&#10003; followed up</span>"+
       "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-late'>&#9200; overdue</span>"+
       "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-plan'>&#128197; planned</span>"+
-      "<span class='trk-cal-ev'><i class='trk-cal-dot'></i>update logged</span>"+
+      "<span class='trk-cal-ev'><i class='trk-cal-dot'></i>latest update</span>"+
+      "<span class='trk-cal-ev trk-cal-last-ev warm'>no update "+TRK_STALE_DAYS+"d+</span>"+
+      "<span class='trk-cal-ev trk-cal-last-ev hot'>30d+</span>"+
     "</span></div>";
   var grid="<div class='trk-cal-grid'>"+
     ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w){return "<div class='trk-cal-wd'>"+w+"</div>";}).join("")+
@@ -818,13 +831,15 @@ function trkCalendarHtml(list,act){
     dayHtml=s.fu.map(function(f){
       return "<div class='trk-cal-row' onclick='trkOpen(\""+f.p._id+"\")'>"+fuChip(f,true)+"<div class='trk-cal-row-name'>"+trkEsc(f.p.name)+"</div></div>";
     }).join("")+s.ev.slice().reverse().map(function(e){
-      var p=byId[e.projectId],txt=e.title||e.details;
-      return "<div class='trk-cal-row' onclick='trkOpen(\""+p._id+"\")'>"+trkTypeBadge(e.type)+"<div class='trk-cal-row-name'>"+trkEsc(p.name)+"</div>"+
+      var p=byId[e.projectId],txt=e.title||e.details,a=age(e);
+      return "<div class='trk-cal-row' onclick='trkOpen(\""+p._id+"\")'>"+trkTypeBadge(e.type)+
+        (a.txt?" <span class='trk-cal-ago"+a.cls+"'>"+(a.n===0?"latest update today":"no update for "+a.n+"d")+"</span>":"")+
+        "<div class='trk-cal-row-name'>"+trkEsc(p.name)+"</div>"+
         (txt?"<div class='trk-cal-row-sub'>"+trkEsc(txt.length>140?txt.slice(0,139)+"…":txt)+"</div>":"")+"</div>";
     }).join("");
   }
   var dayPanel="<div class='trk-cal-box trk-cal-day'><div class='trk-cal-side-h'>"+trkFmtDate(sel)+(sel===today?" &middot; today":"")+"</div>"+
-    (dayHtml||"<div class='trk-cal-empty'>Nothing logged or planned on this day.</div>")+"</div>";
+    (dayHtml||"<div class='trk-cal-empty'>No project had its latest update or a follow-up on this day.</div>")+"</div>";
 
   /* open projects, longest without an update first */
   var open=list.filter(trkIsOpen).map(function(p){return {p:p,last:trkLastDate(p,act)};})
