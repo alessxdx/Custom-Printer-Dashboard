@@ -27,9 +27,9 @@ var TRK_CLOSED_STATUSES=["Won","Lost"];
 var TRK_OFFICES=["China","Indonesia","Singapore"];
 
 /* ===== converters ===== */
-function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",payment:r.payment||"",solution:r.solution||"",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",expectedPeriod:r.expected_period||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",nextFollowup:r.next_followup||"",createdAt:r.created_at||""};}
-var TRK_HAS_FU=true;
-function trkPToDb(p){var r=trkPToDbBase(p);if(TRK_HAS_FU)r.next_followup=p.nextFollowup||null;return r;}
+function dbToTrkP(r){return{_id:r.id,name:r.name||"",customer:r.customer||"",country:r.country||"",office:r.office||"",status:r.status||"Enquiry",payment:r.payment||"",delivered:!!r.delivered,solution:r.solution||"",products:Array.isArray(r.products)?r.products:[],estValue:(r.est_value===null||r.est_value===undefined)?null:Number(r.est_value),currency:r.currency||"USD",expectedDate:r.expected_date||"",expectedPeriod:r.expected_period||"",contactName:r.contact_name||"",contactPosition:r.contact_position||"",contactInfo:r.contact_info||"",notes:r.notes||"",nextFollowup:r.next_followup||"",createdAt:r.created_at||""};}
+var TRK_HAS_FU=true,TRK_HAS_DLV=true;
+function trkPToDb(p){var r=trkPToDbBase(p);if(TRK_HAS_FU)r.next_followup=p.nextFollowup||null;if(TRK_HAS_DLV)r.delivered=!!p.delivered;return r;}
 function trkPToDbBase(p){return{name:p.name,customer:p.customer||null,country:p.country||null,office:p.office||null,status:p.status,payment:p.payment||null,solution:p.solution||null,products:p.products||[],est_value:(p.estValue===null||isNaN(p.estValue))?null:p.estValue,currency:p.currency||"USD",expected_date:p.expectedDate||null,expected_period:p.expectedPeriod||null,contact_name:p.contactName||null,contact_position:p.contactPosition||null,contact_info:p.contactInfo||null,notes:p.notes||null};}
 function dbToTrkE(r){return{_id:r.id,projectId:r.project_id,date:r.entry_date||"",type:r.entry_type||"Note",title:r.title||"",details:r.details||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
 function trkEToDb(e){return{project_id:e.projectId,entry_date:e.date||null,entry_type:e.type,title:e.title||null,details:e.details||null,attachments:e.attachments||[]};}
@@ -75,8 +75,11 @@ function trkPaymentBadge(p){
   if(p.status!=="Won")return"";
   var pay=p.payment||"Not paid";
   var slug={"Not paid":"not","Partially paid":"partial","Fully paid":"paid"}[pay]||"not";
-  return " <span class='trk-badge trk-pay-"+slug+"'>"+trkEsc(pay)+"</span>";
+  return " <span class='trk-badge trk-pay-"+slug+"'>"+trkEsc(pay)+"</span>"+
+    (p.delivered?" <span class='trk-badge trk-delivered'>&#128666; Delivered</span>":"");
 }
+/* Won, fully paid and delivered = nothing left to do. */
+function trkIsDone(p){return p.status==="Won"&&p.payment==="Fully paid"&&!!p.delivered;}
 /* ===== solution / product-type tag =====
    One small tag saying WHAT the project is about — Custom (printers),
    Posiva, Fire fighting… Free text with type-ahead so a new category
@@ -264,6 +267,8 @@ async function trkLoad(force){
      fields stay hidden and saves leave it out */
   TRK_HAS_FU=!res[0].length||("next_followup" in res[0][0]);
   document.querySelectorAll(".trk-fu-field").forEach(function(el){el.style.display=TRK_HAS_FU?"":"none";});
+  /* same for the delivered flag (added 2026-10-09) */
+  TRK_HAS_DLV=!res[0].length||("delivered" in res[0][0]);
   TRK_LOADED=true;
   return true;
 }
@@ -598,7 +603,11 @@ function trkRenderList(bodyOnly){
     var custLine=[hl(p.customer),hl(p.country),pdate?"<span class='trk-card-date'>"+pdate+"</span>":""]
       .filter(Boolean).join(" &middot; ");
     if(custLine&&flag)custLine=flag+" "+custLine;
-    return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+(p.office?" po-of-"+poOfficeSlug(p.office):"")+"'"+(edge?" style='border-left-color:"+edge+"'":"")+" onclick='trkOpen(\""+p._id+"\")'>"+
+    /* finished projects get a small "Done" tag above the name plus a
+       big diagonal stamp across the card */
+    var done=trkIsDone(p);
+    return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+(done?" trk-card-done":"")+(p.office?" po-of-"+poOfficeSlug(p.office):"")+"'"+(edge?" style='border-left-color:"+edge+"'":"")+" onclick='trkOpen(\""+p._id+"\")'>"+
+      (done?"<div class='trk-done-stamp' aria-hidden='true'>Completed</div><div class='trk-done-tag'>&#10003; Done</div>":"")+
       "<div class='trk-card-top'><span class='trk-card-name'>"+(q?hl(p.name):trkDisplayName(p))+"</span><span style='white-space:nowrap'>"+trkStatusBadge(p.status)+trkPaymentBadge(p)+"</span></div>"+
       (custLine?"<div class='trk-card-cust'>"+custLine+"</div>":"")+
       ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
@@ -1330,6 +1339,7 @@ function trkOpenProjectModal(){
   document.getElementById("tp-close-period").value="";
   trkSetStatusDisplay("Enquiry");
   trkSetPaymentDisplay("");
+  document.getElementById("tp-delivered").checked=false;
   trkSyncPaymentVis("Enquiry");
   document.getElementById("btn-lost-trk-project").style.display="none";
   document.getElementById("tp-currency").value="USD";
@@ -1338,8 +1348,10 @@ function trkOpenProjectModal(){
 }
 /* the Payment field only applies to Won projects */
 function trkSyncPaymentVis(status){
-  var wrap=document.getElementById("tp-payment-wrap");
-  if(wrap)wrap.style.display=status==="Won"?"":"none";
+  ["tp-payment-wrap","tp-delivered-wrap"].forEach(function(id){
+    var wrap=document.getElementById(id);
+    if(wrap)wrap.style.display=status==="Won"&&(id!=="tp-delivered-wrap"||TRK_HAS_DLV)?"":"none";
+  });
 }
 /* Status is read-only in the editor — the timeline drives it. */
 function trkSetStatusDisplay(status){
@@ -1370,7 +1382,7 @@ async function trkToggleLost(){
 function trkSetPaymentDisplay(pay){
   var el=document.getElementById("tp-payment-display");
   if(!el)return;
-  el.innerHTML=trkPaymentBadge({status:"Won",payment:pay})+
+  el.innerHTML=trkPaymentBadge({status:"Won",payment:pay,delivered:false})+
     " <span style='font-size:10.5px;color:var(--text-faint)'>set by &ldquo;Payment received&rdquo; entries in the timeline</span>";
 }
 function trkEditProject(){
@@ -1393,6 +1405,7 @@ function trkEditProject(){
   document.getElementById("tp-office").value=p.office||"";
   trkSetStatusDisplay(p.status);
   trkSetPaymentDisplay(p.payment);
+  document.getElementById("tp-delivered").checked=!!p.delivered;
   trkSyncPaymentVis(p.status);
   var lostBtn=document.getElementById("btn-lost-trk-project");
   lostBtn.style.display=p.status==="Other"?"none":"inline-flex"; /* no pipeline to lose */
@@ -1449,6 +1462,7 @@ async function trkSaveProject(){
     solution:document.getElementById("tp-solution").value.trim(), /* applies to Other too — e.g. fire fighting */
     status:other?"Other":(prev&&prev.status!=="Other"?prev.status:"Enquiry"),
     payment:prev?(prev.payment||""):"",
+    delivered:!other&&document.getElementById("tp-delivered").checked,
     products:other?[]:TRK_PROD.slice(),
     estValue:(other||valRaw==="")?null:parseFloat(valRaw),
     currency:document.getElementById("tp-currency").value,
