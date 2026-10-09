@@ -42,10 +42,6 @@ alter table tracker_projects add column if not exists expected_period text;
 -- (Custom | Posiva | Fire fighting | any free text).
 alter table tracker_projects add column if not exists solution text;
 
--- Added 2026-10-09, now UNUSED: delivery is a "Delivery" timeline entry
--- instead (Won + Fully paid + a Delivery entry = Completed stamp).
--- The column exists in production; nothing reads or writes it.
-alter table tracker_projects add column if not exists delivered boolean not null default false;
 
 create table if not exists tracker_entries (
   id uuid primary key default gen_random_uuid(),
