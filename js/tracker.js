@@ -716,20 +716,15 @@ function trkSearchInput(v){TRK_Q=v;trkRenderList(true);}
 
 /* ===== calendar view =====
    Same projects as the list (status chips, search, office and solution
-   filters all apply), laid out by day:
-   - each project once, on the day of its LATEST timeline entry, tinted
-     by how long it has gone without an update (amber 14d+, red 30d+
-     for open projects) — "when did I last hear about this?"
-   - each project's next follow-up on its day: done (an entry on/after
-     it exists), due today, overdue, or still upcoming — "have I
-     followed up yet?"
-   The side panel shows the picked day in full and the open projects,
-   longest without an update first. Only the latest follow-up date is
-   stored per project, so older follow-ups show as the entries that
-   covered them. */
+   filters all apply). Each project shows once, on the day of its LATEST
+   timeline entry, coloured by how long it has gone without an update:
+   green under 14 days, amber 14+, red 30+ (closed projects in grey).
+   A project's next follow-up, when one is set, also shows on its day.
+   The side panel groups the open projects by those same bands (oldest
+   first); picking a day swaps it for that day's projects. */
 var TRK_VIEW=(function(){try{return localStorage.getItem("cpd_trk_view")==="cal"?"cal":"list";}catch(e){return "list";}})();
 var TRK_CAL_M="";   /* "YYYY-MM" shown; blank = this month */
-var TRK_CAL_SEL=""; /* picked day; blank = today */
+var TRK_CAL_SEL=""; /* picked day; blank = none (panel shows the bands) */
 function trkSetView(v){
   TRK_VIEW=v==="cal"?"cal":"list";
   try{localStorage.setItem("cpd_trk_view",TRK_VIEW);}catch(e){}
@@ -743,14 +738,17 @@ function trkCalShift(n){
 }
 function trkCalToday(){TRK_CAL_M="";TRK_CAL_SEL="";trkRenderList(true);}
 function trkCalPick(d){
-  TRK_CAL_SEL=d;
-  TRK_CAL_M=d.slice(0,7);
+  TRK_CAL_SEL=TRK_CAL_SEL===d?"":d; /* click the picked day again to clear */
+  if(TRK_CAL_SEL)TRK_CAL_M=d.slice(0,7);
   trkRenderList(true);
 }
-function trkCalShort(p){
-  var n=p.customer||p.name||"";
-  return n.length>22?n.slice(0,21)+"…":n;
+function trkCalShort(p){return p.customer||p.name||"";}
+/* update-age band: fresh / warm (14d+) / hot (30d+); closed = done/lost */
+function trkCalTone(p,days){
+  if(!trkIsOpen(p))return "closed";
+  return days>=30?"hot":days>=TRK_STALE_DAYS?"warm":"fresh";
 }
+function trkCalAgeTxt(n){return n<=0?"today":n+"d";}
 /* follow-up state on its planned day */
 function trkCalFuState(p,act,today){
   var f=p.nextFollowup;
@@ -767,48 +765,42 @@ var TRK_CAL_FU={
   plan:{ico:"&#128197;",label:"Follow-up planned"}
 };
 function trkCalendarHtml(list,act){
-  var today=trkToday(),month=TRK_CAL_M||today.slice(0,7),sel=TRK_CAL_SEL||today;
+  var today=trkToday(),month=TRK_CAL_M||today.slice(0,7),sel=TRK_CAL_SEL;
   var ym=month.split("-"),y=+ym[0],mo=+ym[1]-1;
-  var byId={};
-  list.forEach(function(p){byId[p._id]=p;});
-  /* index the visible projects' entries and follow-ups by day */
-  var days={};
+  /* one item per project: its latest entry, plus any follow-up */
+  var days={},items=[],hasFu=false,hasClosed=false;
   function slot(d){return days[d]||(days[d]={ev:[],fu:[]});}
   list.forEach(function(p){
     var e=trkEntriesFor(p._id)[0];
-    if(e&&e.date)slot(e.date).ev.push(e);
-  });
-  list.forEach(function(p){
+    if(e&&e.date){
+      var n=trkDaysBetween(e.date,today),it={p:p,e:e,n:n,tone:trkCalTone(p,n)};
+      if(it.tone==="closed")hasClosed=true;
+      slot(e.date).ev.push(it);items.push(it);
+    }
     var st=trkCalFuState(p,act,today);
-    if(st)slot(p.nextFollowup).fu.push({p:p,st:st});
+    if(st){hasFu=true;slot(p.nextFollowup).fu.push({p:p,st:st});}
   });
+  var toneRank={hot:0,warm:1,fresh:2,closed:3};
   Object.keys(days).forEach(function(d){
-    days[d].ev.sort(function(a,b){return (a.createdAt||"").localeCompare(b.createdAt||"");});
+    days[d].ev.sort(function(a,b){return toneRank[a.tone]-toneRank[b.tone]||trkAlpha(trkCalShort(a.p),trkCalShort(b.p));});
   });
-  function fuChip(f,full){
-    return "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-"+f.st+"' title='"+trkEsc(TRK_CAL_FU[f.st].label+": "+f.p.name)+"'>"+
-      TRK_CAL_FU[f.st].ico+" "+(full?TRK_CAL_FU[f.st].label:trkEsc(trkCalShort(f.p)))+"</span>";
+  function evChip(it){
+    var tip=it.p.name+" — latest: "+it.e.type+(it.e.title?": "+it.e.title:"")+(it.tone==="closed"?"":" ("+(it.n<=0?"today":it.n+" days ago")+")");
+    return "<span class='trk-cal-ev trk-cal-"+it.tone+"' title='"+trkEsc(tip)+"' onclick='event.stopPropagation();trkOpen(\""+it.p._id+"\")'>"+
+      (it.tone==="closed"?"":"<b class='trk-cal-age'>"+trkCalAgeTxt(it.n)+"</b>")+trkEsc(trkCalShort(it.p))+"</span>";
   }
-  /* days since the latest entry; only open projects get the warning tint */
-  function age(e){
-    var p=byId[e.projectId],n=trkDaysBetween(e.date,today);
-    if(!trkIsOpen(p)||n<0)return {n:n,cls:"",txt:""};
-    return {n:n,cls:n>=30?" hot":n>=TRK_STALE_DAYS?" warm":"",txt:n===0?"today":n+"d"};
+  function fuChip(f){
+    return "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-"+f.st+"' title='"+trkEsc(TRK_CAL_FU[f.st].label+": "+f.p.name)+"' onclick='event.stopPropagation();trkOpen(\""+f.p._id+"\")'>"+
+      TRK_CAL_FU[f.st].ico+" "+trkEsc(trkCalShort(f.p))+"</span>";
   }
   function cellBody(d){
     var s=days[d];
     if(!s)return"";
-    var items=s.fu.map(function(f){return fuChip(f,false);}).concat(s.ev.map(function(e){
-      var p=byId[e.projectId],a=age(e);
-      return "<span class='trk-cal-ev trk-cal-last-ev trk-t-"+trkTypeSlug(e.type)+a.cls+"' title='"+trkEsc(p.name+" — latest: "+e.type+(e.title?": "+e.title:"")+(a.txt?" ("+(a.n===0?"today":a.n+" days ago")+")":""))+"'>"+
-        "<i class='trk-cal-dot'></i><span class='trk-cal-ev-name'>"+trkEsc(trkCalShort(p))+"</span>"+(a.txt?"<b class='trk-cal-age'>"+a.txt+"</b>":"")+"</span>";
-    }));
-    var max=3,more=items.length-max;
-    return items.slice(0,max).join("")+(more>0?"<span class='trk-cal-more'>+"+more+" more</span>":"")+
-      /* phones: dots only */
+    return s.fu.map(fuChip).join("")+s.ev.map(evChip).join("")+
+      /* phones: coloured dots only */
       "<span class='trk-cal-dots'>"+
-        s.fu.map(function(f){return "<i class='trk-cal-dot trk-cal-fu-"+f.st+"'></i>";}).join("")+
-        s.ev.map(function(e){return "<span class='trk-t-"+trkTypeSlug(e.type)+age(e).cls+"'><i class='trk-cal-dot'></i></span>";}).join("")+
+        s.fu.map(function(f){return "<i class='trk-cal-fu-"+f.st+"'></i>";}).join("")+
+        s.ev.map(function(it){return "<i class='trk-cal-"+it.tone+"'></i>";}).join("")+
       "</span>";
   }
   /* Monday-first grid */
@@ -819,53 +811,58 @@ function trkCalendarHtml(list,act){
     var cls="trk-cal-cell"+(dt.getMonth()!==mo?" trk-cal-out":"")+(wd===0||wd===6?" trk-cal-wkend":"")+(d===today?" trk-cal-today":"")+(d===sel?" trk-cal-sel":"");
     cells+="<div class='"+cls+"' onclick='trkCalPick(\""+d+"\")'><div class='trk-cal-num'>"+dt.getDate()+"</div>"+cellBody(d)+"</div>";
   }
+  var legend="<span class='trk-cal-key trk-cal-fresh'>updated &lt; "+TRK_STALE_DAYS+"d</span>"+
+    "<span class='trk-cal-key trk-cal-warm'>"+TRK_STALE_DAYS+"d+</span>"+
+    "<span class='trk-cal-key trk-cal-hot'>30d+</span>"+
+    (hasClosed?"<span class='trk-cal-key trk-cal-closed'>won / lost</span>":"")+
+    (hasFu?"<span class='trk-cal-key trk-cal-fu-plan'>&#128197; follow-up</span>":"");
   var head="<div class='trk-cal-head'>"+
-    "<button class='trk-cal-nav' onclick='trkCalShift(-1)' aria-label='Previous month'>&lsaquo;</button>"+
-    "<span class='trk-cal-title'>"+first.toLocaleString("en-GB",{month:"long",year:"numeric"})+"</span>"+
-    "<button class='trk-cal-nav' onclick='trkCalShift(1)' aria-label='Next month'>&rsaquo;</button>"+
-    "<button class='trk-chip' onclick='trkCalToday()'>Today</button>"+
-    "<span class='trk-cal-legend'>"+
-      "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-done'>&#10003; followed up</span>"+
-      "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-late'>&#9200; overdue</span>"+
-      "<span class='trk-cal-ev trk-cal-fu trk-cal-fu-plan'>&#128197; planned</span>"+
-      "<span class='trk-cal-ev'><i class='trk-cal-dot'></i>latest update</span>"+
-      "<span class='trk-cal-ev trk-cal-last-ev warm'>no update "+TRK_STALE_DAYS+"d+</span>"+
-      "<span class='trk-cal-ev trk-cal-last-ev hot'>30d+</span>"+
-    "</span></div>";
+    "<div class='trk-cal-navgrp'>"+
+      "<button class='trk-cal-nav' onclick='trkCalShift(-1)' aria-label='Previous month'>&lsaquo;</button>"+
+      "<span class='trk-cal-title'>"+first.toLocaleString("en-GB",{month:"long",year:"numeric"})+"</span>"+
+      "<button class='trk-cal-nav' onclick='trkCalShift(1)' aria-label='Next month'>&rsaquo;</button>"+
+      (month!==today.slice(0,7)||sel?"<button class='trk-chip' onclick='trkCalToday()'>Today</button>":"")+
+    "</div>"+
+    "<div class='trk-cal-legend'>"+legend+"</div></div>";
   var grid="<div class='trk-cal-grid'>"+
-    ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w){return "<div class='trk-cal-wd'>"+w+"</div>";}).join("")+
+    ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w,k){return "<div class='trk-cal-wd"+(k>4?" trk-cal-wd-end":"")+"'>"+w+"</div>";}).join("")+
     cells+"</div>";
 
-  /* the picked day, in full */
-  var s=days[sel],dayHtml="";
-  if(s){
-    dayHtml=s.fu.map(function(f){
-      return "<div class='trk-cal-row' onclick='trkOpen(\""+f.p._id+"\")'>"+fuChip(f,true)+"<div class='trk-cal-row-name'>"+trkEsc(f.p.name)+"</div></div>";
-    }).join("")+s.ev.slice().reverse().map(function(e){
-      var p=byId[e.projectId],txt=e.title||e.details,a=age(e);
-      return "<div class='trk-cal-row' onclick='trkOpen(\""+p._id+"\")'>"+trkTypeBadge(e.type)+
-        (a.txt?" <span class='trk-cal-ago"+a.cls+"'>"+(a.n===0?"latest update today":"no update for "+a.n+"d")+"</span>":"")+
-        "<div class='trk-cal-row-name'>"+trkEsc(p.name)+"</div>"+
-        (txt?"<div class='trk-cal-row-sub'>"+trkEsc(txt.length>140?txt.slice(0,139)+"…":txt)+"</div>":"")+"</div>";
-    }).join("");
+  /* side panel row: name, age pill, latest entry */
+  function row(it){
+    return "<div class='trk-cal-row' onclick='trkOpen(\""+it.p._id+"\")'>"+
+      "<div class='trk-cal-row-top'><span class='trk-cal-row-name'>"+trkEsc(it.p.name)+"</span>"+
+      (it.tone==="closed"?"":"<span class='trk-cal-pill trk-cal-"+it.tone+"'>"+(it.n<=0?"today":it.n+"d ago")+"</span>")+"</div>"+
+      "<div class='trk-cal-row-sub'>"+trkFmtDate(it.e.date)+" &middot; "+trkEsc(it.e.type)+(it.e.title?" &mdash; "+trkEsc(it.e.title):"")+"</div>"+
+    "</div>";
   }
-  var dayPanel="<div class='trk-cal-box trk-cal-day'><div class='trk-cal-side-h'>"+trkFmtDate(sel)+(sel===today?" &middot; today":"")+"</div>"+
-    (dayHtml||"<div class='trk-cal-empty'>No project had its latest update or a follow-up on this day.</div>")+"</div>";
+  var side;
+  if(sel){
+    var s=days[sel]||{ev:[],fu:[]};
+    side="<div class='trk-cal-side-h'><button class='trk-cal-back' onclick='trkCalPick(\""+sel+"\")'>&lsaquo; All open projects</button></div>"+
+      "<div class='trk-cal-sec'>"+trkFmtDate(sel)+(sel===today?" &middot; today":"")+"</div>"+
+      s.fu.map(function(f){
+        return "<div class='trk-cal-row' onclick='trkOpen(\""+f.p._id+"\")'><div class='trk-cal-row-top'><span class='trk-cal-row-name'>"+trkEsc(f.p.name)+"</span></div>"+
+          "<div class='trk-cal-row-sub'><span class='trk-cal-key trk-cal-fu-"+f.st+"'>"+TRK_CAL_FU[f.st].ico+" "+TRK_CAL_FU[f.st].label+"</span></div></div>";
+      }).join("")+
+      (s.ev.map(row).join("")||(s.fu.length?"":"<div class='trk-cal-empty'>No project had its latest update on this day.</div>"));
+  }else{
+    /* open projects in age bands, oldest first */
+    var open=items.filter(function(it){return it.tone!=="closed";}).sort(function(a,b){return b.n-a.n;});
+    var bands=[
+      {tone:"hot",label:"No update for 30+ days"},
+      {tone:"warm",label:"No update for "+TRK_STALE_DAYS+"+ days"},
+      {tone:"fresh",label:"Updated in the last "+TRK_STALE_DAYS+" days"}
+    ];
+    side="<div class='trk-cal-side-h'>Open projects &middot; last update</div>"+
+      bands.map(function(b){
+        var rows=open.filter(function(it){return it.tone===b.tone;});
+        if(!rows.length)return"";
+        return "<div class='trk-cal-sec trk-cal-sec-"+b.tone+"'>"+b.label+"<span>"+rows.length+"</span></div>"+rows.map(row).join("");
+      }).join("")||"<div class='trk-cal-empty'>No open projects in this view.</div>";
+  }
 
-  /* open projects, longest without an update first */
-  var open=list.filter(trkIsOpen).map(function(p){return {p:p,last:trkLastDate(p,act)};})
-    .sort(function(a,b){return (a.last||"").localeCompare(b.last||"");});
-  var lastPanel="<div class='trk-cal-box trk-cal-last'><div class='trk-cal-side-h'>Last update &middot; open projects</div>"+
-    (open.map(function(o){
-      var ago=o.last?trkDaysBetween(o.last,today):null;
-      return "<div class='trk-cal-row' onclick='trkOpen(\""+o.p._id+"\")'>"+
-        "<div class='trk-cal-row-top'><span class='trk-cal-row-name'>"+trkEsc(o.p.name)+"</span>"+
-        (o.last?"<button class='trk-cal-ago"+(ago>=30?" hot":ago>=TRK_STALE_DAYS?" warm":"")+"' title='Show this day on the calendar' onclick='event.stopPropagation();trkCalPick(\""+o.last+"\")'>"+(ago===0?"today":ago+"d ago")+"</button>":"")+"</div>"+
-        "<div class='trk-cal-row-sub'>"+(o.last?"Last update "+trkFmtDate(o.last):"No updates yet")+trkFollowBadge(trkFollow(o.p,act))+"</div>"+
-      "</div>";
-    }).join("")||"<div class='trk-cal-empty'>No open projects in this view.</div>")+"</div>";
-
-  return "<div class='trk-cal'><div class='trk-cal-main'>"+head+grid+"</div><div class='trk-cal-side'>"+dayPanel+lastPanel+"</div></div>";
+  return "<div class='trk-cal'><div class='trk-cal-main'>"+head+grid+"</div><div class='trk-cal-side'>"+side+"</div></div>";
 }
 
 function trkOpen(id){TRK_SEL=id;renderTracker();}
