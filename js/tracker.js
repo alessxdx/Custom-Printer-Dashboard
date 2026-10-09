@@ -725,6 +725,13 @@ function trkSearchInput(v){TRK_Q=v;trkRenderList(true);}
 var TRK_VIEW=(function(){try{return localStorage.getItem("cpd_trk_view")==="cal"?"cal":"list";}catch(e){return "list";}})();
 var TRK_CAL_M="";   /* "YYYY-MM" shown; blank = this month */
 var TRK_CAL_SEL=""; /* picked day; blank = none (panel shows the bands) */
+/* side panel shown or collapsed (remembered per browser) */
+var TRK_CAL_SIDE=(function(){try{return localStorage.getItem("cpd_trk_side")!=="0";}catch(e){return true;}})();
+function trkCalToggleSide(show){
+  TRK_CAL_SIDE=show===undefined?!TRK_CAL_SIDE:!!show;
+  try{localStorage.setItem("cpd_trk_side",TRK_CAL_SIDE?"1":"0");}catch(e){}
+  trkRenderList(true);
+}
 function trkSetView(v){
   TRK_VIEW=v==="cal"?"cal":"list";
   try{localStorage.setItem("cpd_trk_view",TRK_VIEW);}catch(e){}
@@ -739,7 +746,7 @@ function trkCalShift(n){
 function trkCalToday(){TRK_CAL_M="";TRK_CAL_SEL="";trkRenderList(true);}
 function trkCalPick(d){
   TRK_CAL_SEL=TRK_CAL_SEL===d?"":d; /* click the picked day again to clear */
-  if(TRK_CAL_SEL)TRK_CAL_M=d.slice(0,7);
+  if(TRK_CAL_SEL){TRK_CAL_M=d.slice(0,7);TRK_CAL_SIDE=true;}
   trkRenderList(true);
 }
 function trkCalShort(p){return p.customer||p.name||"";}
@@ -823,7 +830,9 @@ function trkCalendarHtml(list,act){
       "<button class='trk-cal-nav' onclick='trkCalShift(1)' aria-label='Next month'>&rsaquo;</button>"+
       (month!==today.slice(0,7)||sel?"<button class='trk-chip' onclick='trkCalToday()'>Today</button>":"")+
     "</div>"+
-    "<div class='trk-cal-legend'>"+legend+"</div></div>";
+    "<div class='trk-cal-legend'>"+legend+
+      (TRK_CAL_SIDE?"":"<button class='trk-cal-sidebtn' onclick='trkCalToggleSide(true)' title='Show the side panel'>&lsaquo; Show panel</button>")+
+    "</div></div>";
   var grid="<div class='trk-cal-grid'>"+
     ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w,k){return "<div class='trk-cal-wd"+(k>4?" trk-cal-wd-end":"")+"'>"+w+"</div>";}).join("")+
     cells+"</div>";
@@ -862,7 +871,10 @@ function trkCalendarHtml(list,act){
       }).join("")||"<div class='trk-cal-empty'>No open projects in this view.</div>";
   }
 
-  return "<div class='trk-cal'><div class='trk-cal-main'>"+head+grid+"</div><div class='trk-cal-side'>"+side+"</div></div>";
+  if(!TRK_CAL_SIDE)return "<div class='trk-cal trk-cal-noside'><div class='trk-cal-main'>"+head+grid+"</div></div>";
+  return "<div class='trk-cal'><div class='trk-cal-main'>"+head+grid+"</div><div class='trk-cal-side'>"+
+    "<button class='trk-cal-hide' onclick='trkCalToggleSide(false)' title='Hide the side panel' aria-label='Hide the side panel'>&rsaquo;</button>"+
+    side+"</div></div>";
 }
 
 function trkOpen(id){TRK_SEL=id;renderTracker();}
