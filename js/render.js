@@ -699,7 +699,7 @@ function toggleCard(key,sid){
    line names them. Anything unrecognised keeps its own name. */
 function cmpFamily(m){
   const s=String(m||"").toLowerCase();
-  if(/^kpm180(?!h)/.test(s))return "KPM180";
+  if(/^kpm180/.test(s))return "KPM180"; /* KPM180H included */
   if(/^tk180/.test(s)&&!/tph/.test(s)){
     if(/plastic/.test(s))return "TK180 Plastic";
     if(/metal/.test(s))return /non.?cutter/.test(s)||(/arinc/.test(s)&&/btp/.test(s))?"TK180 Metal Non Cutter":"TK180 Metal Cutter";
