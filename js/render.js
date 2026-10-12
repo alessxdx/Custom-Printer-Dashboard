@@ -695,14 +695,14 @@ function toggleCard(key,sid){
 }
 /* The dropdown lists model families, not every variant: casing, cutter,
    ATB/BTP, ARINC, AEA and warranty wording all fold into their family.
-   ARINC ATB is the cutter and BTP the non-cutter, as the combined ARINC
-   line names them. Anything unrecognised keeps its own name. */
+   Every ARINC metal variant (ATB and BTP) sits under Metal Cutter.
+   Anything unrecognised keeps its own name. */
 function cmpFamily(m){
   const s=String(m||"").toLowerCase();
   if(/^kpm180/.test(s))return "KPM180"; /* KPM180H included */
   if(/^tk180/.test(s)&&!/tph/.test(s)){
     if(/plastic/.test(s))return "TK180 Plastic";
-    if(/metal/.test(s))return /non.?cutter/.test(s)||(/arinc/.test(s)&&/btp/.test(s))?"TK180 Metal Non Cutter":"TK180 Metal Cutter";
+    if(/metal/.test(s))return /non.?cutter/.test(s)&&!/arinc/.test(s)?"TK180 Metal Non Cutter":"TK180 Metal Cutter";
   }
   return m;
 }
