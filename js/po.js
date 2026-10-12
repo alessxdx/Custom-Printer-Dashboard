@@ -10,11 +10,11 @@
 
 var PO_LIST=[],PO_LINES=[];
 var PO_LOADED=false,PO_MISSING=false;
-var PO_VIEW="list";          /* "list" | "pos" (cards) | "models" */
+var PO_VIEW="list";          /* "list" | "models" */
+var PO_DD_OPEN="";           /* which filter menu is open: "" | "office" | "year" */
 var PO_SEL="";               /* PO open in the side panel */
 var PO_FOFFICE="",PO_FYEAR="",PO_SEARCH="";
 var PO_ATT=[];               /* modal attachment staging */
-var PO_EXPANDED={};
 var PO_OFFICES=["China","Indonesia","Singapore"];
 function poOfficeSlug(o){return String(o||"").toLowerCase().replace(/\s/g,"");}
 
@@ -137,7 +137,7 @@ function renderPOs(){
 
   /* One toolbar: view switch, a search box that also holds the active
      filters as removable pills, then the office and year pickers */
-  var seg=[["list","List"],["pos","Cards"],["models","By model"]].map(function(v){
+  var seg=[["list","List"],["models","By model"]].map(function(v){
     return "<button class='po-seg-btn"+(PO_VIEW===v[0]?" active":"")+"' onclick='PO_VIEW=\""+v[0]+"\";renderPOs()'>"+v[1]+"</button>";
   }).join("");
   var pills=(PO_FOFFICE?"<span class='trk-badge po-of-"+poOfficeSlug(PO_FOFFICE)+" po-pill'>"+trkEsc(PO_FOFFICE)+"<button aria-label='Clear office filter' onclick='PO_FOFFICE=\"\";renderPOs()'>&times;</button></span>":"")+
@@ -148,21 +148,51 @@ function renderPOs(){
       "<label class='po-searchbox'>"+pills+
         "<input id='po-search' placeholder='Search PO no. / model / PN&hellip;' value='"+trkEsc(PO_SEARCH)+"' oninput='poSearchInput(this.value)'>"+
       "</label>"+
-      "<select class='trk-office-filter' onchange='PO_FOFFICE=this.value;renderPOs()'>"+
-        [""].concat(PO_OFFICES).map(function(o){
-          var n=o?PO_LIST.filter(function(p){return p.office===o;}).length:PO_LIST.length;
-          return "<option value='"+o+"'"+(PO_FOFFICE===o?" selected":"")+">"+(o||"All offices")+" ("+n+")</option>";
-        }).join("")+
-      "</select>"+
-      "<select class='trk-office-filter' onchange='PO_FYEAR=this.value;renderPOs()'>"+
-        "<option value=''"+(PO_FYEAR===""?" selected":"")+">All years</option>"+
-        years.map(function(y){return "<option"+(PO_FYEAR===y?" selected":"")+">"+y+"</option>";}).join("")+
-      "</select>"+
+      poDropdown("office",[{value:"",label:"All offices",count:PO_LIST.length}].concat(PO_OFFICES.map(function(o){
+        return {value:o,label:o,dot:poOfficeSlug(o),count:PO_LIST.filter(function(p){return p.office===o;}).length};
+      })),PO_FOFFICE)+
+      poDropdown("year",[{value:"",label:"All years",count:PO_LIST.length}].concat(years.map(function(y){
+        return {value:y,label:y,count:PO_LIST.filter(function(p){return poYear(p)===y;}).length};
+      })),PO_FYEAR)+
     "</div>";
 
   if(PO_SEL&&!list.some(function(p){return p._id===PO_SEL;}))PO_SEL="";
-  content.innerHTML=toolbar+(PO_VIEW==="models"?poModelsHtml(list):PO_VIEW==="pos"?poListHtml(list):poTableHtml(list));
+  content.innerHTML=toolbar+(PO_VIEW==="models"?poModelsHtml(list):poTableHtml(list));
 }
+
+/* ===== filter menus — styled replacements for <select>, whose open list
+   the browser draws and can't be themed ===== */
+function poDropdown(kind,opts,cur){
+  var sel=opts.filter(function(o){return o.value===cur;})[0]||opts[0];
+  var dot=function(o){return o.dot?"<span class='po-dd-dot po-of-"+o.dot+"'></span>":"";};
+  return "<div class='po-dd"+(PO_DD_OPEN===kind?" open":"")+"' data-dd='"+kind+"'>"+
+    "<button class='po-dd-btn' aria-haspopup='listbox' onclick='poDdToggle(event,\""+kind+"\")'>"+
+      dot(sel)+"<span>"+trkEsc(sel.label)+"</span><span class='po-dd-n'>"+sel.count+"</span>"+
+      "<svg class='po-dd-chev' viewBox='0 0 16 16' aria-hidden='true'><path d='M4 6l4 4 4-4' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>"+
+    "</button>"+
+    "<div class='po-dd-menu' role='listbox'>"+opts.map(function(o){
+      var on=o.value===cur;
+      return "<button class='po-dd-item"+(on?" active":"")+"' role='option' aria-selected='"+on+"' onclick='poDdPick(\""+kind+"\",\""+o.value+"\")'>"+
+        "<span class='po-dd-check'>"+(on?"&#10003;":"")+"</span>"+dot(o)+"<span class='po-dd-lbl'>"+trkEsc(o.label)+"</span><span class='po-dd-n'>"+o.count+"</span></button>";
+    }).join("")+"</div>"+
+  "</div>";
+}
+function poDdToggle(e,kind){
+  e.stopPropagation();
+  PO_DD_OPEN=PO_DD_OPEN===kind?"":kind;
+  document.querySelectorAll(".po-dd").forEach(function(el){el.classList.toggle("open",el.dataset.dd===PO_DD_OPEN);});
+}
+function poDdPick(kind,v){
+  if(kind==="office")PO_FOFFICE=v;else PO_FYEAR=v;
+  PO_DD_OPEN="";renderPOs();
+}
+function poDdClose(){
+  if(!PO_DD_OPEN)return;
+  PO_DD_OPEN="";
+  document.querySelectorAll(".po-dd.open").forEach(function(el){el.classList.remove("open");});
+}
+document.addEventListener("click",function(e){if(!(e.target.closest&&e.target.closest(".po-dd")))poDdClose();});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")poDdClose();});
 
 /* ===== list view: one row per PO, month groups with subtotals, and a
    side panel for the selected PO (full screen on phones) ===== */
@@ -171,7 +201,7 @@ function poUsdSum(list){
   return typeof fxFormatUSD==="function"?fxFormatUSD(t):"$"+Math.round(t).toLocaleString();
 }
 function poTableHtml(list){
-  if(!list.length)return poListHtml(list);
+  if(!list.length)return poEmptyHtml();
   var groups=[],byLabel={};
   list.forEach(function(p){
     var ml=poMonthLabel(p);
@@ -250,55 +280,9 @@ function poMonthLabel(p){
   var mi=parseInt(d.slice(5,7),10)-1;
   return (PO_MONTHS_FULL[mi]||"")+" "+d.slice(0,4);
 }
-function poListHtml(list){
-  if(!list.length)return "<div class='empty'>"+(PO_LIST.length?"No purchase orders match this filter.":"No purchase orders yet. Click <strong>+ Add PO</strong> and drop the PO PDF — the form fills itself.")+"</div>";
-  var lastMonth=null;
-  return list.map(function(p){
-    var header="";
-    var ml=poMonthLabel(p);
-    if(ml!==lastMonth){
-      lastMonth=ml;
-      header="<div class='po-month'>"+ml+"</div>";
-    }
-    return header+poCardHtml(p);
-  }).join("");
+function poEmptyHtml(){
+  return "<div class='empty'>"+(PO_LIST.length?"No purchase orders match this filter.":"No purchase orders yet. Click <strong>+ Add PO</strong> and drop the PO PDF — the form fills itself.")+"</div>";
 }
-function poCardHtml(p){
-  return [p].map(function(p){
-    var lines=poLinesFor(p._id);
-    var open=!!PO_EXPANDED[p._id];
-    var atts=(p.attachments||[]).map(function(a){
-      return "<a class='trk-att' href='"+trkEsc(a.url)+"' data-name='"+trkEsc(a.name)+"' onclick='event.stopPropagation();return trkViewFile(this)'>"+trkFileIcon(a.name)+" "+trkEsc(a.name)+"</a>";
-    }).join(" ");
-    var lineRows=lines.map(function(l){
-      var sub=(l.unitPrice!==null)?l.qty*l.unitPrice:null;
-      return "<div class='po-line'>"+
-        "<span class='po-line-qty'>"+l.qty.toLocaleString()+" "+trkEsc(l.unit)+"</span>"+
-        "<span class='po-line-pn'>"+trkEsc(l.pn)+"</span>"+
-        "<span class='po-line-desc'>"+trkEsc(l.description)+"</span>"+
-        "<span class='po-line-price'>"+(l.unitPrice!==null?"@ "+poFmtMoney(l.unitPrice,p.currency):"")+"</span>"+
-        "<span class='po-line-sub'>"+(sub!==null?poFmtMoney(sub,p.currency):"")+"</span>"+
-      "</div>";
-    }).join("");
-    return "<div class='trk-card po-card po-of-"+poOfficeSlug(p.office)+"' onclick='poToggle(\""+p._id+"\")'>"+
-      "<div class='trk-card-top'>"+
-        "<span class='trk-card-name'>"+trkEsc(p.poNumber)+"</span>"+
-        "<span class='po-total'>"+poFmtMoney(p.total,p.currency)+
-          ((p.currency!=="USD"&&typeof fxUsdText==="function"&&p.total!==null)?" <span class='trk-value-usd'>"+fxUsdText(p.total,p.currency)+"</span>":"")+"</span>"+
-      "</div>"+
-      "<div class='trk-card-meta'>"+
-        (p.office?"<span class='trk-badge po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
-        (p.date?"<span>"+trkFmtDate(p.date)+"</span>":"")+
-        "<span class='trk-value-usd'>"+lines.length+" line"+(lines.length===1?"":"s")+"</span>"+
-        "<button class='edit-btn' onclick='event.stopPropagation();poEdit(\""+p._id+"\")'>Edit</button>"+
-      "</div>"+
-      (atts?"<div class='trk-tl-atts' style='margin-top:9px'>"+atts+"</div>":"")+
-      (p.notes?"<div class='trk-card-foot'>"+trkEsc(p.notes)+"</div>":"")+
-      (open&&lines.length?"<div class='po-lines'>"+lineRows+"</div>":"")+
-    "</div>";
-  }).join("");
-}
-function poToggle(id){PO_EXPANDED[id]=!PO_EXPANDED[id];renderPOs();}
 
 /* ===== "By model" rollup — units and price history per part number ===== */
 function poModelsHtml(list){

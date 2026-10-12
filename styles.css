@@ -1577,6 +1577,42 @@ details.others-sec:not([open]) > summary{border-bottom:none}
 .po-searchbox:focus-within{border-color:var(--accent)}
 .po-searchbox input{flex:1;min-width:80px;border:none;outline:none;background:none;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;padding:3px 0}
 .po-pill{gap:4px}
+.po-dd{position:relative}
+.po-dd-btn{
+  display:flex;align-items:center;gap:8px;
+  font-family:'Montserrat',sans-serif;font-size:12.5px;font-weight:500;color:var(--text-strong);
+  padding:7px 10px 7px 12px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg-input);cursor:pointer;white-space:nowrap;
+  transition:border-color .12s,box-shadow .12s;
+}
+.po-dd-btn:hover{border-color:var(--border-strong)}
+.po-dd.open .po-dd-btn{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.po-dd-chev{width:14px;height:14px;color:var(--text-muted);transition:transform .15s}
+.po-dd.open .po-dd-chev{transform:rotate(180deg)}
+.po-dd-n{
+  font-size:11px;font-weight:600;color:var(--text-muted);
+  background:var(--bg-soft);border:1px solid var(--border);border-radius:999px;padding:0 7px;line-height:17px;
+}
+.po-dd-menu{
+  display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:50;min-width:210px;
+  background:var(--bg-modal);border:1px solid var(--border);border-radius:10px;
+  box-shadow:var(--shadow-lg);padding:5px;
+}
+.po-dd.open .po-dd-menu{display:block}
+.po-dd-item{
+  display:flex;align-items:center;gap:9px;width:100%;
+  font-family:'Montserrat',sans-serif;font-size:13px;color:var(--text);text-align:left;
+  padding:8px 10px;border:none;border-radius:7px;background:none;cursor:pointer;
+}
+.po-dd-item:hover{background:var(--bg-hover);color:var(--text-strong)}
+.po-dd-item.active{background:var(--accent-soft);color:var(--accent-text);font-weight:600}
+.po-dd-item.active .po-dd-n{color:var(--accent-text);border-color:transparent;background:var(--bg-input)}
+.po-dd-check{width:12px;font-size:12px;color:var(--accent-text)}
+.po-dd-lbl{flex:1}
+.po-dd-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.po-dd-dot.po-of-china{background:var(--badge-ls-fg)}
+.po-dd-dot.po-of-singapore{background:var(--badge-qt-fg)}
+.po-dd-dot.po-of-indonesia{background:var(--badge-special-fg)}
 .po-pill button{border:none;background:none;color:inherit;cursor:pointer;font-size:13px;line-height:1;padding:0 0 0 2px}
 .po-pill-year{background:var(--bg-hover);color:var(--text-strong)}
 
@@ -1644,7 +1680,10 @@ details.others-sec:not([open]) > summary{border-bottom:none}
 }
 @media (max-width:700px){
   .po-searchbox{flex:1 1 100%}
-  .po-bar .trk-office-filter{flex:1}
+  .po-bar .po-dd{flex:1}
+  .po-bar .po-dd-btn{width:100%}
+  .po-bar .po-dd-btn span:not(.po-dd-n):not(.po-dd-dot){flex:1}
+  .po-bar .po-dd[data-dd="office"] .po-dd-menu{left:0;right:auto}
   /* phones: each PO is a two-line row (number + amount, date below) and the
      office shows as a dot by the number instead of a column */
   .po-list,.po-list tbody{display:block}
