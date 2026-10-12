@@ -11,7 +11,6 @@
 var PO_LIST=[],PO_LINES=[];
 var PO_LOADED=false,PO_MISSING=false;
 var PO_VIEW="list";          /* "list" | "models" */
-var PO_DD_OPEN="";           /* which filter menu is open: "" | "office" | "year" */
 var PO_SEL="";               /* PO open in the side panel */
 var PO_FOFFICE="",PO_FYEAR="",PO_SEARCH="";
 var PO_ATT=[];               /* modal attachment staging */
@@ -148,51 +147,70 @@ function renderPOs(){
       "<label class='po-searchbox'>"+pills+
         "<input id='po-search' placeholder='Search PO no. / model / PN&hellip;' value='"+trkEsc(PO_SEARCH)+"' oninput='poSearchInput(this.value)'>"+
       "</label>"+
-      poDropdown("office",[{value:"",label:"All offices",count:PO_LIST.length}].concat(PO_OFFICES.map(function(o){
+      uiDropdown({key:"po-office",onPick:"poPickOffice",cur:PO_FOFFICE,opts:[{value:"",label:"All offices",count:PO_LIST.length}].concat(PO_OFFICES.map(function(o){
         return {value:o,label:o,dot:poOfficeSlug(o),count:PO_LIST.filter(function(p){return p.office===o;}).length};
-      })),PO_FOFFICE)+
-      poDropdown("year",[{value:"",label:"All years",count:PO_LIST.length}].concat(years.map(function(y){
+      }))})+
+      uiDropdown({key:"po-year",onPick:"poPickYear",cur:PO_FYEAR,opts:[{value:"",label:"All years",count:PO_LIST.length}].concat(years.map(function(y){
         return {value:y,label:y,count:PO_LIST.filter(function(p){return poYear(p)===y;}).length};
-      })),PO_FYEAR)+
+      }))})+
     "</div>";
 
   if(PO_SEL&&!list.some(function(p){return p._id===PO_SEL;}))PO_SEL="";
   content.innerHTML=toolbar+(PO_VIEW==="models"?poModelsHtml(list):poTableHtml(list));
 }
 
+function poPickOffice(v){PO_FOFFICE=v;renderPOs();}
+function poPickYear(v){PO_FYEAR=v;renderPOs();}
+
 /* ===== filter menus — styled replacements for <select>, whose open list
-   the browser draws and can't be themed ===== */
-function poDropdown(kind,opts,cur){
-  var sel=opts.filter(function(o){return o.value===cur;})[0]||opts[0];
-  var dot=function(o){return o.dot?"<span class='po-dd-dot po-of-"+o.dot+"'></span>":"";};
-  return "<div class='po-dd"+(PO_DD_OPEN===kind?" open":"")+"' data-dd='"+kind+"'>"+
-    "<button class='po-dd-btn' aria-haspopup='listbox' onclick='poDdToggle(event,\""+kind+"\")'>"+
-      dot(sel)+"<span>"+trkEsc(sel.label)+"</span><span class='po-dd-n'>"+sel.count+"</span>"+
+   the browser draws and can't be themed. Shared by the PO page and the
+   tracker. cfg: {key, opts:[{value,label,count,dot}], cur (a value, or an
+   array when multi), onPick: name of a global fn called with the value,
+   multi: keep the menu open and tick several, label: button text override,
+   foot: [{value,label}] extra actions under a divider} ===== */
+var UI_DD_OPEN="";
+function uiDropdown(cfg){
+  var multi=!!cfg.multi,cur=cfg.cur;
+  var isOn=function(v){return multi?cur.indexOf(v)>-1:v===cur;};
+  var sel=multi?null:(cfg.opts.filter(function(o){return o.value===cur;})[0]||cfg.opts[0]);
+  var dot=function(o){return o.dot?"<span class='po-dd-dot po-of-"+o.dot+"'></span>":(o.color?"<span class='po-dd-dot' style='background:"+o.color+"'></span>":"");};
+  /* single-choice menus close on a pick; multi-select ones stay open */
+  var pick=function(v,close){return "onclick='"+(close||!multi?"UI_DD_OPEN=\"\";":"")+cfg.onPick+"(\""+trkEsc(v)+"\")'";};
+  var btnLabel=cfg.label!==undefined?cfg.label:sel.label;
+  var btnCount=cfg.count!==undefined?cfg.count:(sel?sel.count:undefined);
+  return "<div class='po-dd"+(UI_DD_OPEN===cfg.key?" open":"")+"' data-dd='"+cfg.key+"'>"+
+    "<button class='po-dd-btn' aria-haspopup='listbox' onclick='uiDdToggle(event,\""+cfg.key+"\")'>"+
+      (sel?dot(sel):"")+"<span class='po-dd-txt'>"+trkEsc(btnLabel)+"</span>"+(btnCount!==undefined?"<span class='po-dd-n'>"+btnCount+"</span>":"")+
       "<svg class='po-dd-chev' viewBox='0 0 16 16' aria-hidden='true'><path d='M4 6l4 4 4-4' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>"+
     "</button>"+
-    "<div class='po-dd-menu' role='listbox'>"+opts.map(function(o){
-      var on=o.value===cur;
-      return "<button class='po-dd-item"+(on?" active":"")+"' role='option' aria-selected='"+on+"' onclick='poDdPick(\""+kind+"\",\""+o.value+"\")'>"+
-        "<span class='po-dd-check'>"+(on?"&#10003;":"")+"</span>"+dot(o)+"<span class='po-dd-lbl'>"+trkEsc(o.label)+"</span><span class='po-dd-n'>"+o.count+"</span></button>";
-    }).join("")+"</div>"+
+    "<div class='po-dd-menu' role='listbox'"+(multi?" aria-multiselectable='true'":"")+">"+cfg.opts.map(function(o){
+      var on=isOn(o.value);
+      return "<button class='po-dd-item"+(on?" active":"")+"' role='option' aria-selected='"+on+"' "+pick(o.value)+">"+
+        "<span class='po-dd-check'>"+(on?"&#10003;":"")+"</span>"+dot(o)+"<span class='po-dd-lbl'>"+trkEsc(o.label)+"</span>"+(o.count!==undefined?"<span class='po-dd-n'>"+o.count+"</span>":"")+"</button>";
+    }).join("")+
+    ((cfg.foot&&cfg.foot.length)?"<div class='po-dd-foot'>"+cfg.foot.map(function(f){return "<button "+pick(f.value,true)+">"+trkEsc(f.label)+"</button>";}).join("")+"</div>":"")+
+    "</div>"+
   "</div>";
 }
-function poDdToggle(e,kind){
+function uiDdToggle(e,key){
   e.stopPropagation();
-  PO_DD_OPEN=PO_DD_OPEN===kind?"":kind;
-  document.querySelectorAll(".po-dd").forEach(function(el){el.classList.toggle("open",el.dataset.dd===PO_DD_OPEN);});
+  UI_DD_OPEN=UI_DD_OPEN===key?"":key;
+  document.querySelectorAll(".po-dd").forEach(function(el){el.classList.toggle("open",el.dataset.dd===UI_DD_OPEN);});
 }
-function poDdPick(kind,v){
-  if(kind==="office")PO_FOFFICE=v;else PO_FYEAR=v;
-  PO_DD_OPEN="";renderPOs();
-}
-function poDdClose(){
-  if(!PO_DD_OPEN)return;
-  PO_DD_OPEN="";
+function uiDdClose(){
+  if(!UI_DD_OPEN)return;
+  UI_DD_OPEN="";
   document.querySelectorAll(".po-dd.open").forEach(function(el){el.classList.remove("open");});
 }
-document.addEventListener("click",function(e){if(!(e.target.closest&&e.target.closest(".po-dd")))poDdClose();});
-document.addEventListener("keydown",function(e){if(e.key==="Escape")poDdClose();});
+/* A pick re-renders the page, so by the time this runs the clicked item
+   may be detached: only a click on something still in the page and
+   outside every menu closes it (multi-select menus then stay open). */
+document.addEventListener("click",function(e){
+  var t=e.target;
+  if(!t||!document.contains(t))return;
+  if(!(t.closest&&t.closest(".po-dd")))uiDdClose();
+});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")uiDdClose();});
 
 /* ===== list view: one row per PO, month groups with subtotals, and a
    side panel for the selected PO (full screen on phones) ===== */

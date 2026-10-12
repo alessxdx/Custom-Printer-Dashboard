@@ -317,7 +317,7 @@ function trkSyncToolbar(){
   if(!btn)return;
   if(TRK_BTN_HTML===null)TRK_BTN_HTML=btn.innerHTML;
   if(currentTab==="tracker"){
-    if(TRK_SEL){btn.style.display="none";}
+    if(TRK_SEL&&TRK_VIEW==="cal"){btn.style.display="none";}
     else{btn.style.display="";btn.innerHTML=TRK_BTN_HTML.replace("Add entry","Add project");}
   }else{
     btn.style.display="";
@@ -372,7 +372,9 @@ function renderTracker(){
   trkRenderStats();
   if(TRK_SEL&&!TRK_PROJECTS.some(function(p){return p._id===TRK_SEL;}))TRK_SEL=null;
   trkSyncToolbar();
-  if(TRK_SEL){trkRenderDetail();return;}
+  /* in list view a selected project opens in the side panel; the full
+     detail page is still what the calendar opens */
+  if(TRK_SEL&&TRK_VIEW==="cal"){trkRenderDetail();return;}
   trkRenderList();
 }
 
@@ -396,6 +398,11 @@ function trkSetStatusFilter(s){
     TRK_FSTATUS=cur.length?cur:TRK_FSTATUS_DEFAULT.slice();
   }
   renderTracker();
+}
+function trkPickStatus(v){
+  if(v==="__all"){TRK_FSTATUS=TRK_CHIP_ORDER.slice();renderTracker();}
+  else if(v==="__open"){TRK_FSTATUS=TRK_FSTATUS_DEFAULT.slice();renderTracker();}
+  else trkSetStatusFilter(v);
 }
 function trkSetOfficeFilter(s){TRK_FOFFICE=s;renderTracker();}
 function trkSetSolutionFilter(s){TRK_FSOL=s;renderTracker();}
@@ -561,31 +568,33 @@ function trkSnippet(raw,q){
 }
 
 function trkRenderList(bodyOnly){
-  var chips=[{label:"All",value:""}].concat(TRK_CHIP_ORDER.map(function(s){
-    var n=TRK_PROJECTS.filter(function(p){return p.status===s;}).length;
-    if(s==="Other"&&!n)return null; /* chip appears once one exists */
-    return {label:(s==="Other"?"Others":s)+(n?" ("+n+")":""),value:s};
-  }).filter(Boolean));
   var act=trkLastActivityMap();
   var staleN=TRK_PROJECTS.filter(function(p){return trkFollowDue(p,act);}).length;
-  if(staleN||trkStaleOn())chips.splice(1,0,{label:"⏰ Needs follow-up ("+staleN+")",value:"stale",cls:" trk-chip-stale"});
-  chips=chips.map(function(c){
-    return "<button class='trk-chip"+(c.cls||"")+((c.value?TRK_FSTATUS.indexOf(c.value)>-1:trkAllStatusesOn())?" active":"")+"' onclick='trkSetStatusFilter(\""+c.value+"\")'>"+trkEsc(c.label)+"</button>";
-  }).join("");
+  var cnt=function(f){return TRK_PROJECTS.filter(f).length;};
+  var stOpts=TRK_CHIP_ORDER.map(function(st){
+    var n=cnt(function(p){return p.status===st;});
+    return (st==="Other"&&!n)?null:{value:st,label:st==="Other"?"Others":st,count:n};
+  }).filter(Boolean);
+  var stLabel=trkStaleOn()?"Status: any":trkDefaultStatusesOn()?"Status: Open":trkAllStatusesOn()?"All statuses":
+    TRK_FSTATUS.length<=2?TRK_FSTATUS.map(function(x){return x==="Other"?"Others":x;}).join(" + "):TRK_FSTATUS.length+" statuses";
+  var statusMenu=uiDropdown({key:"trk-status",multi:true,onPick:"trkPickStatus",cur:trkStaleOn()?[]:TRK_FSTATUS,opts:stOpts,
+    label:stLabel,count:trkStaleOn()?undefined:cnt(function(p){return TRK_FSTATUS.indexOf(p.status)>-1;}),
+    foot:[{value:"__all",label:"Show all"},{value:"__open",label:"Reset to open"}]});
+  var fuBtn=(staleN||trkStaleOn())?"<button class='trk-fu-toggle"+(trkStaleOn()?" active":"")+"' onclick='trkSetStatusFilter(\"stale\")' title='Open projects due a follow-up'>&#9200; Needs follow-up <span class='po-dd-n'>"+staleN+"</span></button>":"";
 
-  var officeSel="<select class='trk-office-filter' onchange='trkSetOfficeFilter(this.value)'>"+
-    "<option value=''"+(TRK_FOFFICE===""?" selected":"")+">All offices</option>"+
-    TRK_OFFICES.map(function(o){return "<option"+(TRK_FOFFICE===o?" selected":"")+">"+o+"</option>";}).join("")+
-    "</select>";
+  var officeSel=uiDropdown({key:"trk-office",onPick:"trkSetOfficeFilter",cur:TRK_FOFFICE,
+    opts:[{value:"",label:"All offices",count:TRK_PROJECTS.length}].concat(TRK_OFFICES.map(function(o){
+      return {value:o,label:o,dot:poOfficeSlug(o),count:cnt(function(p){return p.office===o;})};
+    }))});
 
   /* Solution filter only appears once at least one project is tagged. */
   var solsUsed={};
   TRK_PROJECTS.forEach(function(p){var v=String(p.solution||"").trim();if(v)solsUsed[v]=1;});
   var solList=Object.keys(solsUsed).sort(trkAlpha);
-  var solSel=solList.length?"<select class='trk-office-filter' onchange='trkSetSolutionFilter(this.value)'>"+
-    "<option value=''"+(TRK_FSOL===""?" selected":"")+">All solutions</option>"+
-    solList.map(function(s){return "<option"+(TRK_FSOL===s?" selected":"")+">"+trkEsc(s)+"</option>";}).join("")+
-    "</select>":"";
+  var solSel=solList.length?uiDropdown({key:"trk-sol",onPick:"trkSetSolutionFilter",cur:TRK_FSOL,
+    opts:[{value:"",label:"All solutions",count:TRK_PROJECTS.length}].concat(solList.map(function(x){
+      return {value:x,label:x,color:trkSolutionColor(x),count:cnt(function(p){return p.solution===x;})};
+    }))}):"";
 
   /* Most recently active project first — the "Last: …" line on each card
      is what drives the order, so logging an entry brings that project to
@@ -617,66 +626,43 @@ function trkRenderList(bodyOnly){
     return (b.createdAt||"").localeCompare(a.createdAt||"");
   });
 
-  function cardHtml(p){
-    var entries=trkEntriesFor(p._id);
-    var last=entries[0];
-    var attCount=entries.reduce(function(n,e){return n+(e.attachments?e.attachments.length:0);},0);
-    var flag=trkFlag(p.country,16);
-    var overdue=p.expectedDate&&TRK_ACTIVE_STATUSES.indexOf(p.status)>-1&&p.expectedDate<new Date().toISOString().slice(0,10);
-    /* Edge color follows the handling office (same colors as the office
-       badges: China red, Singapore blue, Indonesia yellow); projects
-       without an office fall back to their country's color. */
-    var edge=p.office?"":trkCountryColor(p.country);
-    /* Customer, country and the project's own start date share one line,
-       so the heading is just the project name. */
-    var pdate=trkProjectDate(p);
+  function rowHtml(p){
+    var entries=trkEntriesFor(p._id),last=entries[0];
     var hl=q?function(t){return trkHighlight(t,q);}:trkEsc,hit=hits[p._id];
-    var custLine=[hl(p.customer),hl(p.country),pdate?"<span class='trk-card-date'>"+pdate+"</span>":""]
-      .filter(Boolean).join(" &middot; ");
-    if(custLine&&flag)custLine=flag+" "+custLine;
-    /* finished projects get a small "Done" tag above the name plus a
-       big diagonal stamp across the card */
+    var flag=trkFlag(p.country,14);
+    var sub=[hl(p.customer),hl(p.country)].filter(Boolean).join(" &middot; ");
     var done=trkIsDone(p);
-    return "<div class='trk-card trk-sc-"+trkStatusSlug(p.status)+(done?" trk-card-done":"")+(p.office?" po-of-"+poOfficeSlug(p.office):"")+"'"+(edge?" style='border-left-color:"+edge+"'":"")+" onclick='trkOpen(\""+p._id+"\")'>"+
-      (done?"<div class='trk-done-stamp' aria-hidden='true'>Completed</div><div class='trk-done-tag'>&#10003; Done</div>":"")+
-      "<div class='trk-card-top'><span class='trk-card-name'>"+(q?hl(p.name):trkDisplayName(p))+"</span><span style='white-space:nowrap'>"+trkStatusBadge(p.status)+trkPaymentBadge(p)+"</span></div>"+
-      (custLine?"<div class='trk-card-cust'>"+custLine+"</div>":"")+
-      ((p.products&&p.products.length)?"<div class='trk-card-prods'>"+trkProductChips(p,4)+"</div>":"")+
-      (hit&&hit.why?"<div class='trk-card-why'>&#128269; "+hit.why+"</div>":"")+
-      "<div class='trk-card-meta'>"+
-        trkFollowBadge(trkFollow(p,act))+
-        trkSolutionBadge(p)+
-        (p.office?"<span class='trk-badge trk-office po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
-        (p.estValue!==null?"<span>"+trkValueHtml(p)+"</span>":"")+
-        ((p.expectedPeriod||p.expectedDate)?"<span class='"+(overdue?"trk-overdue":"trk-due")+"'>&#128337; "+trkPeriodLabel(p)+(overdue?" (overdue)":"")+"</span>":"")+
-      "</div>"+
-      "<div class='trk-card-foot'>"+
-        "<span class='trk-card-last'>"+(last?"<span class='trk-card-when'>"+trkFmtDate(last.date)+"</span> &middot; "+trkEsc(last.type)+(last.title?" &mdash; "+trkEsc(last.title):""):"No activity yet")+"</span>"+
-        "<span class='trk-card-counts'>"+entries.length+" entr"+(entries.length===1?"y":"ies")+(attCount?" &middot; &#128206; "+attCount:"")+"</span>"+
-      "</div>"+
-    "</div>";
+    return "<tr class='trk-row"+(TRK_SEL===p._id?" sel":"")+(done?" trk-row-done":"")+"' onclick='trkOpen(\""+p._id+"\")'>"+
+      "<td class='trk-c-proj'><div class='trk-r-name'>"+(q?hl(p.name):trkDisplayName(p))+"</div>"+
+        (sub?"<div class='trk-r-sub'>"+(flag?flag+" ":"")+sub+"</div>":"")+
+        (hit&&hit.why?"<div class='trk-card-why'>&#128269; "+hit.why+"</div>":"")+"</td>"+
+      "<td class='trk-c-st'>"+(done?"<span class='trk-badge trk-s-won'>&#10003; Done</span>":trkStatusBadge(p.status)+trkPaymentBadge(p))+"</td>"+
+      "<td class='trk-c-of'>"+(p.office?"<span class='trk-badge po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+"</span>":"")+"</td>"+
+      "<td class='trk-c-val num'>"+(p.estValue!==null?p.estValue.toLocaleString()+" <span class='trk-r-cur'>"+trkEsc(p.currency)+"</span>":"<span class='trk-r-none'>&mdash;</span>")+"</td>"+
+      "<td class='trk-c-last'>"+(last?"<div>"+trkFmtDate(last.date)+"</div><div class='trk-r-sub'>"+trkEsc(last.type)+(last.title?" &mdash; "+trkEsc(last.title):"")+"</div>":"<span class='trk-r-none'>No activity yet</span>")+"</td>"+
+      "<td class='trk-c-fu'>"+trkFollowBadge(trkFollow(p,act))+"</td>"+
+    "</tr>";
   }
+  var COLS=6;
 
-  /* ===== solution groups =====
-     Once anything is tagged, cards sit under small solution headers
+  /* ===== solution bands =====
+     Once anything is tagged, rows sit under tinted solution bands
      (Custom, Posiva, Fire fighting, Others…), untagged projects last.
-     The flat list remains when nothing is tagged yet or the solution
-     filter already narrows the list to one group. Each heading folds
-     its group away (remembered per browser) and keeps a count of the
-     group's projects needing a follow-up, so nothing hides unnoticed. */
-  var cards;
+     A flat list remains for a search, the follow-up list, a single
+     solution, or when nothing is tagged yet. */
+  var rows;
   if(q||TRK_FSOL||trkStaleOn()||!list.some(function(p){return p.solution;})){
-    cards=list.map(cardHtml).join("");
+    rows=list.map(rowHtml).join("");
   }else{
     var order=TRK_SOLUTIONS.slice(),extra=[];
     list.forEach(function(p){
-      var s=p.solution;
-      if(s&&order.indexOf(s)===-1&&extra.indexOf(s)===-1)extra.push(s);
+      var x=p.solution;
+      if(x&&order.indexOf(x)===-1&&extra.indexOf(x)===-1)extra.push(x);
     });
     order=order.concat(extra.sort(trkAlpha));
     order.push(""); /* untagged bucket last */
-    cards=order.map(function(s){
-      var grp=list.filter(function(p){return (p.solution||"")===s;});
+    rows=order.map(function(x){
+      var grp=list.filter(function(p){return (p.solution||"")===x;});
       if(!grp.length)return"";
       /* Inside a sector the newest entry wins outright — closed
          projects don't sink here, per the user's preference — except
@@ -689,25 +675,20 @@ function trkRenderList(bodyOnly){
         if(da.c!==db.c)return db.c.localeCompare(da.c);
         return (b.createdAt||"").localeCompare(a.createdAt||"");
       });
-      var key=s||TRK_GROUP_NONE,shut=TRK_GFOLD.indexOf(key)>-1;
       var due=grp.filter(function(p){return trkFollowDue(p,act);}).length;
-      return "<div class='trk-group"+(shut?" trk-group-folded":"")+"'>"+
-        "<button class='trk-group-head"+(s?"":" trk-group-untagged")+"' aria-expanded='"+(shut?"false":"true")+"' data-key='"+trkEsc(key)+"' onclick='trkToggleGroup(this)'>"+
-          "<i class='trk-group-chev'>&#9662;</i>"+
-          (s?"<span class='trk-sol-dot' style='background:"+trkSolutionColor(s)+"'></span>"+trkEsc(s):"No tag yet")+
-          "<span class='trk-group-count'>"+grp.length+"</span>"+
-          (due?"<span class='trk-badge trk-stale' title='Projects in this group needing a follow-up'>&#9200; "+due+" need follow-up</span>":"")+
-        "</button>"+
-        "<div class='trk-group-body'>"+grp.map(cardHtml).join("")+"</div></div>";
+      return "<tr class='trk-band'><td colspan='"+COLS+"' style='box-shadow:inset 3px 0 0 "+(x?trkSolutionColor(x):"var(--border-strong)")+",inset 0 -1px 0 var(--border)'>"+
+        "<span class='po-grp-name'>"+(x?trkEsc(x):"No tag yet")+"</span><span class='po-grp-n'>"+grp.length+"</span>"+
+        (due?"<span class='trk-band-due'>&#9200; "+due+" need follow-up</span>":"")+
+      "</td></tr>"+grp.map(rowHtml).join("");
     }).join("");
-    /* expand / collapse every group at once */
-    if(cards){
-      var allShut=order.every(function(s){
-        return !list.some(function(p){return (p.solution||"")===s;})||TRK_GFOLD.indexOf(s||TRK_GROUP_NONE)>-1;
-      });
-      cards="<div class='trk-group-all'><button onclick='trkFoldAllGroups("+(allShut?"false":"true")+")'>"+(allShut?"&#9662; Expand all":"&#9656; Collapse all")+"</button></div>"+cards;
-    }
   }
+  var selP=TRK_SEL?TRK_PROJECTS.find(function(x){return x._id===TRK_SEL;}):null;
+  var cards=rows?"<div class='po-split trk-split"+(selP?" has-sel":"")+"'>"+
+    "<div class='po-table-wrap'><table class='po-table trk-list'><thead><tr>"+
+      "<th>Project</th><th>Status</th><th class='trk-c-of'>Office</th><th class='trk-c-val num'>Value</th><th>Last update</th><th>Follow-up</th>"+
+    "</tr></thead><tbody>"+rows+"</tbody></table></div>"+
+    (selP?trkPanelHtml(selP,act):"")+
+  "</div>":"";
 
   var body=TRK_VIEW==="cal"?trkCalendarHtml(list,act):(q?"<div class='trk-search-count'>"+list.length+" project"+(list.length===1?"":"s")+" match <strong>"+trkEsc(TRK_Q.trim())+"</strong></div>":"")+
     (cards||"<div class='empty'>"+(q?"Nothing matches that search. Try part of a name, a model, a month (e.g. <em>oct 2026</em>) or initials (e.g. <em>PAL</em>).":trkStaleOn()?"All caught up &mdash; no follow-ups due and every open project has an update from the last "+TRK_STALE_DAYS+" days.":TRK_PROJECTS.length?"No projects match this filter.":"No projects yet. Click <strong>+ Add entry</strong> to record your first enquiry.")+"</div>");
@@ -724,42 +705,58 @@ function trkRenderList(bodyOnly){
     "<button class='"+(TRK_VIEW==="cal"?"active":"")+"' onclick='trkSetView(\"cal\")'>&#128197; Calendar</button>"+
     "</div>";
   document.getElementById("content").innerHTML=
-    "<div class='trk-toolbar'><div class='trk-chips'>"+chips+"</div><div class='trk-filters'>"+search+solSel+officeSel+viewSw+"</div></div>"+
+    "<div class='trk-bar'>"+search+fuBtn+statusMenu+solSel+officeSel+viewSw+"</div>"+
     "<div id='trk-list-body'>"+body+"</div>";
 }
 function trkSearchInput(v){TRK_Q=v;trkRenderList(true);}
 
-/* folded solution groups in the list (remembered per browser) */
+/* Side panel for the selected project: the key facts, its next step and
+   the timeline, with Add update / Edit project — the same entry and
+   project forms the full detail page uses (they act on TRK_SEL). */
+function trkPanelHtml(p,act){
+  var entries=trkEntriesFor(p._id);
+  var info=function(label,html){return html?"<div class='trk-pn-row'><span>"+label+"</span><div>"+html+"</div></div>":"";};
+  var flag=trkFlag(p.country,16);
+  var tl=entries.map(function(e){
+    var atts=(e.attachments||[]).map(function(a){
+      return "<a class='trk-att' href='"+trkEsc(a.url)+"' data-name='"+trkEsc(a.name)+"' onclick='return trkViewFile(this)'>"+trkFileIcon(a.name)+" "+trkEsc(a.name)+"</a>";
+    }).join("");
+    return "<div class='trk-pn-e'><div class='trk-pn-e-meta'><strong>"+trkFmtDate(e.date)+"</strong> "+trkTypeBadge(e.type)+
+        "<a href='#' class='trk-tl-edit' onclick='trkEditEntry(event,\""+e._id+"\")'>Edit</a></div>"+
+      (e.title?"<div class='trk-pn-e-title'>"+trkEsc(e.title)+"</div>":"")+
+      (e.details?"<div class='trk-pn-e-det'>"+trkEsc(e.details).replace(/\n/g,"<br>")+"</div>":"")+
+      (atts?"<div class='trk-tl-atts'>"+atts+"</div>":"")+
+    "</div>";
+  }).join("");
+  return "<aside class='po-panel trk-panel'>"+
+    "<div class='po-panel-head'><span class='po-panel-no'>"+trkDisplayName(p)+"</span>"+
+      "<button class='po-panel-x' aria-label='Close' onclick='trkBack()'>&times;</button></div>"+
+    "<div class='po-panel-meta'>"+trkStatusBadge(p.status)+trkPaymentBadge(p)+trkFollowBadge(trkFollow(p,act))+"</div>"+
+    ((p.customer||p.country)?"<div class='trk-pn-cust'>"+(flag?flag+" ":"")+[trkEsc(p.customer),trkEsc(p.country)].filter(Boolean).join(" &middot; ")+"</div>":"")+
+    "<div class='po-panel-acts'><button class='btn-save' onclick='trkOpenEntryModal()'>+ Add update</button><button class='edit-btn' onclick='trkEditProject()'>Edit project</button></div>"+
+    "<div class='po-panel-sec'>Details</div>"+
+    info("Office",p.office?"<span class='trk-badge po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
+    info("Solution",trkSolutionBadge(p))+
+    info("Products",trkProductChips(p))+
+    info("Value",p.estValue!==null?trkValueHtml(p):"")+
+    info("Expected close",trkPeriodLabel(p))+
+    info("Next follow-up",trkActiveFollowup(p,act)?trkFmtDate(trkActiveFollowup(p,act)):"")+
+    info("Contact",trkEsc(p.contactName)+(p.contactPosition?" &middot; "+trkEsc(p.contactPosition):"")+(p.contactInfo?"<div class='trk-value-usd'>"+trkEsc(p.contactInfo)+"</div>":""))+
+    (p.notes?"<div class='po-panel-sec'>Description</div><div class='po-panel-note'>"+trkEsc(p.notes)+"</div>":"")+
+    "<div class='po-panel-sec'>Timeline &middot; "+entries.length+"</div>"+
+    (tl||"<div class='trk-r-none' style='font-size:12px'>No updates yet. Add the enquiry, a call or a quotation.</div>")+
+  "</aside>";
+}
+/* Esc closes the panel */
+document.addEventListener("keydown",function(e){
+  if(e.key!=="Escape"||typeof currentTab==="undefined"||currentTab!=="tracker"||!TRK_SEL||TRK_VIEW==="cal")return;
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test((e.target&&e.target.tagName)||""))return;
+  if(document.querySelector(".modal-overlay.open")||(typeof UI_DD_OPEN!=="undefined"&&UI_DD_OPEN))return;
+  trkBack();
+});
+
+/* untagged projects' bucket key */
 var TRK_GROUP_NONE="__untagged";
-var TRK_GFOLD=(function(){try{return JSON.parse(localStorage.getItem("cpd_trk_gfold")||"[]");}catch(e){return [];}})();
-function trkSaveGFold(){try{localStorage.setItem("cpd_trk_gfold",JSON.stringify(TRK_GFOLD));}catch(e){}}
-/* toggled in place so the page keeps its scroll position */
-function trkToggleGroup(btn){
-  var key=btn.getAttribute("data-key"),at=TRK_GFOLD.indexOf(key),shut=at===-1;
-  if(shut)TRK_GFOLD.push(key);else TRK_GFOLD.splice(at,1);
-  trkSaveGFold();
-  btn.parentNode.classList.toggle("trk-group-folded",shut);
-  btn.setAttribute("aria-expanded",shut?"false":"true");
-  trkSyncFoldAll();
-}
-function trkFoldAllGroups(shut){
-  document.querySelectorAll(".trk-group-head[data-key]").forEach(function(btn){
-    var key=btn.getAttribute("data-key"),at=TRK_GFOLD.indexOf(key);
-    if(shut&&at===-1)TRK_GFOLD.push(key);
-    if(!shut&&at>-1)TRK_GFOLD.splice(at,1);
-    btn.parentNode.classList.toggle("trk-group-folded",shut);
-    btn.setAttribute("aria-expanded",shut?"false":"true");
-  });
-  trkSaveGFold();
-  trkSyncFoldAll();
-}
-function trkSyncFoldAll(){
-  var b=document.querySelector(".trk-group-all button");
-  if(!b)return;
-  var allShut=!document.querySelector(".trk-group:not(.trk-group-folded)");
-  b.innerHTML=allShut?"&#9662; Expand all":"&#9656; Collapse all";
-  b.setAttribute("onclick","trkFoldAllGroups("+(allShut?"false":"true")+")");
-}
 
 /* ===== calendar view =====
    Same projects as the list (status chips, search, office and solution
@@ -939,7 +936,8 @@ function trkCalendarHtml(list,act){
     side+"</div></div>";
 }
 
-function trkOpen(id){TRK_SEL=id;renderTracker();}
+/* clicking the open project again closes its panel */
+function trkOpen(id){TRK_SEL=(TRK_VIEW!=="cal"&&TRK_SEL===id)?null:id;renderTracker();}
 function trkBack(){TRK_SEL=null;renderTracker();}
 
 function trkRenderDetail(){
@@ -1408,7 +1406,7 @@ function trkShowSheet(i,keepFreeze){
 
 /* ===== global "+ Add entry" button (toolbar) ===== */
 function trkOpenAdd(){
-  if(TRK_SEL)trkOpenEntryModal();
+  if(TRK_SEL&&TRK_VIEW==="cal")trkOpenEntryModal();
   else trkOpenProjectModal();
 }
 
