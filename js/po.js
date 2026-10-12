@@ -10,7 +10,8 @@
 
 var PO_LIST=[],PO_LINES=[];
 var PO_LOADED=false,PO_MISSING=false;
-var PO_VIEW="pos";           /* "pos" | "models" */
+var PO_VIEW="list";          /* "list" | "pos" (cards) | "models" */
+var PO_SEL="";               /* PO open in the side panel */
 var PO_FOFFICE="",PO_FYEAR="",PO_SEARCH="";
 var PO_ATT=[];               /* modal attachment staging */
 var PO_EXPANDED={};
@@ -134,29 +135,112 @@ function renderPOs(){
   PO_LIST.forEach(function(p){var y=poYear(p);if(y&&years.indexOf(y)===-1)years.push(y);});
   years.sort().reverse();
 
+  /* One toolbar: view switch, a search box that also holds the active
+     filters as removable pills, then the office and year pickers */
+  var seg=[["list","List"],["pos","Cards"],["models","By model"]].map(function(v){
+    return "<button class='po-seg-btn"+(PO_VIEW===v[0]?" active":"")+"' onclick='PO_VIEW=\""+v[0]+"\";renderPOs()'>"+v[1]+"</button>";
+  }).join("");
+  var pills=(PO_FOFFICE?"<span class='trk-badge po-of-"+poOfficeSlug(PO_FOFFICE)+" po-pill'>"+trkEsc(PO_FOFFICE)+"<button aria-label='Clear office filter' onclick='PO_FOFFICE=\"\";renderPOs()'>&times;</button></span>":"")+
+    (PO_FYEAR?"<span class='trk-badge po-pill po-pill-year'>"+PO_FYEAR+"<button aria-label='Clear year filter' onclick='PO_FYEAR=\"\";renderPOs()'>&times;</button></span>":"");
   var toolbar=
-    "<div class='trk-toolbar'>"+
-      "<div class='trk-chips'>"+
-        "<button class='trk-chip"+(PO_VIEW==="pos"?" active":"")+"' onclick='PO_VIEW=\"pos\";renderPOs()'>PO records</button>"+
-        "<button class='trk-chip"+(PO_VIEW==="models"?" active":"")+"' onclick='PO_VIEW=\"models\";renderPOs()'>By model</button>"+
-      "</div>"+
-      "<div class='po-filters'>"+
-        "<input id='po-search' class='po-search' placeholder='Search PO no. / model / PN&hellip;' value='"+trkEsc(PO_SEARCH)+"' oninput='poSearchInput(this.value)'>"+
-        "<select class='trk-office-filter' onchange='PO_FYEAR=this.value;renderPOs()'>"+
-          "<option value=''"+(PO_FYEAR===""?" selected":"")+">All years</option>"+
-          years.map(function(y){return "<option"+(PO_FYEAR===y?" selected":"")+">"+y+"</option>";}).join("")+
-        "</select>"+
-      "</div>"+
-    "</div>"+
-    "<div class='trk-chips' style='margin-bottom:14px'>"+
-      [""].concat(PO_OFFICES).map(function(o){
-        var n=o?PO_LIST.filter(function(p){return p.office===o;}).length:PO_LIST.length;
-        return "<button class='trk-chip po-chip-"+(o?poOfficeSlug(o):"all")+(PO_FOFFICE===o?" active":"")+"' onclick='PO_FOFFICE=\""+o+"\";renderPOs()'>"+(o||"All offices")+(n?" ("+n+")":"")+"</button>";
-      }).join("")+
+    "<div class='po-bar'>"+
+      "<div class='po-seg'>"+seg+"</div>"+
+      "<label class='po-searchbox'>"+pills+
+        "<input id='po-search' placeholder='Search PO no. / model / PN&hellip;' value='"+trkEsc(PO_SEARCH)+"' oninput='poSearchInput(this.value)'>"+
+      "</label>"+
+      "<select class='trk-office-filter' onchange='PO_FOFFICE=this.value;renderPOs()'>"+
+        [""].concat(PO_OFFICES).map(function(o){
+          var n=o?PO_LIST.filter(function(p){return p.office===o;}).length:PO_LIST.length;
+          return "<option value='"+o+"'"+(PO_FOFFICE===o?" selected":"")+">"+(o||"All offices")+" ("+n+")</option>";
+        }).join("")+
+      "</select>"+
+      "<select class='trk-office-filter' onchange='PO_FYEAR=this.value;renderPOs()'>"+
+        "<option value=''"+(PO_FYEAR===""?" selected":"")+">All years</option>"+
+        years.map(function(y){return "<option"+(PO_FYEAR===y?" selected":"")+">"+y+"</option>";}).join("")+
+      "</select>"+
     "</div>";
 
-  content.innerHTML=toolbar+(PO_VIEW==="models"?poModelsHtml(list):poListHtml(list));
+  if(PO_SEL&&!list.some(function(p){return p._id===PO_SEL;}))PO_SEL="";
+  content.innerHTML=toolbar+(PO_VIEW==="models"?poModelsHtml(list):PO_VIEW==="pos"?poListHtml(list):poTableHtml(list));
 }
+
+/* ===== list view: one row per PO, month groups with subtotals, and a
+   side panel for the selected PO (full screen on phones) ===== */
+function poUsdSum(list){
+  var t=0;list.forEach(function(p){var u=poUsd(p.total,p.currency);if(u!==null)t+=u;});
+  return typeof fxFormatUSD==="function"?fxFormatUSD(t):"$"+Math.round(t).toLocaleString();
+}
+function poTableHtml(list){
+  if(!list.length)return poListHtml(list);
+  var groups=[],byLabel={};
+  list.forEach(function(p){
+    var ml=poMonthLabel(p);
+    if(!byLabel[ml]){byLabel[ml]=[];groups.push(ml);}
+    byLabel[ml].push(p);
+  });
+  var rows=groups.map(function(ml){
+    var g=byLabel[ml];
+    return "<tr class='po-grp'><td colspan='4'>"+ml+"<span>"+g.length+" PO"+(g.length===1?"":"s")+"</span></td><td class='num'>"+poUsdSum(g)+"</td><td></td></tr>"+
+      g.map(function(p){
+        var n=poLinesFor(p._id).length,att=(p.attachments||[]).length;
+        return "<tr class='po-row"+(PO_SEL===p._id?" sel":"")+"' onclick='poSelect(\""+p._id+"\")'>"+
+          "<td class='po-no'>"+(p.office?"<span class='trk-badge po-dot po-of-"+poOfficeSlug(p.office)+"' title='"+trkEsc(p.office)+"'></span>":"")+trkEsc(p.poNumber)+(p.notes?" <span class='po-has-note' title='Has a note'>&#9998;</span>":"")+"</td>"+
+          "<td>"+(p.office?"<span class='trk-badge po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+"</span>":"")+"</td>"+
+          "<td class='po-dim'>"+(p.date?trkFmtDate(p.date):"&mdash;")+"</td>"+
+          "<td class='po-dim num'>"+n+"</td>"+
+          "<td class='num po-amt'>"+poFmtMoney(p.total,p.currency)+"</td>"+
+          "<td class='po-dim num'>"+(att?trkFileIcon(p.attachments[0].name)+(att>1?" "+att:""):"")+"</td>"+
+        "</tr>";
+      }).join("");
+  }).join("");
+  var sel=PO_SEL?PO_LIST.filter(function(p){return p._id===PO_SEL;})[0]:null;
+  return "<div class='po-split"+(sel?" has-sel":"")+"'>"+
+    "<div class='po-table-wrap'><table class='po-table po-list'>"+
+      "<thead><tr><th>PO</th><th>Office</th><th>Date</th><th class='num'>Lines</th><th class='num'>Amount</th><th class='num'>Files</th></tr></thead>"+
+      "<tbody>"+rows+"</tbody></table></div>"+
+    (sel?poPanelHtml(sel):"")+
+  "</div>";
+}
+function poPanelHtml(p){
+  var lines=poLinesFor(p._id);
+  var lineRows=lines.map(function(l){
+    var sub=(l.unitPrice!==null)?l.qty*l.unitPrice:null;
+    return "<div class='po-pl'>"+
+      "<div class='po-pl-main'><div class='po-pl-desc'>"+trkEsc(l.description||l.pn||"—")+"</div>"+
+        (l.pn&&l.description?"<div class='po-line-pn'>"+trkEsc(l.pn)+"</div>":"")+
+        "<div class='po-dim'>"+l.qty.toLocaleString()+" "+trkEsc(l.unit)+(l.unitPrice!==null?" &times; "+poFmtMoney(l.unitPrice,p.currency):"")+"</div></div>"+
+      "<div class='po-pl-sub'>"+(sub!==null?poFmtMoney(sub,p.currency):"")+"</div>"+
+    "</div>";
+  }).join("");
+  var atts=(p.attachments||[]).map(function(a){
+    return "<a class='trk-att' href='"+trkEsc(a.url)+"' data-name='"+trkEsc(a.name)+"' onclick='return trkViewFile(this)'>"+trkFileIcon(a.name)+" "+trkEsc(a.name)+"</a>";
+  }).join(" ");
+  return "<aside class='po-panel'>"+
+    "<div class='po-panel-head'><span class='po-panel-no'>"+trkEsc(p.poNumber)+"</span>"+
+      "<button class='po-panel-x' aria-label='Close' onclick='poSelect(\"\")'>&times;</button></div>"+
+    "<div class='po-panel-meta'>"+(p.office?"<span class='trk-badge po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+" office</span>":"")+
+      (p.date?"<span>"+trkFmtDate(p.date)+"</span>":"")+"</div>"+
+    "<div class='po-panel-total'>"+poFmtMoney(p.total,p.currency)+
+      ((p.currency!=="USD"&&typeof fxUsdText==="function"&&p.total!==null)?" <span class='trk-value-usd'>"+fxUsdText(p.total,p.currency)+"</span>":"")+"</div>"+
+    (lines.length?"<div class='po-panel-sec'>"+lines.length+" line"+(lines.length===1?"":"s")+"</div>"+lineRows:"")+
+    (atts?"<div class='po-panel-sec'>Files</div><div class='trk-tl-atts'>"+atts+"</div>":"")+
+    (p.notes?"<div class='po-panel-sec'>Note</div><div class='po-panel-note'>"+trkEsc(p.notes)+"</div>":"")+
+    "<div class='po-panel-acts'><button class='btn-save' onclick='poEdit(\""+p._id+"\")'>Edit PO</button></div>"+
+  "</aside>";
+}
+function poSelect(id){PO_SEL=(id&&PO_SEL!==id)?id:"";renderPOs();}
+/* Esc closes the panel; up/down step through the visible POs */
+document.addEventListener("keydown",function(e){
+  if(typeof currentTab==="undefined"||currentTab!=="po"||PO_VIEW!=="list"||!PO_SEL)return;
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test((e.target&&e.target.tagName)||""))return;
+  if(document.querySelector(".modal-overlay.open"))return;
+  if(e.key==="Escape"){PO_SEL="";renderPOs();return;}
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+    var ids=poFiltered().map(function(p){return p._id;}),at=ids.indexOf(PO_SEL);
+    var nx=ids[at+(e.key==="ArrowDown"?1:-1)];
+    if(nx){e.preventDefault();PO_SEL=nx;renderPOs();var r=document.querySelector(".po-row.sel");if(r)r.scrollIntoView({block:"nearest"});}
+  }
+});
 
 var PO_MONTHS_FULL=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function poMonthLabel(p){
