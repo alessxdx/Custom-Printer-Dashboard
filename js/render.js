@@ -693,11 +693,20 @@ function toggleCard(key,sid){
   document.getElementById("body-"+sid).classList.toggle("open",expandedCards[key]);
   document.getElementById("chev-"+sid).classList.toggle("open",expandedCards[key]);
 }
+/* The dropdown lists model families, not every variant: casing, cutter,
+   ATB/BTP, ARINC, AEA and warranty wording all fold into their family.
+   ARINC ATB is the cutter and BTP the non-cutter, as the combined ARINC
+   line names them. Anything unrecognised keeps its own name. */
+function cmpFamily(m){
+  const s=String(m||"").toLowerCase();
+  if(/^kpm180(?!h)/.test(s))return "KPM180";
+  if(/^tk180/.test(s)&&!/tph/.test(s)){
+    if(/plastic/.test(s))return "TK180 Plastic";
+    if(/metal/.test(s))return /non.?cutter/.test(s)||(/arinc/.test(s)&&/btp/.test(s))?"TK180 Metal Non Cutter":"TK180 Metal Cutter";
+  }
+  return m;
+}
 function renderModel(){
-  const MODEL_GROUPS={
-    "TK180 Metal Cutter":["TK180 Metal Cutter","TK180 Metal Cutter ARINC"],
-    "TK180 Metal Non Cutter":["TK180 Metal Non Cutter","TK180 Metal Non Cutter ARINC"],
-  };
   /* Comparable rows come from both tables: a flat transaction is one row, and
      so is each printer line item on a project. Without this the tab empties
      out the moment a customer is migrated off `transactions`. */
@@ -711,10 +720,8 @@ function renderModel(){
       notes:p.notes||[]};
   }).filter(Boolean);
   const cmpAll=TX.concat(projRows);
-  const allModels=[...new Set(cmpAll.map(t=>t.displayModel||t.model))];
-  const models=allModels.filter(m=>!Object.values(MODEL_GROUPS).flat().includes(m)||Object.keys(MODEL_GROUPS).includes(m)).sort();
-  const sel=document.getElementById("model-sel"),current=sel?sel.value:models[0];
-  const groupModels=MODEL_GROUPS[current]||[current];
+  const models=[...new Set(cmpAll.map(t=>cmpFamily(t.displayModel||t.model)))].sort();
+  const sel=document.getElementById("model-sel"),current=sel&&models.includes(sel.value)?sel.value:models[0];
   /* Free-text search overrides the dropdown: every word must appear in the
      model name, so "tk180" pulls in plastic, metal, every warranty variant */
   const srchEl=document.getElementById("model-search"),srch=srchEl?srchEl.value:(window._cmpSearch||"");
@@ -723,10 +730,12 @@ function renderModel(){
   const searching=words.length>0;
   const matches=t=>searching
     ?words.every(w=>((t.displayModel||"")+" "+t.model).toLowerCase().includes(w))
-    :groupModels.includes(t.displayModel||t.model);
+    :cmpFamily(t.displayModel||t.model)===current;
   const txs=cmpAll.filter(t=>matches(t)&&t.model!=="TK180 Metal Cutter ARINC (ATB) + TK180 Metal Non Cutter ARINC (BTP)").sort((a,b)=>parseDV(b.date)-parseDV(a.date));
   if(srch!==window._cmpLastSearch){expandedRows={};window._cmpLastSearch=srch;}
-  const nCols=searching?8:7;
+  /* the Model column only earns its place when the rows span several variants */
+  const showModel=searching||new Set(txs.map(t=>t.displayModel||t.model)).size>1;
+  const nCols=showModel?8:7;
   const opts=models.map(m=>`<option value="${m}"${m===current?" selected":""}>${m}</option>`).join("");
   /* Same customer and price is one row, even across models (ATB/BTP pairs): the latest one is kept (txs is
      newest first) and the others only show up as extra projects in its detail */
@@ -751,8 +760,8 @@ function renderModel(){
       const mdls=[...new Set(all.map(t=>t.displayModel||t.model))];
       rows+=`<tr class="clickable" onclick="toggleRow(${i})">
         <td data-label="Date" style="color:var(--text-muted);white-space:nowrap;font-size:12px">${dDisplay(tx)||"—"}</td>
-        ${searching?`<td class="mc-title" style="font-weight:600">${mdls.join("<br>")}</td>`:""}
-        <td${searching?' data-label="Project"':' class="mc-title"'} style="color:var(--text-muted);font-size:12px">${tx.project||"—"}${more>0?`<span class="cmp-more">+${more} more</span>`:""}</td>
+        ${showModel?`<td class="mc-title" style="font-weight:600">${mdls.join("<br>")}</td>`:""}
+        <td${showModel?' data-label="Project"':' class="mc-title"'} style="color:var(--text-muted);font-size:12px">${tx.project||"—"}${more>0?`<span class="cmp-more">+${more} more</span>`:""}</td>
         <td data-label="Country" style="color:var(--text-muted)"><span class="cmp-country">${flagImg(tx.country,18)}${tx.country}</span></td>
         <td data-label="Status">${bStatus(tx.status)}</td>
         <td data-label="Terms">${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
@@ -769,9 +778,9 @@ function renderModel(){
     <span class="cmp-lbl">Compare model</span>
     <select id="model-sel" onchange="renderModel()"${searching?' class="cmp-off" title="Clear the search to use the dropdown"':""}>${opts}</select>
     <input id="model-search" type="search" placeholder="Search models, e.g. tk180 metal" oninput="renderModel()" value="${srch.replace(/"/g,"&quot;")}">
-    <span class="cmp-hint">${uniq.length} prices from ${custs.length} customer${custs.length!==1?"s":""}${searching?` across ${new Set(txs.map(t=>t.displayModel||t.model)).size} models`:""}${hidden?` (${hidden} duplicate${hidden!==1?"s":""} hidden)`:""} \u2014 click row for detail</span>
+    <span class="cmp-hint">${uniq.length} price${uniq.length!==1?"s":""} from ${custs.length} customer${custs.length!==1?"s":""}${searching?` across ${new Set(txs.map(t=>t.displayModel||t.model)).size} models`:""}${hidden?` (${hidden} duplicate${hidden!==1?"s":""} hidden)`:""} \u2014 click row for detail</span>
   </div><div style="overflow-x:auto"><table class="mcards">
-    <thead><tr><th>Date</th>${searching?"<th>Model</th>":""}<th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th style="text-align:right">Price</th><th style="text-align:right">Margin</th></tr></thead>
+    <thead><tr><th>Date</th>${showModel?"<th>Model</th>":""}<th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th style="text-align:right">Price</th><th style="text-align:right">Margin</th></tr></thead>
     <tbody>${rows||`<tr><td colspan="${nCols}" class="empty">${searching?"No models match “"+srch.replace(/</g,"&lt;")+"”.":"No data."}</td></tr>`}</tbody>
   </table></div></div>`;
   /* the whole tab re-renders on each keystroke, so put the caret back */
