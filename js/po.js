@@ -180,7 +180,8 @@ function poTableHtml(list){
   });
   var rows=groups.map(function(ml){
     var g=byLabel[ml];
-    return "<tr class='po-grp'><td colspan='4'>"+ml+"<span>"+g.length+" PO"+(g.length===1?"":"s")+"</span></td><td class='num'>"+poUsdSum(g)+"</td><td></td></tr>"+
+    return "<tr class='po-grp'><td colspan='4'><span class='po-grp-name'>"+ml+"</span><span class='po-grp-n'>"+g.length+" PO"+(g.length===1?"":"s")+"</span></td>"+
+      "<td class='num'><span class='po-grp-lbl'>Subtotal</span><span class='po-grp-sum'>"+poUsdSum(g)+"</span></td><td></td></tr>"+
       g.map(function(p){
         var n=poLinesFor(p._id).length,att=(p.attachments||[]).length;
         return "<tr class='po-row"+(PO_SEL===p._id?" sel":"")+"' onclick='poSelect(\""+p._id+"\")'>"+

@@ -1,39 +1,41 @@
 /* ==========  THEME TOKENS  ========== */
 :root[data-theme="light"]{
+  /* clean light: soft grey page, white cards, teal accent */
+  --bg-page: #f2f4f7;
   --bg: #ffffff;
-  --bg-sidebar: #fbfbfa;
-  --bg-hover: #f1f1ef;
-  --bg-soft: #f7f7f5;
+  --bg-sidebar: #ffffff;
+  --bg-hover: #f5f7fa;
+  --bg-soft: #f9fafb;
   --bg-input: #ffffff;
   --bg-modal: #ffffff;
   --bg-stat: #ffffff;
-  --bg-row-stripe: #fafafa;
-  --bg-accent-soft: #eef3f4;
-  --text: #37352f;
-  --text-muted: #5c5a56;
-  --text-faint: #6f6d69;
-  --text-strong: #1a1a1a;
-  --border: #ebebea;
-  --border-strong: #d8d8d6;
-  --divider: #efefee;
-  --accent: #1a3a4a;
-  --accent-hover: #2c5568;
-  --accent-soft: #e8f0f4;
-  --accent-text: #1a3a4a;
-  --shadow-sm: 0 1px 2px rgba(15,15,15,.05);
-  --shadow-md: 0 2px 8px rgba(15,15,15,.08);
-  --shadow-lg: 0 6px 24px rgba(15,15,15,.12);
-  --badge-po-bg: #ddedea; --badge-po-fg: #0f6b58;
-  --badge-qt-bg: #dde7f0; --badge-qt-fg: #1d4ed8;
-  --badge-ls-bg: #f5e0e0; --badge-ls-fg: #b91c1c;
-  --badge-term-bg: #f1f0ee; --badge-term-fg: #4a4a4a;
-  --badge-w-bg: #eaeae8; --badge-w-fg: #4a4a4a;
-  --badge-special-bg: #fdf3d6; --badge-special-fg: #856404;
-  --badge-group-bg: #fef3c7; --badge-group-fg: #856404; --badge-group-bd: #f3d77a;
-  --badge-order-bg: #ede9fe; --badge-order-fg: #6d28d9;
-  --badge-inv-bg: #fce7f3; --badge-inv-fg: #be185d;
-  --badge-cash-bg: #ffedd5; --badge-cash-fg: #c2410c;
-  --scroll-thumb: #d8d8d6;
+  --bg-row-stripe: #fafbfc;
+  --bg-accent-soft: #e6f3f4;
+  --text: #344054;
+  --text-muted: #5d6779;
+  --text-faint: #6b7586;
+  --text-strong: #101828;
+  --border: #e4e7ec;
+  --border-strong: #d0d5dd;
+  --divider: #eaecf0;
+  --accent: #0e7c86;
+  --accent-hover: #0b666f;
+  --accent-soft: #e3f2f3;
+  --accent-text: #0b6670;
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.05);
+  --shadow-md: 0 2px 8px rgba(16,24,40,.08);
+  --shadow-lg: 0 8px 24px rgba(16,24,40,.12);
+  --badge-po-bg: #e3f6ec; --badge-po-fg: #067647;
+  --badge-qt-bg: #e8f1fe; --badge-qt-fg: #175cd3;
+  --badge-ls-bg: #fdecec; --badge-ls-fg: #b42318;
+  --badge-term-bg: #f2f4f7; --badge-term-fg: #475467;
+  --badge-w-bg: #f2f4f7; --badge-w-fg: #475467;
+  --badge-special-bg: #fef3e2; --badge-special-fg: #b54708;
+  --badge-group-bg: #fef3e2; --badge-group-fg: #b54708; --badge-group-bd: #fedf89;
+  --badge-order-bg: #f0edfe; --badge-order-fg: #5925dc;
+  --badge-inv-bg: #fdeef6; --badge-inv-fg: #c11574;
+  --badge-cash-bg: #fff0e3; --badge-cash-fg: #c4320a;
+  --scroll-thumb: #d0d5dd;
 }
 :root[data-theme="dark"]{
   --bg: #191919;
@@ -112,7 +114,7 @@
 html,body{height:100%}
 body{
   font-family:'Montserrat',system-ui,sans-serif;
-  background:var(--bg);
+  background:var(--bg-page,var(--bg));
   color:var(--text);
   font-size:14px;
   line-height:1.5;
@@ -1581,20 +1583,36 @@ details.others-sec:not([open]) > summary{border-bottom:none}
 .po-split{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
 .po-split.has-sel{grid-template-columns:minmax(0,1fr) 340px}
 .po-list td{padding:8px 14px;vertical-align:middle}
-.po-list th{position:sticky;top:0;background:var(--bg-stat);z-index:1}
+.po-list th{position:sticky;top:0;background:var(--bg-stat);z-index:2;box-shadow:inset 0 -1px 0 var(--border)}
+/* clip, not auto: a scrolling wrapper would stop the headers pinning to the page */
+.po-split .po-table-wrap{overflow:clip}
+/* month band: tinted row, accent bar, count chip, labelled subtotal.
+   Pinned under the column headers while its POs scroll past. */
 .po-grp td{
-  background:var(--bg-soft);font-size:12px;font-weight:600;color:var(--text-strong);
-  padding-top:9px;padding-bottom:9px;
+  background:var(--accent-soft);color:var(--text-strong);
+  padding-top:10px;padding-bottom:10px;
+  position:sticky;top:37px;z-index:1;
+  box-shadow:inset 0 -1px 0 var(--border);
 }
-.po-grp td span{margin-left:10px;font-weight:500;color:var(--text-faint)}
+.po-grp td:first-child{box-shadow:inset 3px 0 0 var(--accent),inset 0 -1px 0 var(--border)}
+.po-grp-name{font-size:14px;font-weight:700}
+.po-grp-n{
+  display:inline-block;margin-left:9px;vertical-align:1px;
+  font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;
+  background:var(--accent);color:var(--bg);
+}
+.po-grp-lbl{display:block;font-size:10px;font-weight:500;color:var(--text-muted);line-height:1.2}
+.po-grp-sum{font-size:14px;font-weight:700}
 .po-row{cursor:pointer}
 .po-row:hover td{background:var(--bg-hover)}
-.po-row.sel td{background:var(--accent-soft)}
-.po-no{font-weight:600;color:var(--text-strong);white-space:nowrap}
+/* not the band tint, so a selected PO never reads as a month header */
+.po-row.sel td{background:var(--bg-hover)}
+.po-row.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.po-no{font-weight:500;color:var(--text-strong);white-space:nowrap}
 .po-dot{display:none;width:8px;height:8px;padding:0;margin-right:7px;vertical-align:1px;background:currentColor !important}
 .po-has-note{color:var(--text-faint);font-weight:400}
 .po-dim{color:var(--text-muted);white-space:nowrap}
-.po-amt{font-weight:600;color:var(--text-strong)}
+.po-amt{font-weight:500;color:var(--text)}
 
 .po-panel{
   position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;
@@ -1631,8 +1649,8 @@ details.others-sec:not([open]) > summary{border-bottom:none}
      office shows as a dot by the number instead of a column */
   .po-list,.po-list tbody{display:block}
   .po-list thead{display:none}
-  .po-list tr.po-grp{display:flex;justify-content:space-between}
-  .po-list tr.po-grp td{border-bottom:1px solid var(--border)}
+  .po-list tr.po-grp{display:flex;justify-content:space-between;position:sticky;top:0;z-index:1;background:var(--accent-soft)}
+  .po-list tr.po-grp td{position:static}
   .po-list tr.po-grp td:first-child{flex:1}
   .po-list tr.po-grp td:last-child{display:none}
   .po-list tr.po-row{display:grid;grid-template-columns:minmax(0,1fr) auto;border-bottom:1px solid var(--border)}
