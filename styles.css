@@ -1162,11 +1162,11 @@ details.others-sec:not([open]) > summary{border-bottom:none}
   background:var(--bg-stat);border:1px solid var(--border);border-radius:10px;
   padding:12px 15px;
 }
-.trk-tl-meta{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)}
+.trk-tl-meta{display:flex;align-items:center;gap:8px;font-size:14.5px;color:var(--text)}
 .trk-tl-edit{margin-left:auto;font-size:11px;color:var(--text-faint);text-decoration:none}
 .trk-tl-edit:hover{color:var(--accent-text)}
-.trk-tl-title{font-size:15px;font-weight:600;color:var(--text-strong);margin-top:6px}
-.trk-tl-details{font-size:14px;color:var(--text);line-height:1.65;margin-top:6px}
+.trk-tl-title{font-size:17px;font-weight:600;color:var(--text-strong);margin-top:6px}
+.trk-tl-details{font-size:16px;color:var(--text);line-height:1.7;margin-top:6px}
 .trk-tl-atts{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
 .trk-att{
   display:inline-flex;align-items:center;gap:5px;
