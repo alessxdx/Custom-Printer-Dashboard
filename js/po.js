@@ -172,7 +172,7 @@ var UI_DD_OPEN="";
 function uiDropdown(cfg){
   var multi=!!cfg.multi,cur=cfg.cur;
   var isOn=function(v){return multi?cur.indexOf(v)>-1:v===cur;};
-  var sel=multi?null:(cfg.opts.filter(function(o){return o.value===cur;})[0]||cfg.opts[0]);
+  var sel=multi?null:(cfg.opts.filter(function(o){return o.value===cur;})[0]||cfg.opts[0]||{value:"",label:"—"}); /* no options yet: data still loading */
   var dot=function(o){return o.dot?"<span class='po-dd-dot po-of-"+o.dot+"'></span>":(o.color?"<span class='po-dd-dot' style='background:"+o.color+"'></span>":"");};
   /* single-choice menus close on a pick; multi-select ones stay open */
   var pick=function(v,close){return "onclick='"+(close||!multi?"UI_DD_OPEN=\"\";":"")+cfg.onPick+"(\""+trkEsc(v)+"\")'";};

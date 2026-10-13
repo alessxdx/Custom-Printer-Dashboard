@@ -722,7 +722,7 @@ function renderModel(){
   }).filter(Boolean);
   const cmpAll=TX.concat(projRows);
   const models=[...new Set(cmpAll.map(t=>cmpFamily(t.displayModel||t.model)))].sort();
-  const sel=document.getElementById("model-sel"),current=sel&&models.includes(sel.value)?sel.value:models[0];
+  const current=models.includes(window._cmpModel)?window._cmpModel:models[0];
   /* Free-text search overrides the dropdown: every word must appear in the
      model name, so "tk180" pulls in plastic, metal, every warranty variant */
   const srchEl=document.getElementById("model-search"),srch=srchEl?srchEl.value:(window._cmpSearch||"");
@@ -737,7 +737,6 @@ function renderModel(){
   /* the Model column only earns its place when the rows span several variants */
   const showModel=searching||new Set(txs.map(t=>t.displayModel||t.model)).size>1;
   const nCols=showModel?8:7;
-  const opts=models.map(m=>`<option value="${m}"${m===current?" selected":""}>${m}</option>`).join("");
   /* Same customer and price is one row, even across models (ATB/BTP pairs): the latest one is kept (txs is
      newest first) and the others only show up as extra projects in its detail */
   const uniq=[],seen={};
@@ -752,42 +751,68 @@ function renderModel(){
   let rows="",i=0;
   custs.forEach(c=>{
     const list=byCust[c];
-    rows+=`<tr class="mc-group cmp-cust"><td colspan="${nCols}">${c}<span>${list.length} price${list.length!==1?"s":""}</span></td></tr>`;
+    rows+=`<tr class="trk-band cmp-band"><td colspan="${nCols}"><span class="po-grp-name">${c}</span><span class="po-grp-n">${list.length} price${list.length!==1?"s":""}</span></td></tr>`;
     list.forEach(u=>{
       const tx=u.tx,all=[tx].concat(u.dupes);
       const margin=tx.bp&&tx.currency==="USD"?(tx.price-tx.bp).toFixed(0):null;
       const mPct=margin?((margin/tx.price)*100).toFixed(1):null;
       const projects=[...new Set(all.map(t=>t.project).filter(Boolean))],more=projects.length-1;
       const mdls=[...new Set(all.map(t=>t.displayModel||t.model))];
-      rows+=`<tr class="clickable" onclick="toggleRow(${i})">
-        <td data-label="Date" style="color:var(--text-muted);white-space:nowrap;font-size:12px">${dDisplay(tx)||"—"}</td>
-        ${showModel?`<td class="mc-title" style="font-weight:600">${mdls.join("<br>")}</td>`:""}
-        <td${showModel?' data-label="Project"':' class="mc-title"'} style="color:var(--text-muted);font-size:12px">${tx.project||"—"}${more>0?`<span class="cmp-more">+${more} more</span>`:""}</td>
-        <td data-label="Country" style="color:var(--text-muted)"><span class="cmp-country">${flagImg(tx.country,18)}${tx.country}</span></td>
-        <td data-label="Status">${bStatus(tx.status)}</td>
-        <td data-label="Terms">${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
-        <td data-label="Price" style="text-align:right;font-weight:600">${tx.price.toLocaleString()} ${tx.currency}</td>
-        <td data-label="Margin" style="text-align:right;color:#aaa;font-size:12px">${margin?`$${margin} (${mPct}%)`:"—"}</td>
-      </tr><tr class="exp-detail ${expandedRows[i]?"open":""}" id="erow-${i}">
-        <td colspan="${nCols}"><strong>Project${projects.length>1?"s":""}:</strong> ${projects.join(", ")||"—"} | <strong>Qty:</strong> ${tx.qty} | <strong>PN:</strong> ${tx.pn||"—"}${tx.notes.length?" | "+tx.notes.join(" \xb7 "):""}</td>
+      rows+=`<tr class="trk-row cmp-row${expandedRows[i]?" open":""}" onclick="toggleRow(${i})">
+        <td class="cmp-c-date">${dDisplay(tx)||"—"}</td>
+        ${showModel?`<td class="cmp-c-model">${mdls.map(m=>`<div>${m}</div>`).join("")}</td>`:""}
+        <td class="cmp-c-proj">${tx.project||"—"}${more>0?`<span class="cmp-more">+${more} more</span>`:""}</td>
+        <td class="cmp-c-cty"><span class="cmp-country">${flagImg(tx.country,16)}${tx.country}</span></td>
+        <td class="cmp-c-st">${bStatus(tx.status)}</td>
+        <td class="cmp-c-terms">${tx.terms.map(bTerm).join("")}${bWarranty(tx.warranty)}</td>
+        <td class="num cmp-c-price">${tx.price.toLocaleString()} <span class="trk-r-cur">${tx.currency}</span></td>
+        <td class="num cmp-c-margin">${margin?`$${margin}<span>${mPct}%</span>`:"<span class='trk-r-none'>—</span>"}</td>
+      </tr><tr class="cmp-detail${expandedRows[i]?" open":""}" id="erow-${i}">
+        <td colspan="${nCols}"><span><b>Project${projects.length>1?"s":""}</b> ${projects.join(", ")||"—"}</span><span><b>Qty</b> ${tx.qty}</span><span><b>PN</b> ${tx.pn||"—"}</span>${tx.notes.length?`<span>${tx.notes.join(" \xb7 ")}</span>`:""}</td>
       </tr>`;
       i++;
     });
   });
   const hidden=txs.length-uniq.length;
-  document.getElementById("content").innerHTML=`<div class="cmp-wrap"><div class="cmp-head">
-    <span class="cmp-lbl">Compare model</span>
-    <select id="model-sel" onchange="renderModel()"${searching?' class="cmp-off" title="Clear the search to use the dropdown"':""}>${opts}</select>
-    <input id="model-search" type="search" placeholder="Search models, e.g. tk180 metal" oninput="renderModel()" value="${srch.replace(/"/g,"&quot;")}">
-    <span class="cmp-hint">${uniq.length} price${uniq.length!==1?"s":""} from ${custs.length} customer${custs.length!==1?"s":""}${searching?` across ${new Set(txs.map(t=>t.displayModel||t.model)).size} models`:""}${hidden?` (${hidden} duplicate${hidden!==1?"s":""} hidden)`:""} \u2014 click row for detail</span>
-  </div><div style="overflow-x:auto"><table class="mcards">
-    <thead><tr><th>Date</th>${showModel?"<th>Model</th>":""}<th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th style="text-align:right">Price</th><th style="text-align:right">Margin</th></tr></thead>
+  /* price summary for what's on screen, compared in USD so mixed currencies rank fairly */
+  const usd=t=>typeof fxToUSD==="function"?fxToUSD(t.price,t.currency):(t.currency==="USD"?t.price:null);
+  const ranked=uniq.map(u=>u.tx).filter(t=>usd(t)!==null).sort((a,b)=>usd(a)-usd(b));
+  const fmt=t=>t?`${t.price.toLocaleString()} <span class="trk-r-cur">${t.currency}</span>`:"—";
+  const sub=t=>t?`${t.customer}${dDisplay(t)?" \xb7 "+dDisplay(t):""}`:"";
+  const latest=uniq.length?uniq[0].tx:null;
+  const stat=(lbl,val,note)=>`<div class="cmp-stat"><div class="cmp-stat-l">${lbl}</div><div class="cmp-stat-v">${val}</div><div class="cmp-stat-s">${note||"&nbsp;"}</div></div>`;
+  const summary=uniq.length?`<div class="cmp-stats">
+    ${stat("Lowest price",fmt(ranked[0]),sub(ranked[0]))}
+    ${stat("Highest price",fmt(ranked[ranked.length-1]),sub(ranked[ranked.length-1]))}
+    ${stat("Latest price",fmt(latest),sub(latest))}
+    ${stat("Customers",custs.length,uniq.length+" price"+(uniq.length!==1?"s":"")+(hidden?" \xb7 "+hidden+" duplicate"+(hidden!==1?"s":"")+" hidden":""))}
+  </div>`:"";
+  const famCount=m=>cmpAll.filter(t=>cmpFamily(t.displayModel||t.model)===m).length;
+  const menu=uiDropdown({key:"cmp-model",onPick:"cmpPickModel",cur:current,opts:models.map(m=>({value:m,label:m,count:famCount(m)}))});
+  document.getElementById("content").innerHTML=`<div class="trk-bar cmp-bar">
+      <div class="trk-search"><span class="trk-search-ico">&#128269;</span><input id="model-search" type="search" placeholder="Search any model, e.g. tk180 metal" oninput="renderModel()" value="${srch.replace(/"/g,"&quot;")}" autocomplete="off"></div>
+      <div class="cmp-menu${searching?" cmp-off":""}" title="${searching?"Clear the search to pick a model":""}">${menu}</div>
+    </div>
+    ${searching?`<div class="trk-search-count">${uniq.length} price${uniq.length!==1?"s":""} across ${new Set(txs.map(t=>t.displayModel||t.model)).size} models match <strong>${srch.replace(/</g,"&lt;")}</strong></div>`:""}
+    ${summary}
+    <div class="po-table-wrap cmp-table"><table class="po-table cmp-list">
+    <thead><tr><th>Date</th>${showModel?"<th>Model</th>":""}<th>Project</th><th>Country</th><th>Status</th><th>Terms</th><th class="num">Price</th><th class="num">Margin</th></tr></thead>
     <tbody>${rows||`<tr><td colspan="${nCols}" class="empty">${searching?"No models match “"+srch.replace(/</g,"&lt;")+"”.":"No data."}</td></tr>`}</tbody>
-  </table></div></div>`;
+  </table></div>`;
   /* the whole tab re-renders on each keystroke, so put the caret back */
   if(srchEl&&document.activeElement===document.body){const inp=document.getElementById("model-search");inp.focus();inp.setSelectionRange(srch.length,srch.length);}
 }
-function toggleRow(i){expandedRows[i]=!expandedRows[i];const el=document.getElementById("erow-"+i);if(el)el.classList.toggle("open",expandedRows[i]);}
+/* picking a model clears the search, which would otherwise override it */
+function cmpPickModel(m){
+  window._cmpModel=m;window._cmpSearch="";
+  const el=document.getElementById("model-search");if(el)el.value="";
+  renderModel();
+}
+function toggleRow(i){
+  expandedRows[i]=!expandedRows[i];
+  const el=document.getElementById("erow-"+i);if(el)el.classList.toggle("open",expandedRows[i]);
+  const row=el&&el.previousElementSibling;if(row)row.classList.toggle("open",expandedRows[i]);
+}
 function renderBuying(){
   var sortBuy=document.getElementById("buy-sort")?document.getElementById("buy-sort").value:"model";
   var searchVal=document.getElementById("buy-search")?document.getElementById("buy-search").value:"";

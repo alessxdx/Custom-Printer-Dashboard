@@ -2029,3 +2029,52 @@ table.pr-matrix,table.pr-rules,table.pr-hist{width:100%;border-collapse:collapse
   .nt-compose-foot .nt-hint{display:none}
   .nt-compose-foot{justify-content:flex-end}
 }
+
+/* ===== Model comparison: toolbar, price summary, customer bands ===== */
+.cmp-bar .cmp-menu.cmp-off{opacity:.5}
+.cmp-bar .po-dd-menu{max-height:60vh;overflow-y:auto;min-width:300px}
+.cmp-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.cmp-stat{background:var(--bg-stat);border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-width:0}
+.cmp-stat-l{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+.cmp-stat-v{font-size:19px;font-weight:700;color:var(--text-strong);margin:4px 0 2px;white-space:nowrap}
+.cmp-stat-s{font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmp-table{overflow:clip}
+.cmp-list td{padding:10px 14px;vertical-align:middle}
+.cmp-list th{position:sticky;top:0;background:var(--bg-stat);z-index:2;box-shadow:inset 0 -1px 0 var(--border)}
+.cmp-band td{box-shadow:inset 3px 0 0 var(--accent),inset 0 -1px 0 var(--border)}
+.cmp-c-date{white-space:nowrap;color:var(--text-muted);font-size:12.5px}
+.cmp-c-model{font-weight:500;color:var(--text-strong);font-size:12.5px;line-height:1.45}
+.cmp-c-proj{color:var(--text);font-size:12.5px}
+.cmp-c-cty{white-space:nowrap;color:var(--text-muted);font-size:12.5px}
+.cmp-c-terms .badge{margin:1px 4px 1px 0}
+.cmp-c-price{font-weight:700;color:var(--text-strong);white-space:nowrap;font-size:13.5px}
+.cmp-c-margin{white-space:nowrap;font-size:12.5px;color:var(--badge-po-fg);font-weight:600}
+.cmp-c-margin span{display:block;font-size:11px;font-weight:500;color:var(--text-muted)}
+.cmp-row.open td{background:var(--bg-hover)}
+.cmp-detail{display:none}
+.cmp-detail.open{display:table-row}
+.cmp-detail td{background:var(--bg-soft);font-size:12px;color:var(--text);padding:9px 14px 11px;border-bottom:1px solid var(--border)}
+.cmp-detail td span{display:inline-block;margin-right:18px}
+.cmp-detail td b{font-size:10.5px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-right:4px}
+@media (max-width:900px){.cmp-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){
+  .cmp-bar .trk-search{flex:1 1 100%}
+  .cmp-bar .cmp-menu,.cmp-bar .cmp-menu .po-dd{flex:1;width:100%}
+  .cmp-bar .po-dd-btn{width:100%}
+  .cmp-bar .po-dd-txt{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis}
+  .cmp-bar .po-dd-menu{left:0;right:auto;min-width:0;width:100%}
+  .cmp-stat-v{font-size:16px}
+  .cmp-list,.cmp-list tbody{display:block}
+  .cmp-list thead{display:none}
+  .cmp-band{display:block}
+  .cmp-band td{display:block;position:sticky;top:0}
+  .cmp-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:10px 12px;border-bottom:1px solid var(--border)}
+  .cmp-row td{padding:0;border:none}
+  .cmp-row td{grid-column:1}
+  .cmp-row .cmp-c-price{grid-column:2;grid-row:1;text-align:right}
+  .cmp-row .cmp-c-margin{grid-column:2;grid-row:2;text-align:right}
+  .cmp-row .cmp-c-model,.cmp-row .cmp-c-proj{font-weight:500;color:var(--text-strong)}
+  .cmp-row .cmp-c-terms{display:flex;flex-wrap:wrap}
+  .cmp-detail.open{display:block}
+  .cmp-detail td{display:block}
+}
