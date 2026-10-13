@@ -18,8 +18,8 @@ var PO_OFFICES=["China","Indonesia","Singapore"];
 function poOfficeSlug(o){return String(o||"").toLowerCase().replace(/\s/g,"");}
 
 /* ===== converters ===== */
-function dbToPo(r){return{_id:r.id,poNumber:r.po_number||"",office:r.office||"",date:r.po_date||"",vendor:r.vendor||"CUSTOM S.p.A.",currency:r.currency||"USD",total:(r.total===null||r.total===undefined)?null:Number(r.total),notes:r.notes||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
-function poToDb(p){return{po_number:p.poNumber,office:p.office||null,po_date:p.date||null,vendor:p.vendor||"CUSTOM S.p.A.",currency:p.currency||"USD",total:(p.total===null||isNaN(p.total))?null:p.total,notes:p.notes||null,attachments:p.attachments||[]};}
+function dbToPo(r){return{_id:r.id,poNumber:r.po_number||"",office:r.office||"",date:r.po_date||"",vendor:r.vendor||"CUSTOM S.p.A.",currency:r.currency||"USD",total:(r.total===null||r.total===undefined)?null:Number(r.total),notes:r.notes||"",invoiceNo:r.invoice_no||"",paidDate:r.paid_date||"",receivedDate:r.received_date||"",attachments:Array.isArray(r.attachments)?r.attachments:[],createdAt:r.created_at||""};}
+function poToDb(p){return{po_number:p.poNumber,office:p.office||null,po_date:p.date||null,vendor:p.vendor||"CUSTOM S.p.A.",currency:p.currency||"USD",total:(p.total===null||isNaN(p.total))?null:p.total,notes:p.notes||null,invoice_no:p.invoiceNo||null,paid_date:p.paidDate||null,received_date:p.receivedDate||null,attachments:p.attachments||[]};}
 function dbToPoLine(r){return{_id:r.id,poId:r.po_id,pn:r.pn||"",description:r.description||"",qty:Number(r.qty)||0,unit:r.unit||"pcs",unitPrice:(r.unit_price===null||r.unit_price===undefined)?null:Number(r.unit_price),sortOrder:Number(r.sort_order)||0};}
 function poLineToDb(l){return{po_id:l.poId,pn:l.pn||null,description:l.description||null,qty:l.qty||0,unit:l.unit||"pcs",unit_price:(l.unitPrice===null||isNaN(l.unitPrice))?null:l.unitPrice,sort_order:l.sortOrder||0};}
 
@@ -70,7 +70,7 @@ function poFiltered(){
     if(PO_FOFFICE&&p.office!==PO_FOFFICE)return false;
     if(PO_FYEAR&&poYear(p)!==PO_FYEAR)return false;
     if(q){
-      var hay=(p.poNumber+" "+p.office+" "+p.notes+" "+
+      var hay=(p.poNumber+" "+p.office+" "+p.notes+" "+p.invoiceNo+" "+
         poLinesFor(p._id).map(function(l){return l.pn+" "+l.description;}).join(" ")).toLowerCase();
       if(hay.indexOf(q)===-1)return false;
     }
@@ -233,7 +233,7 @@ function poTableHtml(list){
       g.map(function(p){
         var n=poLinesFor(p._id).length,att=(p.attachments||[]).length;
         return "<tr class='po-row"+(PO_SEL===p._id?" sel":"")+"' onclick='poSelect(\""+p._id+"\")'>"+
-          "<td class='po-no'>"+(p.office?"<span class='trk-badge po-dot po-of-"+poOfficeSlug(p.office)+"' title='"+trkEsc(p.office)+"'></span>":"")+trkEsc(p.poNumber)+(p.notes?" <span class='po-has-note' title='Has a note'>&#9998;</span>":"")+"</td>"+
+          "<td class='po-no'>"+(p.office?"<span class='trk-badge po-dot po-of-"+poOfficeSlug(p.office)+"' title='"+trkEsc(p.office)+"'></span>":"")+trkEsc(p.poNumber)+(p.notes?" <span class='po-has-note' title='Has a note'>&#9998;</span>":"")+(p.invoiceNo&&!p.paidDate?" <span class='po-unpaid' title='Invoiced, not yet paid'>Unpaid</span>":"")+"</td>"+
           "<td>"+(p.office?"<span class='trk-badge po-of-"+poOfficeSlug(p.office)+"'>"+trkEsc(p.office)+"</span>":"")+"</td>"+
           "<td class='po-dim'>"+(p.date?trkFmtDate(p.date):"&mdash;")+"</td>"+
           "<td class='po-dim num'>"+n+"</td>"+
@@ -271,11 +271,21 @@ function poPanelHtml(p){
       (p.date?"<span>"+trkFmtDate(p.date)+"</span>":"")+"</div>"+
     "<div class='po-panel-total'>"+poFmtMoney(p.total,p.currency)+
       ((p.currency!=="USD"&&typeof fxUsdText==="function"&&p.total!==null)?" <span class='trk-value-usd'>"+fxUsdText(p.total,p.currency)+"</span>":"")+"</div>"+
+    poPanelStatusHtml(p)+
     (lines.length?"<div class='po-panel-sec'>"+lines.length+" line"+(lines.length===1?"":"s")+"</div>"+lineRows:"")+
     (atts?"<div class='po-panel-sec'>Files</div><div class='trk-tl-atts'>"+atts+"</div>":"")+
     (p.notes?"<div class='po-panel-sec'>Note</div><div class='po-panel-note'>"+trkEsc(p.notes)+"</div>":"")+
     "<div class='po-panel-acts'><button class='btn-save' onclick='poEdit(\""+p._id+"\")'>Edit PO</button></div>"+
   "</aside>";
+}
+/* invoice / payment / receipt — filled for the offices that track them */
+function poPanelStatusHtml(p){
+  if(!p.invoiceNo&&!p.paidDate&&!p.receivedDate)return "";
+  function row(k,v){return "<div class='po-st-row'><span>"+k+"</span><span>"+v+"</span></div>";}
+  return "<div class='po-panel-sec'>Invoice &amp; delivery</div>"+
+    (p.invoiceNo?row("Invoice","<span class='po-line-pn'>"+trkEsc(p.invoiceNo)+"</span>"):"")+
+    row("Paid",p.paidDate?trkFmtDate(p.paidDate):"<span class='po-unpaid'>Not yet</span>")+
+    row("Received",p.receivedDate?trkFmtDate(p.receivedDate):"<span class='po-dim'>&mdash;</span>");
 }
 function poSelect(id){PO_SEL=(id&&PO_SEL!==id)?id:"";renderPOs();}
 /* Esc closes the panel; up/down step through the visible POs */
@@ -440,6 +450,9 @@ function poEdit(id){
   document.getElementById("po-currency").value=p.currency||"USD";
   document.getElementById("po-total").value=p.total===null?"":p.total;
   document.getElementById("po-notes").value=p.notes;
+  document.getElementById("po-invoice").value=p.invoiceNo||"";
+  document.getElementById("po-paid").value=p.paidDate?String(p.paidDate).slice(0,10):"";
+  document.getElementById("po-received").value=p.receivedDate?String(p.receivedDate).slice(0,10):"";
   document.getElementById("po-parse-status").textContent="";
   var rows=document.getElementById("pol-rows");
   rows.innerHTML="";
@@ -471,6 +484,9 @@ async function poSave(){
     currency:document.getElementById("po-currency").value,
     total:totRaw===""?null:parseFloat(totRaw),
     notes:document.getElementById("po-notes").value.trim(),
+    invoiceNo:document.getElementById("po-invoice").value.trim(),
+    paidDate:document.getElementById("po-paid").value,
+    receivedDate:document.getElementById("po-received").value,
     attachments:PO_ATT.map(function(a){return{name:a.name,url:a.url};})
   };
   var lines=polReadRows();

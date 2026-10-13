@@ -90,3 +90,9 @@ create policy "po_lines_all" on po_lines for all using (true) with check (true);
 
 -- 2026-10-07: optional next follow-up date per tracker project
 alter table tracker_projects add column if not exists next_followup date;
+
+-- 2026-10-13: invoice / payment / receipt tracking on POs (applied live)
+alter table purchase_orders
+  add column if not exists invoice_no text,
+  add column if not exists paid_date date,
+  add column if not exists received_date date;
