@@ -94,10 +94,11 @@ function renderStats(){
   const pos=all.filter(x=>x.status==="PO").length;
   const qt=all.filter(x=>x.status==="Quotation").length;
   const ls=all.filter(x=>x.status==="Lose").length;
-  const custSet=new Set();all.forEach(x=>custSet.add(x.customer+"__"+x.country));
+  /* companies, not company+country: matches the one-entry-per-company list */
+  const custSet=new Set(),ctySet=new Set();all.forEach(x=>{custSet.add(x.customer);if(x.country)ctySet.add(x.country);});
   const cu=custSet.size;
   document.getElementById("stats").innerHTML=`
-    <div class="stat"><div class="stat-label">Customers</div><div class="stat-value">${cu}</div><div class="stat-sub">across multiple countries</div></div>
+    <div class="stat"><div class="stat-label">Customers</div><div class="stat-value">${cu}</div><div class="stat-sub">across ${ctySet.size} countr${ctySet.size===1?"y":"ies"}</div></div>
     <div class="stat"><div class="stat-label">Confirmed POs</div><div class="stat-value">${pos}</div><div class="stat-sub">transactions</div></div>
     <div class="stat"><div class="stat-label">Open quotations</div><div class="stat-value">${qt}</div><div class="stat-sub">pending</div></div>
     <div class="stat"><div class="stat-label">Lost quotes</div><div class="stat-value">${ls}</div><div class="stat-sub">for reference</div></div>`;

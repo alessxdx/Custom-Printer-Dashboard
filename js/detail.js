@@ -7,7 +7,7 @@
    edge cases (Bohol/Laguindingan combined toggles, dual
    pricing, Nanshan, overrides, TK180 TPH) look identical.
    ============================================================ */
-var MD_SEL=null;    /* selected "customer__country" key */
+var MD_SEL=null;    /* selected customer name (one entry per company, all countries) */
 var MD_SEARCH="";
 var MD_GROUP_SEL=null; /* selected project-group name, or null */
 
@@ -148,10 +148,13 @@ function mdProjSearchText(p){
 function mdComputeEntries(){
   var sortMode=document.getElementById("fsort").value;
   var R=mdFilteredResolved();
+  /* one entry per company: the same customer in two countries (Daifuku
+     Australia and New Zealand) is one entry carrying both countries */
   var map={};
   function ent(customer,country){
-    var k=customer+"__"+country;
-    if(!map[k])map[k]={key:k,name:customer,country:country,txs:[],projs:[]};
+    var k=customer;
+    if(!map[k])map[k]={key:k,name:customer,country:country,countries:[],txs:[],projs:[]};
+    if(country&&map[k].countries.indexOf(country)===-1)map[k].countries.push(country);
     return map[k];
   }
   R.txs.forEach(function(t){ent(t.customer,t.country).txs.push(t);});
@@ -176,37 +179,102 @@ function mdComputeEntries(){
 
 function buildMdList(entries){
   if(!entries.length)return "<div class='md-none'>No customers match.</div>";
-  var byCountry={};
-  entries.forEach(function(e){var c=e.country||"Unknown";if(!byCountry[c])byCountry[c]=[];byCountry[c].push(e);});
-  return Object.keys(byCountry).sort().map(function(country){
-    var items=byCountry[country].map(function(e){
-      var pos=e.txs.filter(function(t){return t.status==="PO";}).length+e.projs.filter(function(p){return p.status==="PO";}).length;
-      var qt=e.txs.filter(function(t){return t.status==="Quotation";}).length+e.projs.filter(function(p){return p.status==="Quotation";}).length;
-      var ls=e.txs.filter(function(t){return t.status==="Lose";}).length+e.projs.filter(function(p){return p.status==="Lose";}).length;
-      var meta=(pos?"<span class='md-pill md-pill-po'>"+pos+" PO"+(pos!==1?"s":"")+"</span>":"")+
-        (qt?"<span class='md-pill md-pill-qt'>"+qt+" quote"+(qt!==1?"s":"")+"</span>":"")+
-        (ls?"<span class='md-pill md-pill-ls'>"+ls+" lost</span>":"")+
-        (!pos&&!qt&&!ls?"<span class='md-pill'>no deals</span>":"");
-      return "<div class='md-item"+(e.key===MD_SEL?" active":"")+"' data-key=\""+mdEscAttr(e.key)+"\" onclick='mdSelect(this.getAttribute(\"data-key\"))'>"+
-        flagImg(e.country,20)+
-        "<div class='md-item-main'>"+
-          "<div class='md-item-name'>"+e.name+"</div>"+
-          "<div class='md-item-meta'>"+meta+"</div>"+
-        "</div>"+
-        "<div class='md-item-chev'>›</div>"+
-      "</div>";
-    }).join("");
-    return "<div class='md-country'>"+mdEscAttr(country)+"<span>"+byCountry[country].length+"</span></div>"+items;
+  return entries.map(function(e){
+    var cnt=function(st){return e.txs.filter(function(t){return t.status===st;}).length+e.projs.filter(function(p){return p.status===st;}).length;};
+    var pos=cnt("PO"),qt=cnt("Quotation"),ls=cnt("Lose");
+    var meta=(pos?"<span class='md-pill md-pill-po'>"+pos+" PO"+(pos!==1?"s":"")+"</span>":"")+
+      (qt?"<span class='md-pill md-pill-qt'>"+qt+" quote"+(qt!==1?"s":"")+"</span>":"")+
+      (ls?"<span class='md-pill md-pill-ls'>"+ls+" lost</span>":"")+
+      (!pos&&!qt&&!ls?"<span class='md-pill'>no deals</span>":"");
+    var cs=e.countries.slice().sort();
+    return "<div class='md-item"+(e.key===MD_SEL?" active":"")+"' data-key=\""+mdEscAttr(e.key)+"\" onclick='mdSelect(this.getAttribute(\"data-key\"))'>"+
+      "<div class='md-flags'>"+cs.slice(0,2).map(function(c){return flagImg(c,cs.length>1?18:22);}).join("")+"</div>"+
+      "<div class='md-item-main'>"+
+        "<div class='md-item-name'>"+mdEscAttr(e.name)+"</div>"+
+        "<div class='md-item-cty'>"+cs.map(mdEscAttr).join(" &middot; ")+"</div>"+
+        "<div class='md-item-meta'>"+meta+"</div>"+
+      "</div>"+
+      "<div class='md-item-chev'>&rsaquo;</div>"+
+    "</div>";
   }).join("");
+}
+
+/* ===== one customer's page: what they bought =====
+   Totals, printers by model, a card per order and every document. */
+function mdOrderCard(d){
+  var p=d.p,t=d.t,multi=d.multi;
+  var esc=mdEscAttr;
+  var cur,total,lines=[],atts,status,date,title,edit,notes,group,terms="";
+  if(p){
+    var lis=LINE_ITEMS.filter(function(li){return li.projectId===p._id;}).sort(function(a,b){
+      var pa=a.type==="printer"?0:a.type==="discount"?2:1,pb=b.type==="printer"?0:b.type==="discount"?2:1;
+      return pa-pb||a.sortOrder-b.sortOrder;
+    });
+    cur=p.currency;total=mdProjTotal(p);atts=p.attachments||[];status=p.status;date=p.displayDate||p.date;title=p.project;
+    edit="editProject(\""+p._id+"\")";notes=p.notes||[];group=p.projectGroup;
+    terms=(p.shippingTerms?bTerm(p.shippingTerms):"")+bWarranty(p.warranty);
+    lines=lis.map(function(li){return {printer:li.type==="printer",name:li.displayModel||li.name,qty:li.qty,price:li.unitPrice,type:li.type};});
+  }else{
+    cur=t.currency;var u=mdParseUnits(t.qty)||1;total=t.totalOverride||t.price*u;atts=t.attachments||[];status=t.status;date=t.displayDate||t.date;
+    title=t.project||t.displayModel||t.model;edit="editTx("+TX.indexOf(t)+",event)";notes=t.notes||[];group=t.projectGroup;
+    terms=(t.terms||[]).map(bTerm).join("")+bWarranty(t.warranty);
+    lines=[{printer:true,name:t.displayModel||t.model,qty:u,price:t.price,type:"printer"}];
+  }
+  var num=function(v){return v.toLocaleString(undefined,{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2});};
+  var printers=lines.filter(function(l){return l.printer;}),others=lines.filter(function(l){return !l.printer;});
+  var lineHtml=function(l){
+    return "<div class='od-line"+(l.printer?" od-printer":"")+"'>"+
+      "<span class='od-qty'>"+(l.qty===1&&!l.printer?"":num(l.qty)+" &times;")+"</span>"+
+      "<span class='od-name'>"+esc(l.name)+"</span>"+
+      "<span class='od-price'>"+(l.price<0?"&minus;":"")+num(Math.abs(l.price))+" <span class='trk-r-cur'>"+esc(cur)+"</span></span>"+
+    "</div>";
+  };
+  var units=printers.reduce(function(n,l){return n+l.qty;},0);
+  return "<div class='od-card'>"+
+    "<div class='od-head'>"+
+      "<div class='od-title'><div class='od-name-main'>"+esc(title||"Untitled")+"</div>"+
+        "<div class='od-meta'>"+(date?"<span>"+esc(date)+"</span>":"")+bStatus(status)+
+          (multi&&(p||t).country?"<span class='od-cty'>"+flagImg((p||t).country,14)+esc((p||t).country)+"</span>":"")+
+          (units?"<span class='od-units'>"+num(units)+" printer"+(units!==1?"s":"")+"</span>":"")+terms+"</div></div>"+
+      "<div class='od-total'>"+num(total)+" <span class='trk-r-cur'>"+esc(cur)+"</span>"+fxEqSpan(total,cur)+"</div>"+
+    "</div>"+
+    (printers.length?"<div class='od-lines'>"+printers.map(lineHtml).join("")+"</div>":"")+
+    (others.length?"<div class='od-lines od-others'>"+others.map(lineHtml).join("")+"</div>":"")+
+    (notes.length?"<div class='od-notes'>"+notes.map(esc).join(" &middot; ")+"</div>":"")+
+    "<div class='od-foot'>"+(group?projGroupLinkHtml(group):"")+"<span class='od-docs'>"+attClipsHtml(atts)+"</span>"+
+      "<button class='edit-btn' onclick='"+edit+"'>Edit</button></div>"+
+  "</div>";
+}
+function mdDocsHtml(deals){
+  var seen={},rows=[];
+  deals.forEach(function(d){
+    var e=d.p||d.t;
+    (e.attachments||[]).forEach(function(a){
+      if(!a.url||seen[a.url])return;seen[a.url]=1;
+      rows.push({a:a,date:e.displayDate||e.date||"",when:parseDV(e.date),title:e.project||e.model||""});
+    });
+  });
+  if(!rows.length)return "<div class='md-money-none'>No documents attached yet.</div>";
+  rows.sort(function(x,y){return y.when-x.when;});
+  return "<div class='md-docs'>"+rows.map(function(r){
+    var dt=r.a.doctype||(typeof guessDoctype==="function"?guessDoctype(r.a.name):"")||"Other";
+    var full=mdEscAttr(r.a.name||"Document");
+    return "<a class='md-doc' href='"+mdEscAttr(r.a.url)+"' target='_blank' rel='noopener' data-name=\""+full+"\" onclick='if(event.ctrlKey||event.metaKey||event.shiftKey)return true;return trkViewFile(this)'>"+
+      "<span class='md-doc-type doc-"+dt.toLowerCase()+"'>"+mdEscAttr(dt)+"</span>"+
+      "<span class='md-doc-main'><span class='md-doc-name'>"+full+"</span><span class='md-doc-sub'>"+mdEscAttr(r.title)+(r.date?" &middot; "+mdEscAttr(r.date):"")+"</span></span>"+
+      "<span class='md-doc-open'>Open &rsaquo;</span></a>";
+  }).join("")+"</div>";
 }
 
 function buildMdDetail(key){
   var R=resolveDeals();
-  var txs=R.txs.filter(function(t){return (t.customer+"__"+t.country)===key;});
-  var projs=R.projs.filter(function(p){return (p.customer+"__"+p.country)===key;});
+  var txs=R.txs.filter(function(t){return t.customer===key;});
+  var projs=R.projs.filter(function(p){return p.customer===key;});
   if(!txs.length&&!projs.length)return "<div class='md-empty'>No entries for this customer.</div>";
   var ref=txs[0]||projs[0];
   var name=ref.customer,country=ref.country;
+  var countries=[];txs.concat(projs).forEach(function(e){if(e.country&&countries.indexOf(e.country)===-1)countries.push(e.country);});
+  countries.sort();
   var r=mdRollup(txs,projs);
   var pos=txs.filter(function(t){return t.status==="PO";}).length+projs.filter(function(p){return p.status==="PO";}).length;
   var qt=txs.filter(function(t){return t.status==="Quotation";}).length+projs.filter(function(p){return p.status==="Quotation";}).length;
@@ -228,13 +296,25 @@ function buildMdDetail(key){
   var curs=[];txs.forEach(function(t){if(curs.indexOf(t.currency)===-1)curs.push(t.currency);});
   projs.forEach(function(p){if(curs.indexOf(p.currency)===-1)curs.push(p.currency);});
   var notes=fxNotesFor(curs);
+  /* every order newest first, under year headings */
+  var deals=projs.map(function(p){return {p:p,when:parseDV(p.date)};}).concat(txs.map(function(t){return {t:t,when:parseDV(t.date)};}))
+    .sort(function(a,b){return b.when-a.when;});
+  var multi=countries.length>1,lastYear=null;
+  var ordersHtml=deals.map(function(d){
+    d.multi=multi;
+    var y=d.when?new Date(d.when).getFullYear():"No date";
+    var head=y!==lastYear?"<div class='od-year'>"+y+"</div>":"";lastYear=y;
+    return head+mdOrderCard(d);
+  }).join("");
+  var docsHtml=mdDocsHtml(deals);
+  var docCount=(docsHtml.match(/class='md-doc'/g)||[]).length;
   var fxBlock=notes.length?"<div class='md-fx-notes'>"+notes.map(function(n){return "<div class='fx-note'>"+n+"</div>";}).join("")+(FX.live?"":"<div class='fx-note'>Live rates unavailable — using stored estimates.</div>")+"</div>":"";
 
   return ""+
     "<button class='md-back' onclick='mdBack()'>&#8592; All customers</button>"+
-    "<div class='md-head md-head-card'>"+flagImg(country,38)+
-      "<div><div class='md-head-name'>"+name+"</div>"+
-      "<div class='md-head-meta'><span>"+country+"</span>"+
+    "<div class='md-head md-head-card'><div class='md-flags md-flags-lg'>"+countries.slice(0,3).map(function(c){return flagImg(c,countries.length>1?30:38);}).join("")+"</div>"+
+      "<div><div class='md-head-name'>"+mdEscAttr(name)+"</div>"+
+      "<div class='md-head-meta'><span>"+countries.map(mdEscAttr).join(" &middot; ")+"</span>"+
         (pos?"<span class='md-pill md-pill-po'>"+pos+" PO"+(pos!==1?"s":"")+"</span>":"")+
         (qt?"<span class='md-pill md-pill-qt'>"+qt+" open quote"+(qt!==1?"s":"")+"</span>":"")+
         (ls?"<span class='md-pill md-pill-ls'>"+ls+" lost</span>":"")+"</div></div>"+
@@ -250,9 +330,13 @@ function buildMdDetail(key){
       modelsTable+
     "</div>"+
     fxBlock+
-    "<div class='md-section md-entries'>"+
-      "<div class='md-section-title'>History — quotations &amp; POs ("+hxOrderLabel(txs,projs)+")</div>"+
-      "<div class='md-entries-body'>"+buildHistoryHtml(txs,projs,"cust-"+key)+"</div>"+
+    "<div class='md-section md-orders'>"+
+      "<div class='md-section-title'>Orders &amp; quotations <span class='nt-n'>"+deals.length+"</span></div>"+
+      ordersHtml+
+    "</div>"+
+    "<div class='md-section'>"+
+      "<div class='md-section-title'>Documents <span class='nt-n'>"+docCount+"</span></div>"+
+      docsHtml+
     "</div>";
 }
 
@@ -534,6 +618,7 @@ function mdToolbar(n){
   "</div>";
 }
 function renderCustomersDetail(){
+  if(MD_SEL&&MD_SEL.indexOf("__")>-1)MD_SEL=MD_SEL.split("__")[0];
   var entries=mdComputeEntries();
   if(!entries.length&&!MD_SEARCH){
     document.getElementById("content").innerHTML=mdToolbar(0)+'<div class="empty">No customers match these filters.</div>';
