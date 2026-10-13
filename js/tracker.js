@@ -94,11 +94,12 @@ function trkIsDone(p){return p.status==="Won"&&p.payment==="Fully paid"&&trkIsDe
    Posiva, Fire fighting… Free text with type-ahead so a new category
    needs no code change: the known ones get a curated dot color, any
    new one a stable hashed hue (same trick as the country colors). */
-var TRK_SOLUTIONS=["Custom","Posiva","Fire fighting","Others"];
+var TRK_SOLUTIONS=["Custom","Posiva","Fire fighting","Automotive","Others"];
 var TRK_SOLUTION_COLORS={
   "Custom":"#1d4ed8",        /* blue */
   "Posiva":"#7c3aed",        /* violet */
   "Fire fighting":"#dc2626", /* red, obviously */
+  "Automotive":"#0f766e",    /* teal — workshop equipment */
   "Others":"#6b7280"         /* gray — the catch-all bucket */
 };
 function trkSolutionColor(s){
