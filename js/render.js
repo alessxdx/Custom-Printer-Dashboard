@@ -884,13 +884,38 @@ function renderOthers(){
   const updates=all.filter(x=>!hasVal(x)).sort(newest);
   const records=all.filter(x=>hasVal(x)&&!isTerm(x)).sort(newest);
   const terms=all.filter(isTerm).sort((a,b)=>a.o.desc.localeCompare(b.o.desc));
-  const row=(x,quick)=>{const o=x.o,i=x.i;return `<div class="others-row${quick?" others-quick":""}"><div style="flex:1;min-width:0">${o.date?`<div class="others-date">${esc(o.date)}</div>`:""}<div class="others-desc">${esc(o.desc)}</div>${o.sub?`<div class="others-sub">${esc(o.sub)}</div>`:""}</div><div class="others-acts">${hasVal(x)&&!isTerm(x)?`<div class="others-val">${esc(o.value)}</div>`:""}<button class="edit-btn" onclick="editOther(${i})">Edit</button>${quick?`<button class="others-x" title="Delete" onclick="deleteOtherQuick(${i})">×</button>`:`<button class="delete-btn" onclick="deleteOther(${i})">Remove</button>`}</div></div>`;};
-  const section=(title,list,quick,empty)=>`<div class="others-sec"><div class="others-sec-h">${title}<span>${list.length}</span></div>${list.length?list.map(x=>row(x,quick)).join(""):`<div class="others-empty">${empty}</div>`}</div>`;
-  document.getElementById("content").innerHTML=`<div class="others-card">
-    <div class="others-compose"><textarea id="others-quick" rows="1" placeholder="Write a quick update… (Enter to post, Shift+Enter for a new line)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();postOtherQuick();}"></textarea><button class="btn-save" onclick="postOtherQuick()">Post</button></div>
-    ${section("Updates",updates,true,"No updates yet. Anything you post above lands here and can be deleted with one click.")}
-    ${records.length?section("Records",records,false,""):""}
-    ${terms.length?`<details class="others-sec"><summary class="others-sec-h">Shipping terms<span>${terms.length}</span></summary>${terms.map(x=>row(x,false)).join("")}</details>`:""}
+  const ico={
+    edit:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg>',
+    del:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    trash:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>'
+  };
+  const btn=(kind,title,fn)=>`<button class="nt-ico${kind==="edit"?"":" nt-ico-del"}" title="${title}" aria-label="${title}" onclick="${fn}">${ico[kind]}</button>`;
+  /* "12 Oct 2026" becomes a day/month block; anything else (a range like
+     "Sep–Oct 2025", or no date) falls back to the plain text */
+  const dateBlock=d=>{
+    const m=/^(\d{1,2})\s+([A-Za-z]{3})[A-Za-z]*\.?\s+(\d{4})$/.exec(String(d||"").trim());
+    return m?`<div class="nt-day"><b>${m[1]}</b><span>${m[2]}</span><i>${m[3]}</i></div>`:`<div class="nt-day nt-day-txt">${esc(d||"")}</div>`;
+  };
+  const update=x=>{const o=x.o,i=x.i;return `<div class="nt-upd">${dateBlock(o.date)}
+    <div class="nt-body"><div class="nt-text">${esc(o.desc)}</div>${o.sub?`<div class="nt-sub">${esc(o.sub)}</div>`:""}</div>
+    <div class="nt-acts">${btn("edit","Edit",`editOther(${i})`)}${btn("del","Delete",`deleteOtherQuick(${i})`)}</div></div>`;};
+  const record=x=>{const o=x.o,i=x.i;return `<div class="nt-rec">
+    <div class="nt-body"><div class="nt-title">${esc(o.desc)}${o.date?`<span class="nt-when">${esc(o.date)}</span>`:""}</div>${o.sub?`<div class="nt-sub">${esc(o.sub)}</div>`:""}</div>
+    <div class="nt-amt">${esc(o.value)}</div>
+    <div class="nt-acts">${btn("edit","Edit",`editOther(${i})`)}${btn("trash","Remove",`deleteOther(${i})`)}</div></div>`;};
+  const term=x=>{const o=x.o,i=x.i,parts=String(o.desc).split(/\s+[—–-]\s+/);return `<div class="nt-term">
+    <div class="nt-term-h"><span class="nt-code">${esc(parts[0])}</span><span class="nt-term-name">${esc(parts.slice(1).join(" — "))}</span>${btn("edit","Edit",`editOther(${i})`)}</div>
+    ${o.sub?`<div class="nt-sub">${esc(o.sub)}</div>`:""}</div>`;};
+  const head=(title,n,hint)=>`<div class="nt-head"><span class="nt-h">${title}</span><span class="nt-n">${n}</span>${hint?`<span class="nt-hint">${hint}</span>`:""}</div>`;
+  document.getElementById("content").innerHTML=`<div class="nt-page">
+    <div class="nt-card nt-compose">
+      <textarea id="others-quick" rows="2" placeholder="Write a quick update…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();postOtherQuick();}"></textarea>
+      <div class="nt-compose-foot"><span class="nt-hint">Enter to post · Shift+Enter for a new line</span><button class="btn-save" onclick="postOtherQuick()">Post update</button></div>
+    </div>
+    <div class="nt-card">${head("Updates",updates.length,"newest first")}
+      ${updates.length?updates.map(update).join(""):`<div class="nt-empty">No updates yet. Anything you post above lands here and can be deleted with one click.</div>`}</div>
+    ${records.length?`<div class="nt-card">${head("Records",records.length,"amounts and breakdowns")}${records.map(record).join("")}</div>`:""}
+    ${terms.length?`<details class="nt-card nt-terms"><summary>${head("Shipping terms",terms.length,"Incoterms reference")}</summary><div class="nt-term-grid">${terms.map(term).join("")}</div></details>`:""}
   </div>`;
 }
 async function postOtherQuick(){
