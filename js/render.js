@@ -707,6 +707,7 @@ function cmpFamily(m){
   return m;
 }
 function renderModel(){
+  pgHideStats(); /* the customer summary boxes don't describe this page */
   /* Comparable rows come from both tables: a flat transaction is one row, and
      so is each printer line item on a project. Without this the tab empties
      out the moment a customer is migrated off `transactions`. */
@@ -873,6 +874,7 @@ function toggleBuyGroup(evtOrEl,grpArg){
    an amount, and the shipping-term reference cards. Newest first in the
    first two; the terms are A-Z and folded away since they rarely change. */
 function renderOthers(){
+  pgHideStats();
   const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
   const all=OTHERS.map((o,i)=>({o:o,i:i}));
   const newest=(a,b)=>(b.o.created||"").localeCompare(a.o.created||"")||b.i-a.i;

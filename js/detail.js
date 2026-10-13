@@ -343,7 +343,7 @@ function buildProjectGroupView(){
   return "<div class='pg-view'>"+
     "<button class='md-back' onclick='closeProjectGroup()'>&#8592; Back</button>"+
     "<div class='md-head'>"+flagImg(ref.country,34)+
-      "<div><div class='md-head-name'>&#128279; "+group+"</div>"+
+      "<div><div class='md-head-name'>&#128279; "+group+(function(){var u=pgUnits({txs:txs,projs:projs});return u?" <span class='pg-units'>("+u+")</span>":"";})()+"</div>"+
       "<div class='md-head-meta'>"+(order.length===1?byCustomer[order[0]].name+" \xb7 ":"")+ref.country+" \xb7 "+totalPos+" PO"+(totalPos!==1?"s":"")+" \xb7 "+totalQt+" open quote"+(totalQt!==1?"s":"")+"</div></div>"+
     "</div>"+
     "<div class='md-section'>"+
@@ -427,6 +427,34 @@ function pgKind(g){
   var docs=[pos?pos+" PO"+(pos!==1?"s":""):"",qt?qt+" quote"+(qt!==1?"s":""):""].filter(Boolean).join(", ")||all.length+" entries";
   return {kind:"proj",label:"1 project · "+docs,parts:parts};
 }
+/* Units in a group, so its size shows at a glance next to the name:
+   printer line items only (warranty, SLA, installation and accessory
+   lines are typed "other"), TPH consumables left out as elsewhere.
+   Called "scanners" when every counted line is a scanner. */
+function pgUnits(g){
+  var n=0,names=[];
+  g.projs.forEach(function(p){
+    (typeof LINE_ITEMS!=="undefined"?LINE_ITEMS:[]).forEach(function(l){
+      if(l.projectId!==p._id||l.type!=="printer")return;
+      var nm=l.displayModel||l.name||"";
+      if(/\bTPH\b/i.test(nm))return;
+      n+=Number(l.qty)||0;names.push(nm);
+    });
+  });
+  g.txs.forEach(function(t){
+    var nm=t.displayModel||t.model||"";
+    if(/\bTPH\b/i.test(nm))return;
+    var q=parseInt(t.qty,10);if(q>0){n+=q;names.push(nm);}
+  });
+  if(!n)return "";
+  var scan=names.length&&names.every(function(x){return /scanner/i.test(x);});
+  return n.toLocaleString()+" "+(scan?"scanner":"printer")+(n!==1?"s":"");
+}
+/* the PO number every entry of a one-PO group shares, from its name */
+function pgSharedPo(g){
+  var nums=g.txs.concat(g.projs).map(function(e){var m=String(e.project||"").match(/\bPO\s*#?\s*(\d{5,})/i);return m?m[1]:"";});
+  return nums.length&&nums[0]&&nums.every(function(x){return x===nums[0];})?nums[0]:"";
+}
 /* typing re-renders only the rows, so the search box keeps focus */
 function pgSearchInput(v){
   PG_SEARCH=v;
@@ -444,12 +472,12 @@ function pgListBody(){
   if(!groups.length)return "<div class='empty'>No project groups match your search.</div>";
   var rows=groups.map(function(g){
     var totals=mdGroupTotals(g.txs,g.projs);
-    var k=pgKind(g);
+    var k=pgKind(g),units=pgUnits(g),po=k.kind==="loc"?pgSharedPo(g):"";
     var custNames=Object.keys(g.customers).sort().join(", ");
     var esc=String(g.name).replace(/\\/g,"\\\\").replace(/'/g,"\\'");
     return "<tr class='trk-row pg-row' onclick=\"openProjectGroup('"+esc+"')\">"+
-      "<td class='pg-c-name'><div class='trk-r-name'>"+mdEscAttr(g.name)+"</div>"+
-        "<div class='trk-r-sub'>"+flagImg(g.country,14)+" "+mdEscAttr(custNames)+(g.country?" &middot; "+mdEscAttr(g.country):"")+"</div></td>"+
+      "<td class='pg-c-name'><div class='trk-r-name'>"+mdEscAttr(g.name)+(units?" <span class='pg-units'>("+units+")</span>":"")+"</div>"+
+        "<div class='trk-r-sub'>"+flagImg(g.country,14)+" "+mdEscAttr(custNames)+(g.country?" &middot; "+mdEscAttr(g.country):"")+(po?" &middot; PO "+po:"")+"</div></td>"+
       "<td class='pg-c-kind'><span class='pg-kind pg-kind-"+k.kind+"'>"+(k.kind==="loc"?"&#128205; ":"&#128196; ")+k.label+"</span></td>"+
       "<td class='pg-c-parts'>"+k.parts.map(function(x){return "<span class='pg-part'>"+mdEscAttr(x)+"</span>";}).join("")+"</td>"+
       "<td class='num pg-c-tot'>"+pgTotalsCompact(totals)+"</td>"+
