@@ -362,7 +362,11 @@ function closeProjectGroup(){
   MD_GROUP_SEL=null;
   renderContent();
 }
+/* The customer summary boxes don't describe groups, so this page drops
+   them (renderStats fills them before every renderContent). */
+function pgHideStats(){var st=document.getElementById("stats");if(st)st.innerHTML="";}
 function renderProjectGroupView(){
+  pgHideStats();
   document.getElementById("content").innerHTML=buildProjectGroupView();
 }
 
@@ -387,53 +391,90 @@ function computeProjectGroups(){
 }
 function pgTotalsCompact(totals){
   var curs=Object.keys(totals);
-  if(!curs.length)return "<span style='color:var(--text-faint);font-size:12px'>—</span>";
+  if(!curs.length)return "<span class='trk-r-none'>&mdash;</span>";
   return curs.sort().map(function(c){
-    return "<div style='font-weight:600;color:var(--accent-text);font-size:13px;white-space:nowrap'>"+totals[c].toLocaleString(undefined,{maximumFractionDigits:0})+" "+c+"</div>";
+    return "<div class='pg-amt'>"+totals[c].toLocaleString(undefined,{maximumFractionDigits:0})+" <span class='trk-r-cur'>"+c+"</span></div>";
   }).join("");
 }
+/* A group is one of two things, told apart by its documents:
+   - one PO split across locations: every entry carries the same PO file
+     (SITA's PO 3165001907 for Bali and Surabaya); each part is named by
+     the location before the dash ("Bali — PO 3165001907" -> Bali)
+   - one project with several POs or quotes: each entry has its own
+     document (Singapore Airlines lounge); each part is named by what the
+     entry adds to the group name ("Singapore Pools - A4 Scanner" -> A4 Scanner) */
+function pgKind(g){
+  var all=g.txs.concat(g.projs);
+  var doc=function(e){var a=(e.attachments||[])[0];return a?(a.name||a.url||""):"";};
+  var first=doc(all[0]);
+  var sharedPo=all.length>1&&first&&all.every(function(e){return doc(e)===first;});
+  var uniq=function(a){return a.filter(function(x,i){return x&&a.indexOf(x)===i;});};
+  if(sharedPo){
+    var locs=uniq(all.map(function(e){return String(e.project||"").split(/\s[—–-]\s/)[0].trim();}));
+    return {kind:"loc",label:"1 PO · "+locs.length+" location"+(locs.length!==1?"s":""),parts:locs};
+  }
+  var gl=g.name.toLowerCase();
+  var parts=uniq(all.map(function(e){
+    var n=String(e.project||"").trim();
+    if(n.toLowerCase().indexOf(gl)===0){
+      var rest=n.slice(g.name.length).replace(/^[\s—–\-:]+/,"").replace(/^\((.*)\)$/,"$1").trim();
+      if(rest)n=rest;
+    }
+    return n;
+  }));
+  var pos=all.filter(function(e){return e.status==="PO";}).length;
+  var qt=all.filter(function(e){return e.status==="Quotation";}).length;
+  var docs=[pos?pos+" PO"+(pos!==1?"s":""):"",qt?qt+" quote"+(qt!==1?"s":""):""].filter(Boolean).join(", ")||all.length+" entries";
+  return {kind:"proj",label:"1 project · "+docs,parts:parts};
+}
+/* typing re-renders only the rows, so the search box keeps focus */
 function pgSearchInput(v){
   PG_SEARCH=v;
-  renderProjectGroupsList();
-  var el=document.getElementById("pg-search");
-  if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}
+  var body=document.getElementById("pg-list-items");
+  if(body)body.innerHTML=pgListBody();else renderProjectGroupsList();
 }
-function renderProjectGroupsList(){
+function pgListBody(){
   var all=computeProjectGroups();
-  if(!all.length){
-    document.getElementById("content").innerHTML="<div class='empty'>No project groups yet. Set a “project group” on an entry (Add/Edit) to link related projects together and see them here.</div>";
-    return;
-  }
   var q=PG_SEARCH.trim().toLowerCase();
   var groups=all.filter(function(g){
     if(!q)return true;
     return g.name.toLowerCase().indexOf(q)!==-1||Object.keys(g.customers).some(function(c){return c.toLowerCase().indexOf(q)!==-1;});
   });
   groups.sort(function(a,b){return a.name.localeCompare(b.name);});
-
+  if(!groups.length)return "<div class='empty'>No project groups match your search.</div>";
   var rows=groups.map(function(g){
     var totals=mdGroupTotals(g.txs,g.projs);
-    var pos=g.txs.filter(function(t){return t.status==="PO";}).length+g.projs.filter(function(p){return p.status==="PO";}).length;
-    var qt=g.txs.filter(function(t){return t.status==="Quotation";}).length+g.projs.filter(function(p){return p.status==="Quotation";}).length;
+    var k=pgKind(g);
     var custNames=Object.keys(g.customers).sort().join(", ");
-    var entryCount=g.txs.length+g.projs.length;
     var esc=String(g.name).replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-    return "<div class='card'>"+
-      "<div class='card-header' onclick=\"openProjectGroup('"+esc+"')\">"+
-        "<div class='flag-icon'>"+flagImg(g.country,22)+"</div>"+
-        "<div style='flex:1;min-width:0'>"+
-          "<div class='cname'>&#128279; "+g.name+"</div>"+
-          "<div class='cmeta'>"+custNames+" \xb7 "+entryCount+" entr"+(entryCount!==1?"ies":"y")+" \xb7 "+pos+" PO"+(pos!==1?"s":"")+" \xb7 "+qt+" quote"+(qt!==1?"s":"")+"</div>"+
-        "</div>"+
-        "<div style='text-align:right;flex-shrink:0;margin-left:12px'>"+pgTotalsCompact(totals)+"</div>"+
-        "<div class='chevron'>&#8250;</div>"+
-      "</div>"+
-    "</div>";
+    return "<tr class='trk-row pg-row' onclick=\"openProjectGroup('"+esc+"')\">"+
+      "<td class='pg-c-name'><div class='trk-r-name'>"+mdEscAttr(g.name)+"</div>"+
+        "<div class='trk-r-sub'>"+flagImg(g.country,14)+" "+mdEscAttr(custNames)+(g.country?" &middot; "+mdEscAttr(g.country):"")+"</div></td>"+
+      "<td class='pg-c-kind'><span class='pg-kind pg-kind-"+k.kind+"'>"+(k.kind==="loc"?"&#128205; ":"&#128196; ")+k.label+"</span></td>"+
+      "<td class='pg-c-parts'>"+k.parts.map(function(x){return "<span class='pg-part'>"+mdEscAttr(x)+"</span>";}).join("")+"</td>"+
+      "<td class='num pg-c-tot'>"+pgTotalsCompact(totals)+"</td>"+
+      "<td class='pg-c-go' aria-hidden='true'>&#8250;</td>"+
+    "</tr>";
   }).join("");
-
+  return "<div class='po-table-wrap'><table class='po-table pg-list'><thead><tr>"+
+    "<th>Project group</th><th class='pg-c-kind'>Type</th><th class='pg-c-parts'>Covers</th><th class='num'>Total</th><th class='pg-c-go'></th>"+
+    "</tr></thead><tbody>"+rows+"</tbody></table></div>";
+}
+function renderProjectGroupsList(){
+  pgHideStats();
+  var all=computeProjectGroups();
+  if(!all.length){
+    document.getElementById("content").innerHTML="<div class='empty'>No project groups yet. Set a “project group” on an entry (Add/Edit) to link related projects together and see them here.</div>";
+    return;
+  }
+  var entries=all.reduce(function(n,g){return n+g.txs.length+g.projs.length;},0);
   document.getElementById("content").innerHTML=
-    "<input id='pg-search' class='md-search' type='text' placeholder='Search project groups or customers…' value=\""+mdEscAttr(PG_SEARCH)+"\" oninput='pgSearchInput(this.value)' style='margin-bottom:14px;max-width:360px'>"+
-    "<div id='pg-list-items'>"+(rows||"<div class='empty'>No project groups match your search.</div>")+"</div>";
+    "<div class='trk-bar'>"+
+      "<div class='trk-search'><span class='trk-search-ico'>&#128269;</span>"+
+        "<input id='pg-search' type='search' placeholder='Search project groups or customers&hellip;' value=\""+mdEscAttr(PG_SEARCH)+"\" oninput='pgSearchInput(this.value)' autocomplete='off'></div>"+
+      "<span class='pg-summary'>"+all.length+" group"+(all.length!==1?"s":"")+" &middot; "+entries+" entries</span>"+
+    "</div>"+
+    "<div id='pg-list-items'>"+pgListBody()+"</div>";
 }
 
 function renderCustomersDetail(){
