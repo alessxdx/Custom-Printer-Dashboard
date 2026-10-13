@@ -2078,3 +2078,35 @@ table.pr-matrix,table.pr-rules,table.pr-hist{width:100%;border-collapse:collapse
   .cmp-detail.open{display:block}
   .cmp-detail td{display:block}
 }
+
+/* ===== Buying prices ===== */
+.buy-table{overflow:clip}
+.buy-list td{padding:10px 14px;vertical-align:middle}
+.buy-list th{position:sticky;top:0;background:var(--bg-stat);z-index:2;box-shadow:inset 0 -1px 0 var(--border)}
+.buy-band td{box-shadow:inset 3px 0 0 var(--accent),inset 0 -1px 0 var(--border)}
+.buy-row:hover td{background:var(--bg-hover)}
+.buy-row:hover .nt-acts{opacity:1}
+.buy-c-model{font-weight:500;color:var(--text-strong);font-size:13px}
+.buy-c-pn{font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text-muted);white-space:nowrap}
+.buy-c-price{font-weight:700;color:var(--text-strong);white-space:nowrap;font-size:13.5px}
+.buy-sp{font-weight:600;color:var(--badge-special-fg);white-space:nowrap}
+.buy-sp-who{font-size:11px;color:var(--text-muted);margin-top:1px}
+.buy-c-acts{width:76px}
+@media (max-width:700px){
+  .buy-bar .trk-search{flex:1 1 100%}
+  .buy-bar .po-dd{flex:1}
+  .buy-bar .po-dd-btn{width:100%}
+  .buy-bar .po-dd-txt{flex:1;text-align:left}
+  .buy-list,.buy-list tbody{display:block}
+  .buy-list thead{display:none}
+  .buy-band{display:block}
+  .buy-band td{display:block;position:sticky;top:0}
+  .buy-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;padding:10px 12px;border-bottom:1px solid var(--border)}
+  .buy-row td{padding:0;border:none}
+  .buy-row .buy-c-model{grid-column:1;grid-row:1}
+  .buy-row .buy-c-price{grid-column:2;grid-row:1;text-align:right}
+  .buy-row .buy-c-pn{grid-column:1;grid-row:2}
+  .buy-row .buy-c-sp{grid-column:2;grid-row:2;text-align:right}
+  .buy-row .buy-c-acts{grid-column:1/-1;grid-row:3;width:auto}
+  .buy-row .buy-c-acts .nt-acts{justify-content:flex-end}
+}

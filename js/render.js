@@ -813,14 +813,18 @@ function toggleRow(i){
   const el=document.getElementById("erow-"+i);if(el)el.classList.toggle("open",expandedRows[i]);
   const row=el&&el.previousElementSibling;if(row)row.classList.toggle("open",expandedRows[i]);
 }
-function renderBuying(){
-  var sortBuy=document.getElementById("buy-sort")?document.getElementById("buy-sort").value:"model";
+/* Buying prices: one toolbar (search, sort menu, count), then a table with
+   the ungrouped items first and each group under its own band. Typing only
+   swaps the table body, so the search box keeps focus. */
+function buyPickSort(v){window._buySort=v;renderBuying();}
+function buySearchInput(){renderBuying(true);}
+function renderBuying(bodyOnly){
+  pgHideStats(); /* the customer summary boxes don't describe this page */
+  var sortBuy=window._buySort||"model";
   var searchVal=document.getElementById("buy-search")?document.getElementById("buy-search").value:"";
-  var searchLow=searchVal.toLowerCase();
-  var expandedGroups=window._buyGroups||{};
   var sorted=BUYING.map(function(b,i){return {model:b.model,pn:b.pn,price:b.price,currency:b.currency,specialPrice:b.specialPrice,specialCustomer:b.specialCustomer,group:b.group,_i:i};});
   /* every word must appear in the model, part number or group, in any order */
-  var words=searchLow.split(/\s+/).filter(Boolean);
+  var words=searchVal.toLowerCase().split(/\s+/).filter(Boolean);
   if(words.length) sorted=sorted.filter(function(b){
     var hay=[b.model,b.pn,b.group].join(" ").toLowerCase();
     return words.every(function(w){return hay.indexOf(w)!==-1;});
@@ -829,70 +833,54 @@ function renderBuying(){
   else if(sortBuy==="price-desc")sorted.sort(function(a,b){return b.price-a.price;});
   else sorted.sort(function(a,b){return a.model.localeCompare(b.model);});
 
-  var groups={};
-  var noGroup=[];
+  var groups={},noGroup=[];
   sorted.forEach(function(b){
-    if(b.group){if(!groups[b.group])groups[b.group]=[];groups[b.group].push(b);}
+    if(b.group){(groups[b.group]=groups[b.group]||[]).push(b);}
     else noGroup.push(b);
   });
-
+  var money=function(v,cur){return (typeof poFmtMoney==="function"?poFmtMoney(v,cur):v.toFixed(2))+" <span class='trk-r-cur'>"+cur+"</span>";};
+  var ico=function(kind,title,fn){
+    var path=kind==="edit"?'<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/>':'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>';
+    return "<button class='nt-ico"+(kind==="edit"?"":" nt-ico-del")+"' title='"+title+"' aria-label='"+title+"' onclick='"+fn+"'><svg viewBox='0 0 24 24' aria-hidden='true'>"+path+"</svg></button>";
+  };
   function makeRow(b){
-    var grpTag=b.group?"<div style='font-size:10px;color:var(--accent-text);margin-top:2px'>"+b.group+"</div>":"";
-    var spCell=b.specialPrice?
-      "<td data-label='Special price' style='text-align:right'><div style='font-weight:600;color:var(--badge-special-fg)'>$"+b.specialPrice.toFixed(2)+" "+b.currency+"</div><div style='font-size:10px;color:var(--text-faint);margin-top:1px'>"+(b.specialCustomer||"Special")+"</div></td>":
-      "<td data-label='Special price' style='text-align:right;color:var(--text-faint);font-size:12px'>—</td>";
-    return "<tr><td class='mc-title' style='font-weight:500'>"+b.model+grpTag+"</td><td data-label='Part number' class='mc-full' style='font-size:11px;color:var(--text-muted);font-family:monospace'>"+(b.pn||"—")+"</td><td data-label='Buying price' style='text-align:right;font-weight:600;color:var(--accent-text)'>$"+b.price.toFixed(2)+" "+b.currency+"</td>"+spCell+"<td class='mc-actions' style='text-align:right;white-space:nowrap'><button class='edit-btn' onclick='editBuying("+b._i+")' style='margin-right:8px'>Edit</button><button class='delete-btn' onclick='sbDeleteBuying("+b._i+")'>Remove</button></td></tr>";
+    return "<tr class='buy-row'>"+
+      "<td class='buy-c-model'>"+trkEsc(b.model)+"</td>"+
+      "<td class='buy-c-pn'>"+(b.pn?trkEsc(b.pn):"<span class='trk-r-none'>&mdash;</span>")+"</td>"+
+      "<td class='num buy-c-price'>"+money(b.price,b.currency)+"</td>"+
+      "<td class='num buy-c-sp'>"+(b.specialPrice?"<div class='buy-sp'>"+money(b.specialPrice,b.currency)+"</div><div class='buy-sp-who'>"+trkEsc(b.specialCustomer||"Special")+"</div>":"<span class='trk-r-none'>&mdash;</span>")+"</td>"+
+      "<td class='buy-c-acts'><div class='nt-acts'>"+ico("edit","Edit","editBuying("+b._i+")")+ico("trash","Remove","sbDeleteBuying("+b._i+")")+"</div></td>"+
+    "</tr>";
   }
-
+  var band=function(name,n){return "<tr class='trk-band buy-band'><td colspan='5'><span class='po-grp-name'>"+trkEsc(name)+"</span><span class='po-grp-n'>"+n+"</span></td></tr>";};
+  var grpNames=Object.keys(groups).sort();
   var rows="";
-  noGroup.forEach(function(b){rows+=makeRow(b);});
-  Object.keys(groups).sort().forEach(function(grp){
-    /* open every group while searching so matches aren't hidden behind a header */
-    var isExp=words.length>0||!!expandedGroups[grp];
-    var grpId=grp.replace(/[^a-zA-Z0-9]/g,"-");
-    rows+="<tr class='mc-group' style='background:var(--accent-soft);cursor:pointer' onclick='toggleBuyGroup(event,this.dataset.grp)' data-grp='"+grp.replace(/'/g,"&apos;")+"'>"+
-      "<td colspan='5' style='font-size:11px;font-weight:600;color:var(--accent-text);padding:8px 12px'>"+
-        "<span id='buy-grp-icon-"+grpId+"'>"+(isExp?"▲":"▼")+"</span> "+grp+" ("+groups[grp].length+" items)"+
-      "</td></tr>";
-    if(isExp){groups[grp].forEach(function(b){rows+=makeRow(b);});}
-  });
+  if(noGroup.length)rows+=(grpNames.length?band("General",noGroup.length):"")+noGroup.map(makeRow).join("");
+  grpNames.forEach(function(g){rows+=band(g,groups[g].length)+groups[g].map(makeRow).join("");});
+  if(!rows)rows="<tr><td colspan='5' class='empty'>"+(words.length?"Nothing matches that search.":"No buying prices yet.")+"</td></tr>";
 
   var bgl=document.getElementById("b-group-list");
   if(bgl){var grps=[...new Set(BUYING.map(function(b){return b.group;}).filter(Boolean))].sort();bgl.innerHTML=grps.map(function(g){return "<option value='"+g+"'>";}).join("");}
+  var count=(words.length?sorted.length+" of ":"")+BUYING.length+" item"+(BUYING.length!==1?"s":"");
   var tbody=document.getElementById("buy-tbody");
-  var countEl=document.getElementById("buy-count");
-  if(tbody){tbody.innerHTML=rows||"<tr><td colspan='5' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>";if(countEl)countEl.textContent=sorted.length+" / "+BUYING.length+" items";return;}
-
+  if(bodyOnly&&tbody){
+    tbody.innerHTML=rows;
+    var c=document.getElementById("buy-count");if(c)c.textContent=count;
+    return;
+  }
+  var sortMenu=uiDropdown({key:"buy-sort",onPick:"buyPickSort",cur:sortBuy,opts:[
+    {value:"model",label:"Model A–Z"},{value:"price-asc",label:"Price: low to high"},{value:"price-desc",label:"Price: high to low"}]});
   document.getElementById("content").innerHTML=
-    "<div class='buying-card'>"+
-    "<div style='padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft)'>"+
-      "<input id='buy-search' type='text' placeholder='Search model or part number...' oninput='renderBuying()' value='"+searchVal.replace(/'/g,"&#39;")+"' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text);font-family:Montserrat,sans-serif;width:240px'>"+
-      "<span style='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--accent-text);margin-left:4px'>Sort</span>"+
-      "<select id='buy-sort' onchange='renderBuying()' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text);font-family:Montserrat,sans-serif'>"+
-        "<option value='model'"+(sortBuy==="model"?" selected":"")+">Model A–Z</option>"+
-        "<option value='price-asc'"+(sortBuy==="price-asc"?" selected":"")+">Price: Low to high</option>"+
-        "<option value='price-desc'"+(sortBuy==="price-desc"?" selected":"")+">Price: High to low</option>"+
-      "</select>"+
-      "<span id='buy-count' style='font-size:11px;color:var(--text-muted)'>"+sorted.length+" / "+BUYING.length+" items</span>"+
+    "<div class='trk-bar buy-bar'>"+
+      "<div class='trk-search'><span class='trk-search-ico'>&#128269;</span><input id='buy-search' type='search' placeholder='Search model, part number or group&hellip;' oninput='buySearchInput()' value='"+searchVal.replace(/'/g,"&#39;")+"' autocomplete='off'></div>"+
+      sortMenu+
+      "<span id='buy-count' class='pg-summary'>"+count+"</span>"+
     "</div>"+
-    "<div style='overflow-x:auto'><table class='mcards'><thead><tr><th>Model</th><th>Part number</th><th style='text-align:right'>Buying price</th><th style='text-align:right'>Special price</th><th></th></tr></thead>"+
-    "<tbody id='buy-tbody'>"+(rows||"<tr><td colspan='5' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+"</tbody></table></div>"+
-    "</div>";
+    "<div class='po-table-wrap buy-table'><table class='po-table buy-list'><thead><tr><th>Model</th><th>Part number</th><th class='num'>Buying price</th><th class='num'>Special price</th><th></th></tr></thead>"+
+    "<tbody id='buy-tbody'>"+rows+"</tbody></table></div>";
   var inp=document.getElementById("buy-search");
   /* not on touch screens: focusing would pop the keyboard up on every visit */
   if(inp&&!matchMedia("(pointer:coarse)").matches){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
-}
-
-function toggleBuyGroup(evtOrEl,grpArg){
-  var grp=grpArg!==undefined?grpArg:(evtOrEl.dataset?evtOrEl.dataset.grp:evtOrEl);
-  if(evtOrEl&&evtOrEl.preventDefault){evtOrEl.preventDefault();evtOrEl.stopPropagation();}
-  // Remember scroll position
-  var scrollY=window.scrollY||window.pageYOffset;
-  if(!window._buyGroups)window._buyGroups={};
-  window._buyGroups[grp]=!window._buyGroups[grp];
-  renderBuying();
-  // Restore scroll position after render
-  window.scrollTo(0,scrollY);
 }
 
 /* Notes are split by what they are: quick updates (no value), records with
