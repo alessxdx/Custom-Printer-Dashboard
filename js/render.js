@@ -979,69 +979,72 @@ let SPARES=[
 SPARES_SEED=SPARES.map(function(s){return Object.assign({},s);});
 MODELS_SEED=["TK180 Plastic","TK180 Plastic AEA","TK180 Metal Cutter","TK180 Metal Cutter AEA","TK180 Metal Cutter NON AEA","TK180 Metal Cutter ARINC","TK180 Metal Non Cutter","TK180 Metal Non Cutter ARINC","TK180 TPH","TK302 Metal Triple Feeder","KPM180 Cutter NON AEA","KPM180 with AEA","KPM180H-LL","KPM180 NON AEA","KPM180 TPH","TK202 Plastic","TK202 with AEA","TG2460HIII","TG2480HIII","VKP80II","VKP80II-RX","VKP80III","VKP80III Rear Connector","K80","KX80S"];
 
-function renderSpares(){
+/* Spare parts are quoted per customer, so the default view puts each
+   customer's parts under its band (the Customer column then hides). By
+   part is a plain A-Z list: the same part from different customers sits
+   together, so their prices line up. Price sorts are flat too. */
+function spPickSort(v){window._spSort=v;renderSpares();}
+function spSearchInput(){renderSpares(true);}
+function renderSpares(bodyOnly){
+  pgHideStats(); /* the customer summary boxes don't describe this page */
   var searchVal=document.getElementById("sp-search")?document.getElementById("sp-search").value:"";
-  var sortVal=document.getElementById("sp-sort")?document.getElementById("sp-sort").value:"name";
-  var searchLow=searchVal.toLowerCase();
-  var filtered=SPARES.map(function(s,i){return Object.assign({},s,{_i:i});});
+  var sortVal=window._spSort||"customer";
+  var filtered=SPARES.map(function(x,i){return Object.assign({},x,{_i:i});});
   /* every word must appear somewhere in the row, in any order, so
      "tk180 cutter" finds every cutter part for any TK180 variant */
-  var words=searchLow.split(/\s+/).filter(Boolean);
-  if(words.length)filtered=filtered.filter(function(s){
-    var hay=[s.name,s.pn,s.customer,s.note].join(" ").toLowerCase();
+  var words=searchVal.toLowerCase().split(/\s+/).filter(Boolean);
+  if(words.length)filtered=filtered.filter(function(x){
+    var hay=[x.name,x.pn,x.customer,x.note].join(" ").toLowerCase();
     return words.every(function(w){return hay.indexOf(w)!==-1;});
   });
-  if(sortVal==="name")filtered.sort(function(a,b){return a.name.localeCompare(b.name);});
-  else if(sortVal==="price-asc")filtered.sort(function(a,b){return a.price-b.price;});
+  var byName=function(a,b){return a.name.localeCompare(b.name)||(a.customer||"").localeCompare(b.customer||"");};
+  if(sortVal==="price-asc")filtered.sort(function(a,b){return a.price-b.price;});
   else if(sortVal==="price-desc")filtered.sort(function(a,b){return b.price-a.price;});
-  else if(sortVal==="customer")filtered.sort(function(a,b){return (a.customer||"").localeCompare(b.customer||"");});
+  else if(sortVal==="customer")filtered.sort(function(a,b){return (a.customer||"").localeCompare(b.customer||"")||a.name.localeCompare(b.name);});
+  else filtered.sort(byName);
 
-  var rows=filtered.map(function(s){
-    var pn=s.pn||"—";
-    var terms=s.terms||"—";
-    return "<tr>"+
-      "<td class='mc-title' style='font-weight:500'>"+s.name+"</td>"+
-      "<td data-label='Part number' class='mc-full' style='font-size:11px;color:var(--text-muted);font-family:monospace'>"+pn+"</td>"+
-      "<td data-label='Customer' style='color:var(--text-muted);font-size:12px'>"+s.customer+"</td>"+
-      "<td data-label='Unit price' style='text-align:right;font-weight:600;color:var(--accent-text)'>"+s.price.toLocaleString()+" "+s.currency+"</td>"+
-      "<td data-label='Terms' style='font-size:12px;color:var(--text-muted)'>"+(s.terms||"—")+"</td>"+
-      "<td data-label='Note' class='mc-full' style='font-size:11px;color:var(--text-faint);font-style:italic'>"+(s.note||"—")+"</td>"+
-      "<td class='mc-actions' style='text-align:right;white-space:nowrap'>"+
-        "<button class='edit-btn' onclick='editSpare("+s._i+")' style='margin-right:8px'>Edit</button>"+
-        "<button class='delete-btn' onclick='deleteSpare("+s._i+")'>Remove</button>"+
-      "</td>"+
+  var money=function(v,cur){return (typeof poFmtMoney==="function"?poFmtMoney(v,cur):v.toLocaleString())+" <span class='trk-r-cur'>"+trkEsc(cur)+"</span>";};
+  var ico=function(kind,title,fn){
+    var path=kind==="edit"?'<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/>':'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>';
+    return "<button class='nt-ico"+(kind==="edit"?"":" nt-ico-del")+"' title='"+title+"' aria-label='"+title+"' onclick='"+fn+"'><svg viewBox='0 0 24 24' aria-hidden='true'>"+path+"</svg></button>";
+  };
+  function row(x){
+    return "<tr class='buy-row sp-row'>"+
+      "<td class='sp-c-name'><div class='buy-c-model'>"+trkEsc(x.name)+"</div>"+(x.pn?"<div class='buy-c-pn'>"+trkEsc(x.pn)+"</div>":"")+"</td>"+
+      "<td class='sp-c-cust'>"+(x.customer?trkEsc(x.customer):"<span class='trk-r-none'>&mdash;</span>")+"</td>"+
+      "<td class='num buy-c-price'>"+money(x.price,x.currency)+"</td>"+
+      "<td class='sp-c-terms"+(x.terms?"":" sp-empty")+"'>"+(x.terms?"<span class='badge "+({DDP:"b-ddp",DAP:"b-dap",EXW:"b-exw"}[x.terms]||"b-exw")+"'>"+trkEsc(x.terms)+"</span>":"<span class='trk-r-none'>&mdash;</span>")+"</td>"+
+      "<td class='sp-c-note'>"+(x.note?trkEsc(x.note):"")+"</td>"+
+      "<td class='buy-c-acts'><div class='nt-acts'>"+ico("edit","Edit","editSpare("+x._i+")")+ico("trash","Remove","deleteSpare("+x._i+")")+"</div></td>"+
     "</tr>";
-  }).join("");
+  }
+  var band=function(name,n,unit){return "<tr class='trk-band buy-band'><td colspan='6'><span class='po-grp-name'>"+trkEsc(name||"No customer")+"</span><span class='po-grp-n'>"+n+" "+unit+(n!==1?"s":"")+"</span></td></tr>";};
+  var rows="";
+  if(sortVal==="customer"){
+    var order=[],grp={};
+    filtered.forEach(function(x){var k=x.customer||"";if(!grp[k]){grp[k]=[];order.push(k);}grp[k].push(x);});
+    order.forEach(function(k){rows+=band(k,grp[k].length,"part")+grp[k].map(row).join("");});
+  }else rows=filtered.map(row).join("");
+  if(!rows)rows="<tr><td colspan='6' class='empty'>"+(words.length?"Nothing matches that search.":"No spare parts yet.")+"</td></tr>";
 
+  var count=(words.length?filtered.length+" of ":"")+SPARES.length+" item"+(SPARES.length!==1?"s":"");
   var tbody=document.getElementById("sp-tbody");
-  var countEl=document.getElementById("sp-count");
-  if(tbody){
-    tbody.innerHTML=rows||"<tr><td colspan='7' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>";
-    if(countEl)countEl.textContent=filtered.length+" / "+SPARES.length+" items";
+  if(bodyOnly&&tbody){
+    tbody.innerHTML=rows;
+    var c=document.getElementById("sp-count");if(c)c.textContent=count;
     return;
   }
-
+  var sortMenu=uiDropdown({key:"sp-sort",onPick:"spPickSort",cur:sortVal,opts:[
+    {value:"customer",label:"By customer"},{value:"name",label:"By part (A–Z)"},
+    {value:"price-asc",label:"Price: low to high"},{value:"price-desc",label:"Price: high to low"}]});
   document.getElementById("content").innerHTML=
-    "<div class='buying-card'>"+
-    "<div style='padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft)'>"+
-      "<input id='sp-search' type='text' placeholder='Search name, part number, customer...' oninput='renderSpares()' value='"+searchVal.replace(/'/g,"&#39;")+"' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text);font-family:Montserrat,sans-serif;width:280px'>"+
-      "<span style='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--accent-text);margin-left:4px'>Sort</span>"+
-      "<select id='sp-sort' onchange='renderSpares()' style='font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text);font-family:Montserrat,sans-serif'>"+
-        "<option value='name'"+(sortVal==="name"?" selected":"")+">Name A–Z</option>"+
-        "<option value='customer'"+(sortVal==="customer"?" selected":"")+">Customer A–Z</option>"+
-        "<option value='price-asc'"+(sortVal==="price-asc"?" selected":"")+">Price: Low to high</option>"+
-        "<option value='price-desc'"+(sortVal==="price-desc"?" selected":"")+">Price: High to low</option>"+
-      "</select>"+
-      "<span id='sp-count' style='font-size:11px;color:var(--text-muted)'>"+filtered.length+" / "+SPARES.length+" items</span>"+
+    "<div class='trk-bar buy-bar'>"+
+      "<div class='trk-search'><span class='trk-search-ico'>&#128269;</span><input id='sp-search' type='search' placeholder='Search part, part number, customer or note&hellip;' oninput='spSearchInput()' value='"+searchVal.replace(/'/g,"&#39;")+"' autocomplete='off'></div>"+
+      sortMenu+
+      "<span id='sp-count' class='pg-summary'>"+count+"</span>"+
     "</div>"+
-    "<div style='overflow-x:auto'><table class='mcards'><thead><tr>"+
-      "<th>Part name</th><th>Part number</th><th>Customer ref</th>"+
-      "<th style='text-align:right'>Unit price</th><th>Terms</th><th>Note</th><th></th>"+
-    "</tr></thead>"+
-    "<tbody id='sp-tbody'>"+
-      (rows||"<tr><td colspan='7' style='text-align:center;padding:20px;color:#aaa'>No results found</td></tr>")+
-    "</tbody></table></div>"+
-    "</div>";
+    "<div class='po-table-wrap buy-table'><table class='po-table buy-list sp-list"+(sortVal==="customer"?" sp-by-cust":"")+"'><thead><tr><th>Part</th><th class='sp-c-cust'>Customer</th><th class='num'>Unit price</th><th>Terms</th><th>Note</th><th></th></tr></thead>"+
+    "<tbody id='sp-tbody'>"+rows+"</tbody></table></div>";
   var inp=document.getElementById("sp-search");
   /* not on touch screens: focusing would pop the keyboard up on every visit */
   if(inp&&!matchMedia("(pointer:coarse)").matches){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}

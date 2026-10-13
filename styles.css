@@ -1658,6 +1658,9 @@ details.others-sec:not([open]) > summary{border-bottom:none}
 .po-panel-no{font-size:15px;font-weight:700;color:var(--text-strong)}
 .po-panel-x{border:none;background:none;color:var(--text-muted);font-size:22px;line-height:1;cursor:pointer;padding:0 4px;border-radius:6px}
 .po-panel-x:hover{background:var(--bg-hover);color:var(--text-strong)}
+.trk-pn-expand{margin-left:auto;flex-shrink:0;border:none;background:none;color:var(--text-muted);font-size:17px;line-height:1;cursor:pointer;padding:3px 6px;border-radius:6px}
+.trk-pn-expand:hover{background:var(--bg-hover);color:var(--text-strong)}
+.trk-pn-expand+.po-panel-x{margin-left:-6px}
 .po-panel-meta{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:12px;color:var(--text-muted)}
 .po-panel-total{font-size:22px;font-weight:700;color:var(--text-strong);margin:12px 0 4px}
 .po-panel-sec{
@@ -2110,3 +2113,18 @@ table.pr-matrix,table.pr-rules,table.pr-hist{width:100%;border-collapse:collapse
   .buy-row .buy-c-acts{grid-column:1/-1;grid-row:3;width:auto}
   .buy-row .buy-c-acts .nt-acts{justify-content:flex-end}
 }
+
+/* ===== Spare parts (shares the buying-price table styles) ===== */
+.sp-c-name .buy-c-pn{margin-top:2px}
+.sp-c-cust{font-size:12.5px;color:var(--text)}
+.sp-c-note{font-size:12px;color:var(--text-muted);font-style:italic;max-width:280px}
+@media (max-width:700px){
+  .sp-row .sp-c-name{grid-column:1;grid-row:1}
+  .sp-row .buy-c-price{grid-column:2;grid-row:1}
+  .sp-row .sp-c-cust{grid-column:1;grid-row:2}
+  .sp-row .sp-c-terms{grid-column:2;grid-row:2;text-align:right}
+  .sp-row .sp-c-note{grid-column:1/-1;grid-row:3;max-width:none}
+  .sp-row .buy-c-acts{grid-row:4}
+}
+.sp-by-cust .sp-c-cust{display:none}
+@media (max-width:700px){.sp-row .sp-empty{display:none}}

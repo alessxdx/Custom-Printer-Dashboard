@@ -11,6 +11,7 @@
 var TRK_PROJECTS=[],TRK_ENTRIES=[];
 var TRK_LOADED=false,TRK_MISSING=false;
 var TRK_SEL=null;            /* project id shown in detail view */
+var TRK_EXPAND=false;        /* list view: selected project opened full page */
 /* status chips are multi-select: an array of statuses, or ["stale"] alone */
 /* Status chips: the live pipeline is on by default; Won and Lost sit
    at the end, off until picked. */
@@ -372,10 +373,12 @@ function renderTracker(){
   trkReconcileStatus();
   trkRenderStats();
   if(TRK_SEL&&!TRK_PROJECTS.some(function(p){return p._id===TRK_SEL;}))TRK_SEL=null;
+  if(!TRK_SEL)TRK_EXPAND=false;
   trkSyncToolbar();
-  /* in list view a selected project opens in the side panel; the full
-     detail page is still what the calendar opens */
-  if(TRK_SEL&&TRK_VIEW==="cal"){trkRenderDetail();return;}
+  /* in list view a selected project opens in the side panel (clicking it
+     again, or Expand, opens the full detail page); the calendar always
+     opens the full page */
+  if(TRK_SEL&&(TRK_VIEW==="cal"||TRK_EXPAND)){trkRenderDetail();window.scrollTo(0,0);return;}
   trkRenderList();
 }
 
@@ -731,6 +734,7 @@ function trkPanelHtml(p,act){
   }).join("");
   return "<aside class='po-panel trk-panel'>"+
     "<div class='po-panel-head'><span class='po-panel-no'>"+trkDisplayName(p)+"</span>"+
+      "<button class='trk-pn-expand' title='Open full page' aria-label='Open full page' onclick='trkExpand()'>&#x2922;</button>"+
       "<button class='po-panel-x' aria-label='Close' onclick='trkBack()'>&times;</button></div>"+
     "<div class='po-panel-meta'>"+trkStatusBadge(p.status)+trkPaymentBadge(p)+trkFollowBadge(trkFollow(p,act))+"</div>"+
     ((p.customer||p.country)?"<div class='trk-pn-cust'>"+(flag?flag+" ":"")+[trkEsc(p.customer),trkEsc(p.country)].filter(Boolean).join(" &middot; ")+"</div>":"")+
@@ -938,8 +942,20 @@ function trkCalendarHtml(list,act){
 }
 
 /* clicking the open project again closes its panel */
-function trkOpen(id){TRK_SEL=(TRK_VIEW!=="cal"&&TRK_SEL===id)?null:id;renderTracker();}
-function trkBack(){TRK_SEL=null;renderTracker();}
+/* list view: first click opens the side panel, clicking the same project
+   again expands it to the full page */
+function trkOpen(id){
+  if(TRK_VIEW!=="cal"&&TRK_SEL===id)TRK_EXPAND=true;
+  else{TRK_SEL=id;TRK_EXPAND=false;}
+  renderTracker();
+}
+function trkExpand(){TRK_EXPAND=true;renderTracker();}
+/* from an expanded project, back returns to the list with its panel open */
+function trkBack(){
+  if(TRK_EXPAND&&TRK_VIEW!=="cal")TRK_EXPAND=false;
+  else TRK_SEL=null;
+  renderTracker();
+}
 
 function trkRenderDetail(){
   var p=TRK_PROJECTS.find(function(x){return x._id===TRK_SEL;});
