@@ -2175,3 +2175,51 @@ table.pr-matrix,table.pr-rules,table.pr-hist{width:100%;border-collapse:collapse
 }
 /* replaced by the styled menus inside By Customer; the selects stay as filter state */
 #filter-bar{display:none !important}
+
+/* ===== Phone: app feel — bottom tab bar, floating add button, safe areas ===== */
+html{-webkit-tap-highlight-color:transparent}
+.bottom-nav{display:none}
+@media (max-width:700px){
+  body{padding-bottom:calc(62px + env(safe-area-inset-bottom))}
+  .topbar{padding-top:calc(14px + env(safe-area-inset-top))}
+  .bottom-nav{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;
+    background:var(--bg-stat);border-top:1px solid var(--border);
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom));
+    box-shadow:0 -4px 16px rgba(16,24,40,.06);
+  }
+  .bn-item{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    min-height:52px;border:none;background:none;cursor:pointer;border-radius:10px;
+    font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:600;color:var(--text-muted);
+  }
+  .bn-ico{display:flex;align-items:center;justify-content:center;width:44px;height:26px;border-radius:999px;transition:background .15s}
+  .bn-ico svg{width:20px;height:20px}
+  .bn-item.active{color:var(--accent-text)}
+  .bn-item.active .bn-ico{background:var(--accent-soft)}
+  /* the ☰ button is redundant next to "More" */
+  .topbar .menu-toggle{display:none}
+  /* theme lives under More (Toggle theme), so the page title gets the room */
+  .topbar .theme-switcher{display:none}
+  .topbar h1{white-space:normal;line-height:1.2;font-size:20px}
+  /* "+ Add" becomes a floating action button above the tab bar */
+  #toolbar .btn-add{
+    position:fixed;right:16px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:44;
+    height:52px;padding:0 20px;border-radius:999px;font-size:14px;
+    box-shadow:0 6px 18px rgba(14,124,134,.35);
+  }
+  #toolbar{min-height:0}
+  /* comfortable tap targets */
+  .po-seg-btn,.trk-chip,.trk-viewsw button,.pr-seg button,.trk-cal-nav{min-height:38px}
+  .po-searchbox input,.trk-search input{min-height:36px;font-size:16px}
+  .undo-toast{bottom:calc(140px + env(safe-area-inset-bottom))}
+  /* PO "By model" table becomes cards */
+  .po-models,.po-models tbody{display:block}
+  .po-models thead{display:none}
+  .po-models tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px;padding:12px;border-bottom:1px solid var(--border)}
+  .po-models td{padding:0;border:none;text-align:left !important;white-space:normal}
+  .po-models td:first-child,.po-models td:last-child{grid-column:1/-1}
+  .po-models td[data-label]::before{content:attr(data-label);display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);margin-bottom:2px}
+}
+/* opened from the home screen: no browser bar, so give the top a little room */
+@media (display-mode:standalone){.topbar{padding-top:calc(18px + env(safe-area-inset-top))}}

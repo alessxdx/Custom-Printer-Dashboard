@@ -88,6 +88,31 @@ function toggleSidebar(){
   sb.classList.toggle("collapsed");
   try { localStorage.setItem("cpd_sidebar", sb.classList.contains("collapsed") ? "1" : "0"); } catch(e){}
 }
+/* ===== PHONE TAB BAR =====
+   Four main pages plus "More" (the full sidebar). Icons are copied from
+   the sidebar so the two never drift apart; tapping one clicks the
+   matching sidebar item, so routing stays in one place. */
+var BN_TABS=[["customers","Customers"],["tracker","Tracker"],["po","POs"],["pricing","Pricing"]];
+function buildBottomNav(){
+  var nav=document.getElementById("bottom-nav");
+  if(!nav)return;
+  var icon=function(tab){var el=document.querySelector('.nav-item[data-tab="'+tab+'"] .nav-icon');return el?el.innerHTML:"";};
+  nav.innerHTML=BN_TABS.map(function(t){
+    return "<button class='bn-item' data-tab='"+t[0]+"' onclick='bnGo(\""+t[0]+"\")'><span class='bn-ico'>"+icon(t[0])+"</span><span class='bn-lbl'>"+t[1]+"</span></button>";
+  }).join("")+
+  "<button class='bn-item bn-more' onclick='openMobileSidebar()'><span class='bn-ico'><svg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'><circle cx='5' cy='12' r='1.2'/><circle cx='12' cy='12' r='1.2'/><circle cx='19' cy='12' r='1.2'/></svg></span><span class='bn-lbl'>More</span></button>";
+  bnSync();
+}
+function bnGo(tab){
+  var b=document.querySelector('.nav-item[data-tab="'+tab+'"]');
+  if(b)b.click();
+  window.scrollTo(0,0);
+}
+function bnSync(){
+  var main=BN_TABS.some(function(t){return t[0]===currentTab;});
+  document.querySelectorAll(".bn-item[data-tab]").forEach(function(b){b.classList.toggle("active",b.dataset.tab===currentTab);});
+  var more=document.querySelector(".bn-more");if(more)more.classList.toggle("active",!main);
+}
 function openMobileSidebar(){
   document.getElementById("sidebar").classList.add("mobile-open");
   document.getElementById("mobile-overlay").classList.add("show");
@@ -436,7 +461,7 @@ mdBack = function(){ MD_SEL_ROUTED = false; _routeMdBack(); syncRoute(); };
 
 /* sync the URL after every render, whatever triggered it */
 var _routeRenderContent = renderContent;
-renderContent = function(){ _routeRenderContent(); syncRoute(); };
+renderContent = function(){ _routeRenderContent(); syncRoute(); bnSync(); };
 var _routeRenderTracker = renderTracker;
 renderTracker = function(){ _routeRenderTracker(); syncRoute(); };
 
@@ -448,3 +473,6 @@ window.addEventListener("hashchange", applyRoute);
 })();
 
 loadFromDB();
+
+/* phone tab bar */
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",buildBottomNav);else buildBottomNav();

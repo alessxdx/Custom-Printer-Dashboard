@@ -349,13 +349,13 @@ function poModelsHtml(list){
     }
     return "<tr>"+
       "<td><div class='po-m-desc'>"+trkEsc(g.desc||"—")+"</div>"+(g.pn?"<div class='po-m-pn'>"+trkEsc(g.pn)+"</div>":"")+"</td>"+
-      "<td class='num'><strong>"+g.units.toLocaleString()+"</strong></td>"+
-      "<td class='num'>"+Object.keys(g.pos).length+"</td>"+
-      "<td class='num'>"+(typeof fxFormatUSD==="function"?fxFormatUSD(g.spend):"$"+g.spend.toLocaleString())+"</td>"+
-      "<td class='num'>"+(last?poFmtMoney(last.price,last.cur):"—")+(last&&last.date?" <span class='trk-value-usd'>("+trkFmtDate(last.date)+")</span>":"")+trend+"</td>"+
+      "<td class='num' data-label='Units'><strong>"+g.units.toLocaleString()+"</strong></td>"+
+      "<td class='num' data-label='POs'>"+Object.keys(g.pos).length+"</td>"+
+      "<td class='num' data-label='Spend (USD)'>"+(typeof fxFormatUSD==="function"?fxFormatUSD(g.spend):"$"+g.spend.toLocaleString())+"</td>"+
+      "<td class='num' data-label='Last price'>"+(last?poFmtMoney(last.price,last.cur):"—")+(last&&last.date?" <span class='trk-value-usd'>("+trkFmtDate(last.date)+")</span>":"")+trend+"</td>"+
     "</tr>";
   }).join("");
-  return "<div class='po-table-wrap'><table class='po-table'>"+
+  return "<div class='po-table-wrap'><table class='po-table po-models'>"+
     "<thead><tr><th>Model / part</th><th class='num'>Units</th><th class='num'>POs</th><th class='num'>Spend (USD)</th><th class='num'>Last price</th></tr></thead>"+
     "<tbody>"+html+"</tbody></table></div>"+
     "<div class='empty' style='padding:14px;text-align:left'>&#9650;/&#9660; shows a unit-price change between the first and latest PO in the selected range.</div>";
