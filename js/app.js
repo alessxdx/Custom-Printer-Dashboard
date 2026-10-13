@@ -89,10 +89,10 @@ function toggleSidebar(){
   try { localStorage.setItem("cpd_sidebar", sb.classList.contains("collapsed") ? "1" : "0"); } catch(e){}
 }
 /* ===== PHONE TAB BAR =====
-   Four main pages plus "More" (the full sidebar). Icons are copied from
+   Four main pages plus "More" (the full sidebar; Pricing lives there). Icons are copied from
    the sidebar so the two never drift apart; tapping one clicks the
    matching sidebar item, so routing stays in one place. */
-var BN_TABS=[["customers","Customers"],["tracker","Tracker"],["po","POs"],["pricing","Pricing"]];
+var BN_TABS=[["customers","Customers"],["tracker","Tracker"],["po","POs"],["buying","Buying"]];
 function buildBottomNav(){
   var nav=document.getElementById("bottom-nav");
   if(!nav)return;

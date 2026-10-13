@@ -2180,7 +2180,10 @@ table.pr-matrix,table.pr-rules,table.pr-hist{width:100%;border-collapse:collapse
 html{-webkit-tap-highlight-color:transparent}
 .bottom-nav{display:none}
 @media (max-width:700px){
-  body{padding-bottom:calc(62px + env(safe-area-inset-bottom))}
+  /* room to scroll the last rows clear of the tab bar.
+     On .main, not body: body is fixed at screen height, so padding there
+     sat at the bottom of the first screen instead of the end of the page */
+  .main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   .topbar{padding-top:calc(14px + env(safe-area-inset-top))}
   .bottom-nav{
     display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;
@@ -2202,17 +2205,13 @@ html{-webkit-tap-highlight-color:transparent}
   /* theme lives under More (Toggle theme), so the page title gets the room */
   .topbar .theme-switcher{display:none}
   .topbar h1{white-space:normal;line-height:1.2;font-size:20px}
-  /* "+ Add" becomes a floating action button above the tab bar */
-  #toolbar .btn-add{
-    position:fixed;right:16px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:44;
-    height:52px;padding:0 20px;border-radius:999px;font-size:14px;
-    box-shadow:0 6px 18px rgba(14,124,134,.35);
-  }
-  #toolbar{min-height:0}
+  /* adding is done on the computer; on phones the dashboard is for
+     looking things up, so the "+ Add" row is dropped */
+  #toolbar{display:none}
   /* comfortable tap targets */
   .po-seg-btn,.trk-chip,.trk-viewsw button,.pr-seg button,.trk-cal-nav{min-height:38px}
   .po-searchbox input,.trk-search input{min-height:36px;font-size:16px}
-  .undo-toast{bottom:calc(140px + env(safe-area-inset-bottom))}
+  .undo-toast{bottom:calc(80px + env(safe-area-inset-bottom))}
   /* PO "By model" table becomes cards */
   .po-models,.po-models tbody{display:block}
   .po-models thead{display:none}
@@ -2222,4 +2221,9 @@ html{-webkit-tap-highlight-color:transparent}
   .po-models td[data-label]::before{content:attr(data-label);display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);margin-bottom:2px}
 }
 /* opened from the home screen: no browser bar, so give the top a little room */
-@media (display-mode:standalone){.topbar{padding-top:calc(18px + env(safe-area-inset-top))}}
+@media (display-mode:standalone){
+  .topbar{padding-top:calc(18px + env(safe-area-inset-top))}
+  /* a solid strip behind the clock and battery, so scrolled content
+     doesn't show through under them */
+  body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg-page,var(--bg));z-index:46}
+}
