@@ -13,7 +13,7 @@ let currentTab="customers",expandedCards={},expandedRows={};
 function setTab(btn){
   document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
   btn.classList.add("active");currentTab=btn.dataset.tab;
-  document.getElementById("filter-bar").style.display=currentTab==="customers"?"flex":"none";
+  document.getElementById("filter-bar").style.display="none";
   renderContent();
 }
 function getFiltered(){

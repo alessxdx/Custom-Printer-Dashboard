@@ -183,7 +183,10 @@ function buildMdList(entries){
       var pos=e.txs.filter(function(t){return t.status==="PO";}).length+e.projs.filter(function(p){return p.status==="PO";}).length;
       var qt=e.txs.filter(function(t){return t.status==="Quotation";}).length+e.projs.filter(function(p){return p.status==="Quotation";}).length;
       var ls=e.txs.filter(function(t){return t.status==="Lose";}).length+e.projs.filter(function(p){return p.status==="Lose";}).length;
-      var meta=pos+" PO"+(pos!==1?"s":"")+" · "+qt+" quote"+(qt!==1?"s":"")+(ls?" · "+ls+" lost":"");
+      var meta=(pos?"<span class='md-pill md-pill-po'>"+pos+" PO"+(pos!==1?"s":"")+"</span>":"")+
+        (qt?"<span class='md-pill md-pill-qt'>"+qt+" quote"+(qt!==1?"s":"")+"</span>":"")+
+        (ls?"<span class='md-pill md-pill-ls'>"+ls+" lost</span>":"")+
+        (!pos&&!qt&&!ls?"<span class='md-pill'>no deals</span>":"");
       return "<div class='md-item"+(e.key===MD_SEL?" active":"")+"' data-key=\""+mdEscAttr(e.key)+"\" onclick='mdSelect(this.getAttribute(\"data-key\"))'>"+
         flagImg(e.country,20)+
         "<div class='md-item-main'>"+
@@ -193,7 +196,7 @@ function buildMdList(entries){
         "<div class='md-item-chev'>›</div>"+
       "</div>";
     }).join("");
-    return "<div class='md-country'>"+country+"</div>"+items;
+    return "<div class='md-country'>"+mdEscAttr(country)+"<span>"+byCountry[country].length+"</span></div>"+items;
   }).join("");
 }
 
@@ -229,19 +232,18 @@ function buildMdDetail(key){
 
   return ""+
     "<button class='md-back' onclick='mdBack()'>&#8592; All customers</button>"+
-    "<div class='md-head'>"+flagImg(country,34)+
+    "<div class='md-head md-head-card'>"+flagImg(country,38)+
       "<div><div class='md-head-name'>"+name+"</div>"+
-      "<div class='md-head-meta'>"+country+" · "+pos+" PO"+(pos!==1?"s":"")+" · "+qt+" open quote"+(qt!==1?"s":"")+(ls?" · "+ls+" lost":"")+"</div></div>"+
+      "<div class='md-head-meta'><span>"+country+"</span>"+
+        (pos?"<span class='md-pill md-pill-po'>"+pos+" PO"+(pos!==1?"s":"")+"</span>":"")+
+        (qt?"<span class='md-pill md-pill-qt'>"+qt+" open quote"+(qt!==1?"s":"")+"</span>":"")+
+        (ls?"<span class='md-pill md-pill-ls'>"+ls+" lost</span>":"")+"</div></div>"+
     "</div>"+
-    "<div class='md-grid2'>"+
-      "<div class='md-section'>"+
-        "<div class='md-section-title'>Revenue — confirmed POs"+(r.approx?" (some quantities unknown)":"")+"</div>"+
-        mdMoneyLines(r.revenue)+
-      "</div>"+
-      "<div class='md-section'>"+
-        "<div class='md-section-title'>Open quotation pipeline</div>"+
-        mdMoneyLines(r.pipeline)+
-      "</div>"+
+    "<div class='md-kpis'>"+
+      "<div class='md-kpi'><div class='md-kpi-l'>Revenue · confirmed POs"+(r.approx?" <span title='Some quantities unknown'>*</span>":"")+"</div>"+mdMoneyLines(r.revenue)+"</div>"+
+      "<div class='md-kpi'><div class='md-kpi-l'>Open quotation pipeline</div>"+mdMoneyLines(r.pipeline)+"</div>"+
+      "<div class='md-kpi'><div class='md-kpi-l'>Printers</div><div class='md-money-line'>"+totalPo.toLocaleString()+" <span class='md-kpi-u'>ordered</span></div>"+
+        (totalQt?"<div class='md-kpi-s'>"+totalQt.toLocaleString()+" more quoted</div>":"")+"</div>"+
     "</div>"+
     "<div class='md-section'>"+
       "<div class='md-section-title'>Printers by model</div>"+
@@ -265,8 +267,10 @@ function mdSelect(key){
 function mdBack(){MD_SEL=null;renderCustomersDetail();}
 function mdSearchInput(v){
   MD_SEARCH=v;
+  var list=mdComputeEntries();
   var el=document.getElementById("md-list-items");
-  if(el)el.innerHTML=buildMdList(mdComputeEntries());
+  if(el)el.innerHTML=buildMdList(list);
+  var c=document.getElementById("md-count");if(c)c.textContent=list.length+" customer"+(list.length!==1?"s":"");
 }
 
 /* ============================================================
@@ -505,20 +509,43 @@ function renderProjectGroupsList(){
     "<div id='pg-list-items'>"+pgListBody()+"</div>";
 }
 
+/* One toolbar: search first, then country / model / status / sort menus.
+   The menus write to the hidden #fc/#fm/#fs/#fsort selects that the
+   filtering code already reads, then re-render. */
+function mdSetSel(id,v){var el=document.getElementById(id);if(el)el.value=v;renderCustomers();}
+function mdPickCountry(v){mdSetSel("fc",v);}
+function mdPickModel(v){mdSetSel("fm",v);}
+function mdPickStatus(v){mdSetSel("fs",v);}
+function mdPickSort(v){mdSetSel("fsort",v);}
+function mdToolbar(n){
+  var opts=function(id){
+    var el=document.getElementById(id);
+    return el?[].map.call(el.options,function(o){return {value:o.value,label:o.textContent.replace(/^Sort:\s*/,"")};}):[];
+  };
+  var cur=function(id){var el=document.getElementById(id);return el?el.value:"";};
+  var countries=opts("fc").map(function(o){return o.value?{value:o.value,label:o.label,color:typeof trkCountryColor==="function"?trkCountryColor(o.value):""}:o;});
+  return "<div class='trk-bar md-bar'>"+
+    "<div class='trk-search'><span class='trk-search-ico'>&#128269;</span><input id='md-search' type='search' placeholder='Search customers, models, projects&hellip;' value=\""+mdEscAttr(MD_SEARCH)+"\" oninput='mdSearchInput(this.value)' autocomplete='off'></div>"+
+    uiDropdown({key:"md-country",onPick:"mdPickCountry",cur:cur("fc"),opts:countries})+
+    uiDropdown({key:"md-model",onPick:"mdPickModel",cur:cur("fm"),opts:opts("fm")})+
+    uiDropdown({key:"md-status",onPick:"mdPickStatus",cur:cur("fs"),opts:opts("fs")})+
+    uiDropdown({key:"md-sort",onPick:"mdPickSort",cur:cur("fsort"),opts:opts("fsort")})+
+    "<span class='pg-summary' id='md-count'>"+n+" customer"+(n!==1?"s":"")+"</span>"+
+  "</div>";
+}
 function renderCustomersDetail(){
   var entries=mdComputeEntries();
   if(!entries.length&&!MD_SEARCH){
-    document.getElementById("content").innerHTML='<div class="empty">No transactions match your filters.</div>';
+    document.getElementById("content").innerHTML=mdToolbar(0)+'<div class="empty">No customers match these filters.</div>';
     return;
   }
   var keys=entries.map(function(e){return e.key;});
   if(MD_SEL&&keys.indexOf(MD_SEL)===-1)MD_SEL=null;
   if(!MD_SEL&&keys.length&&!window.matchMedia("(max-width: 980px)").matches)MD_SEL=keys[0];
 
-  document.getElementById("content").innerHTML=
+  document.getElementById("content").innerHTML=mdToolbar(entries.length)+
     "<div class='md-layout"+(MD_SEL?" md-has-sel":"")+"'>"+
       "<div class='md-list'>"+
-        "<input id='md-search' class='md-search' type='text' placeholder='Search customers, models, projects…' value=\""+mdEscAttr(MD_SEARCH)+"\" oninput='mdSearchInput(this.value)'>"+
         "<div id='md-list-items'>"+buildMdList(entries)+"</div>"+
       "</div>"+
       "<div class='md-detail'>"+

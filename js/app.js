@@ -43,7 +43,8 @@ function navTo(tab, sel){
   if(title) title.textContent = TAB_TITLES[currentTab] || "";
 
   // Show filter bar & view toggle only on customers tab
-  document.getElementById("filter-bar").style.display = currentTab === "customers" ? "flex" : "none";
+  /* By Customer draws its own styled filter menus (they drive these hidden selects) */
+  document.getElementById("filter-bar").style.display = "none";
   var vt = document.getElementById("view-toggle");
   if(vt) vt.style.display = currentTab === "customers" ? "inline-flex" : "none";
 
