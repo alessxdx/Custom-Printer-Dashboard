@@ -220,6 +220,15 @@ function buildMdList(entries){
 
 /* ===== one customer's page: what they bought =====
    Totals, printers by model, a card per order and every document. */
+/* Order notes fold away by default; "Show all notes" opens every card's
+   notes at once and is remembered per browser. */
+var MD_NOTES_OPEN=(function(){try{return localStorage.getItem("cpd_md_notes")==="1";}catch(e){return false;}})();
+function mdToggleAllNotes(){
+  MD_NOTES_OPEN=!MD_NOTES_OPEN;
+  try{localStorage.setItem("cpd_md_notes",MD_NOTES_OPEN?"1":"0");}catch(e){}
+  document.querySelectorAll(".od-notes-wrap").forEach(function(d){d.open=MD_NOTES_OPEN;});
+  var b=document.getElementById("md-notes-all");if(b)b.textContent=MD_NOTES_OPEN?"Hide all notes":"Show all notes";
+}
 function mdOrderCard(d){
   var p=d.p,t=d.t,multi=d.multi;
   var esc=mdEscAttr;
@@ -275,7 +284,8 @@ function mdOrderCard(d){
     "</div>"+
     (lines.length?"<div class='od-lines'>"+lineHead+printers.map(lineHtml).join("")+
       (others.length?"<div class='od-others'>"+others.map(lineHtml).join("")+"</div>":"")+"</div>":"")+
-    (notes.length?"<div class='od-notes'>"+notes.map(esc).join(" &middot; ")+"</div>":"")+
+    (notes.length?"<details class='od-notes-wrap'"+(MD_NOTES_OPEN?" open":"")+"><summary>Notes <span>"+notes.length+"</span></summary>"+
+      "<ul class='od-notes'>"+notes.map(function(n){return "<li>"+esc(n)+"</li>";}).join("")+"</ul></details>":"")+
     "<div class='od-foot'><span class='od-docs'>"+attClipsHtml(atts)+"</span>"+
       "<button class='edit-btn' onclick='"+edit+"'>Edit</button></div>"+
   "</div>";
@@ -366,7 +376,8 @@ function buildMdDetail(key){
     "</div>"+
     fxBlock+
     "<div class='md-section md-orders'>"+
-      "<div class='md-section-title'>Orders &amp; quotations <span class='nt-n'>"+deals.length+"</span></div>"+
+      "<div class='md-section-title md-orders-head'>Orders &amp; quotations <span class='nt-n'>"+deals.length+"</span>"+
+        "<button class='md-notes-btn' id='md-notes-all' onclick='mdToggleAllNotes()'>"+(MD_NOTES_OPEN?"Hide all notes":"Show all notes")+"</button></div>"+
       ordersHtml+
     "</div>"+
     "<div class='md-section'>"+

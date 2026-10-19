@@ -2379,3 +2379,24 @@ html{-webkit-tap-highlight-color:transparent}
 .md-item.active .md-item-cty{color:rgba(255,255,255,.85)}
 .md-item.active .md-item-chev{color:#fff}
 .md-item.active .md-pill{background:rgba(255,255,255,.92);border-color:transparent}
+
+/* order notes: folded by default, per card or all at once */
+.md-orders-head{display:flex;align-items:center;gap:6px}
+.md-notes-btn{
+  margin-left:auto;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;
+  color:var(--accent-text);background:var(--accent-soft);border:none;border-radius:999px;padding:5px 12px;cursor:pointer;
+}
+.md-notes-btn:hover{background:var(--bg-hover)}
+.od-notes-wrap{margin-top:10px}
+.od-notes-wrap>summary{
+  list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  font-size:12.5px;font-weight:600;color:var(--text-muted);padding:3px 0;
+}
+.od-notes-wrap>summary::-webkit-details-marker{display:none}
+.od-notes-wrap>summary::before{content:"▸";font-size:11px;transition:transform .15s}
+.od-notes-wrap[open]>summary::before{transform:rotate(90deg)}
+.od-notes-wrap>summary span{font-size:11px;background:var(--bg-soft);border:1px solid var(--border);border-radius:999px;padding:0 7px;line-height:17px}
+.od-notes-wrap>summary:hover{color:var(--text-strong)}
+ul.od-notes{list-style:none;margin-top:6px}
+ul.od-notes li{padding:3px 0}
+ul.od-notes li+li{border-top:1px solid var(--divider)}
