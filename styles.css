@@ -2345,3 +2345,30 @@ html{-webkit-tap-highlight-color:transparent}
   .md-section{padding:16px}
   .od-card{padding:14px}
 }
+
+/* ===== Order cards: status edge, short titles, line-item table ===== */
+.od-card{border-left:4px solid var(--border-strong)}
+.od-card.od-st-po{border-left-color:var(--badge-po-fg)}
+.od-card.od-st-qt{border-left-color:var(--badge-qt-fg)}
+.od-card.od-st-ls{border-left-color:var(--badge-ls-fg)}
+.od-group{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-text);cursor:pointer;margin-bottom:3px}
+.od-group:hover{text-decoration:underline}
+.od-name-main{font-size:17px;font-weight:700}
+.od-line{grid-template-columns:minmax(0,1fr) auto 110px;gap:16px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--divider);color:var(--text-strong)}
+.od-line:last-child{border-bottom:none}
+.od-line-head{font-size:11px !important;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted) !important;padding:2px 0 6px}
+.od-line-head span:nth-child(2),.od-line-head span:nth-child(3){text-align:right}
+.od-name{color:var(--text-strong);font-weight:500}
+.od-printer .od-name{font-weight:600}
+.od-calc{text-align:right;white-space:nowrap;color:var(--text-muted);font-size:13px}
+.od-amt{text-align:right;white-space:nowrap;font-weight:700;color:var(--text-strong)}
+.od-others{border-top:1px dashed var(--border-strong);margin-top:2px}
+.od-others .od-line{font-size:13.5px;color:var(--text-strong)}
+.od-others .od-name{font-weight:400}
+.od-others .od-amt{font-weight:600}
+@media (max-width:700px){
+  .od-line{grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
+  .od-line .od-calc{grid-column:1;grid-row:2;text-align:left}
+  .od-line .od-amt{grid-column:2;grid-row:1}
+  .od-line-head span:nth-child(2){display:none}
+}

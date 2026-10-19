@@ -239,26 +239,41 @@ function mdOrderCard(d){
   /* round to the cent first: 25 x 1,174.40 is 58720.00000000001 in floating point */
   var num=function(v){v=Math.round(v*100)/100;return v.toLocaleString(undefined,{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2});};
   var printers=lines.filter(function(l){return l.printer;}),others=lines.filter(function(l){return !l.printer;});
+  /* a mini table: item | qty x unit price | amount, so the right-hand
+     figure is always the line total and quantities never look like prices */
+  var money=function(v){return (v<0?"&minus;":"")+num(Math.abs(v))+" <span class='trk-r-cur'>"+esc(cur)+"</span>";};
   var lineHtml=function(l){
+    var sub=l.qty*l.price;
     return "<div class='od-line"+(l.printer?" od-printer":"")+"'>"+
-      "<span class='od-qty'>"+(l.qty===1&&!l.printer?"":num(l.qty)+" &times;")+"</span>"+
       "<span class='od-name'>"+esc(l.name)+"</span>"+
-      "<span class='od-price'>"+(l.price<0?"&minus;":"")+num(Math.abs(l.price))+" <span class='trk-r-cur'>"+esc(cur)+"</span></span>"+
+      "<span class='od-calc'>"+(l.qty!==1?num(l.qty)+" &times; "+money(l.price):"")+"</span>"+
+      "<span class='od-amt'>"+money(sub)+"</span>"+
     "</div>";
   };
+  var lineHead="<div class='od-line od-line-head'><span>Item</span><span>Qty &times; unit price</span><span>Amount</span></div>";
+  /* inside a project group the title is just this entry's part
+     ("Installation"), with the group shown above it as a link */
+  var short=title||"";
+  if(group&&short.toLowerCase().indexOf(group.toLowerCase())===0){
+    var rest=short.slice(group.length).replace(/^[\s\u2014\u2013\-:]+/,"").replace(/^\((.*)\)$/,"$1").trim();
+    if(rest)short=rest;
+  }
+  var stCls=status==="PO"?"po":status==="Quotation"?"qt":status==="Lose"?"ls":"";
+  var groupEsc=group?String(group).replace(/\\/g,"\\\\").replace(/'/g,"\\'"):"";
   var units=printers.reduce(function(n,l){return n+l.qty;},0);
-  return "<div class='od-card'>"+
+  return "<div class='od-card"+(stCls?" od-st-"+stCls:"")+"'>"+
     "<div class='od-head'>"+
-      "<div class='od-title'><div class='od-name-main'>"+esc(title||"Untitled")+"</div>"+
+      "<div class='od-title'>"+(group?"<div class='od-group' onclick=\"openProjectGroup('"+groupEsc+"')\" title='Open the whole project group'>&#128279; "+esc(group)+" &rsaquo;</div>":"")+
+        "<div class='od-name-main'>"+esc(short||"Untitled")+"</div>"+
         "<div class='od-meta'>"+(date?"<span>"+esc(date)+"</span>":"")+bStatus(status)+
           (multi&&(p||t).country?"<span class='od-cty'>"+flagImg((p||t).country,14)+esc((p||t).country)+"</span>":"")+
           (units?"<span class='od-units'>"+num(units)+" printer"+(units!==1?"s":"")+"</span>":"")+terms+"</div></div>"+
       "<div class='od-total'>"+num(total)+" <span class='trk-r-cur'>"+esc(cur)+"</span>"+fxEqSpan(total,cur)+"</div>"+
     "</div>"+
-    (printers.length?"<div class='od-lines'>"+printers.map(lineHtml).join("")+"</div>":"")+
-    (others.length?"<div class='od-lines od-others'>"+others.map(lineHtml).join("")+"</div>":"")+
+    (lines.length?"<div class='od-lines'>"+lineHead+printers.map(lineHtml).join("")+
+      (others.length?"<div class='od-others'>"+others.map(lineHtml).join("")+"</div>":"")+"</div>":"")+
     (notes.length?"<div class='od-notes'>"+notes.map(esc).join(" &middot; ")+"</div>":"")+
-    "<div class='od-foot'>"+(group?projGroupLinkHtml(group):"")+"<span class='od-docs'>"+attClipsHtml(atts)+"</span>"+
+    "<div class='od-foot'><span class='od-docs'>"+attClipsHtml(atts)+"</span>"+
       "<button class='edit-btn' onclick='"+edit+"'>Edit</button></div>"+
   "</div>";
 }
