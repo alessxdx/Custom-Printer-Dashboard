@@ -177,25 +177,40 @@ function mdComputeEntries(){
   return entries;
 }
 
+/* Country headings with the companies inside. A company in several
+   countries (Daifuku: Australia + New Zealand) is listed under each, with
+   that country's own PO/quote counts and an "also in" note; any of its
+   rows opens the same combined customer page. */
 function buildMdList(entries){
   if(!entries.length)return "<div class='md-none'>No customers match.</div>";
-  return entries.map(function(e){
-    var cnt=function(st){return e.txs.filter(function(t){return t.status===st;}).length+e.projs.filter(function(p){return p.status===st;}).length;};
-    var pos=cnt("PO"),qt=cnt("Quotation"),ls=cnt("Lose");
-    var meta=(pos?"<span class='md-pill md-pill-po'>"+pos+" PO"+(pos!==1?"s":"")+"</span>":"")+
-      (qt?"<span class='md-pill md-pill-qt'>"+qt+" quote"+(qt!==1?"s":"")+"</span>":"")+
-      (ls?"<span class='md-pill md-pill-ls'>"+ls+" lost</span>":"")+
-      (!pos&&!qt&&!ls?"<span class='md-pill'>no deals</span>":"");
-    var cs=e.countries.slice().sort();
-    return "<div class='md-item"+(e.key===MD_SEL?" active":"")+"' data-key=\""+mdEscAttr(e.key)+"\" onclick='mdSelect(this.getAttribute(\"data-key\"))'>"+
-      "<div class='md-flags'>"+cs.slice(0,2).map(function(c){return flagImg(c,cs.length>1?18:22);}).join("")+"</div>"+
-      "<div class='md-item-main'>"+
-        "<div class='md-item-name'>"+mdEscAttr(e.name)+"</div>"+
-        "<div class='md-item-cty'>"+cs.map(mdEscAttr).join(" &middot; ")+"</div>"+
-        "<div class='md-item-meta'>"+meta+"</div>"+
-      "</div>"+
-      "<div class='md-item-chev'>&rsaquo;</div>"+
-    "</div>";
+  var fc=(document.getElementById("fc")||{}).value||"";
+  var byCountry={};
+  entries.forEach(function(e){
+    (e.countries.length?e.countries:["Unknown"]).forEach(function(c){
+      if(fc&&c!==fc)return;
+      (byCountry[c]=byCountry[c]||[]).push(e);
+    });
+  });
+  return Object.keys(byCountry).sort().map(function(country){
+    var items=byCountry[country].map(function(e){
+      var here=function(x){return (x.country||"Unknown")===country;};
+      var cnt=function(st){return e.txs.filter(function(t){return here(t)&&t.status===st;}).length+e.projs.filter(function(p){return here(p)&&p.status===st;}).length;};
+      var pos=cnt("PO"),qt=cnt("Quotation"),ls=cnt("Lose");
+      var meta=(pos?"<span class='md-pill md-pill-po'>"+pos+" PO"+(pos!==1?"s":"")+"</span>":"")+
+        (qt?"<span class='md-pill md-pill-qt'>"+qt+" quote"+(qt!==1?"s":"")+"</span>":"")+
+        (ls?"<span class='md-pill md-pill-ls'>"+ls+" lost</span>":"")+
+        (!pos&&!qt&&!ls?"<span class='md-pill'>no deals</span>":"");
+      var others=e.countries.filter(function(c){return c!==country;}).sort();
+      return "<div class='md-item"+(e.key===MD_SEL?" active":"")+"' data-key=\""+mdEscAttr(e.key)+"\" onclick='mdSelect(this.getAttribute(\"data-key\"))'>"+
+        "<div class='md-item-main'>"+
+          "<div class='md-item-name'>"+mdEscAttr(e.name)+"</div>"+
+          (others.length?"<div class='md-item-cty'>also in "+others.map(mdEscAttr).join(", ")+"</div>":"")+
+          "<div class='md-item-meta'>"+meta+"</div>"+
+        "</div>"+
+        "<div class='md-item-chev'>&rsaquo;</div>"+
+      "</div>";
+    }).join("");
+    return "<div class='md-country'>"+flagImg(country,18)+"<b>"+mdEscAttr(country)+"</b><span>"+byCountry[country].length+"</span></div>"+items;
   }).join("");
 }
 
