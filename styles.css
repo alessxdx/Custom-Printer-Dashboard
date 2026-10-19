@@ -2400,3 +2400,8 @@ html{-webkit-tap-highlight-color:transparent}
 ul.od-notes{list-style:none;margin-top:6px}
 ul.od-notes li{padding:3px 0}
 ul.od-notes li+li{border-top:1px solid var(--divider)}
+
+/* By Customer: no scroll box inside the customer list — the whole list
+   flows down the page (a capped inner scroll hid the last countries) */
+.md-list{position:static;max-height:none;overflow:visible}
+.md-list #md-list-items{overflow:visible;flex:none}
