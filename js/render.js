@@ -91,7 +91,7 @@ function resolveDeals(){
 }
 function renderStats(){
   const R=resolveDeals(),all=R.txs.concat(R.projs);
-  const pos=all.filter(x=>x.status==="PO").length;
+  const pos=typeof mdCountSt==="function"?mdCountSt(all,"PO"):all.filter(x=>x.status==="PO").length; /* summary records count as their POs */
   const qt=all.filter(x=>x.status==="Quotation").length;
   const ls=all.filter(x=>x.status==="Lose").length;
   /* companies, not company+country: matches the one-entry-per-company list */

@@ -11,6 +11,14 @@ var MD_SEL=null;    /* selected customer name (one entry per company, all countr
 var MD_SEARCH="";
 var MD_GROUP_SEL=null; /* selected project-group name, or null */
 
+/* How many POs a record stands for: a summary record (e.g. a customer's
+   2026 orders rolled into one) says "Summary of N POs" in its notes and
+   counts as N; every other record counts as 1. */
+function mdPoWeight(e){
+  var n=(e.notes||[]).map(function(x){var m=/^Summary of (\d+) POs/.exec(String(x));return m?+m[1]:0;}).filter(Boolean)[0];
+  return n||1;
+}
+function mdCountSt(list,st){return list.reduce(function(n,e){return n+(e.status===st?(st==="PO"?mdPoWeight(e):1):0);},0);}
 function mdEscAttr(s){return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/</g,"&lt;");}
 
 /* Parse unit count out of a qty string.
@@ -168,7 +176,7 @@ function mdComputeEntries(){
         ||e.projs.some(function(p){return mdProjSearchText(p).indexOf(q)!==-1;});
     });
   }
-  function poCount(e){return e.txs.filter(function(t){return t.status==="PO";}).length+e.projs.filter(function(p){return p.status==="PO";}).length;}
+  function poCount(e){return mdCountSt(e.txs,"PO")+mdCountSt(e.projs,"PO");}
   function recent(e){var ds=e.txs.map(function(t){return parseDV(t.date);}).concat(e.projs.map(function(p){return parseDV(p.date);}));return ds.length?Math.max.apply(null,ds):0;}
   if(sortMode==="name")entries.sort(function(a,b){return a.name.localeCompare(b.name);});
   else if(sortMode==="name-desc")entries.sort(function(a,b){return b.name.localeCompare(a.name);});
@@ -198,7 +206,7 @@ function buildMdList(entries){
   return Object.keys(byCountry).sort(function(a,b){return rank(a)-rank(b)||a.localeCompare(b);}).map(function(country){
     var items=byCountry[country].map(function(e){
       var here=function(x){return (x.country||"Unknown")===country;};
-      var cnt=function(st){return e.txs.filter(function(t){return here(t)&&t.status===st;}).length+e.projs.filter(function(p){return here(p)&&p.status===st;}).length;};
+      var cnt=function(st){return mdCountSt(e.txs.filter(here),st)+mdCountSt(e.projs.filter(here),st);};
       var pos=cnt("PO"),qt=cnt("Quotation"),ls=cnt("Lose");
       var meta=(pos?"<span class='md-pill md-pill-po'>"+pos+" PO"+(pos!==1?"s":"")+"</span>":"")+
         (qt?"<span class='md-pill md-pill-qt'>"+qt+" quote"+(qt!==1?"s":"")+"</span>":"")+
@@ -321,7 +329,7 @@ function buildMdDetail(key){
   var countries=[];txs.concat(projs).forEach(function(e){if(e.country&&countries.indexOf(e.country)===-1)countries.push(e.country);});
   countries.sort();
   var r=mdRollup(txs,projs);
-  var pos=txs.filter(function(t){return t.status==="PO";}).length+projs.filter(function(p){return p.status==="PO";}).length;
+  var pos=mdCountSt(txs,"PO")+mdCountSt(projs,"PO");
   var qt=txs.filter(function(t){return t.status==="Quotation";}).length+projs.filter(function(p){return p.status==="Quotation";}).length;
   var ls=txs.filter(function(t){return t.status==="Lose";}).length+projs.filter(function(p){return p.status==="Lose";}).length;
 
