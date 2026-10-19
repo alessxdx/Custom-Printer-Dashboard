@@ -2372,3 +2372,10 @@ html{-webkit-tap-highlight-color:transparent}
   .od-line .od-amt{grid-column:2;grid-row:1}
   .od-line-head span:nth-child(2){display:none}
 }
+
+/* selected customer: solid teal, so it never reads as a country heading */
+.md-item.active{background:var(--accent);border-left-color:var(--accent)}
+.md-item.active .md-item-name{color:#fff}
+.md-item.active .md-item-cty{color:rgba(255,255,255,.85)}
+.md-item.active .md-item-chev{color:#fff}
+.md-item.active .md-pill{background:rgba(255,255,255,.92);border-color:transparent}

@@ -192,7 +192,10 @@ function buildMdList(entries){
       (byCountry[c]=byCountry[c]||[]).push(e);
     });
   });
-  return Object.keys(byCountry).sort().map(function(country){
+  /* fixed market order; any country not listed follows A-Z */
+  var first=["Singapore","Philippines","Indonesia","New Zealand","China"];
+  var rank=function(c){var i=first.indexOf(c);return i===-1?first.length:i;};
+  return Object.keys(byCountry).sort(function(a,b){return rank(a)-rank(b)||a.localeCompare(b);}).map(function(country){
     var items=byCountry[country].map(function(e){
       var here=function(x){return (x.country||"Unknown")===country;};
       var cnt=function(st){return e.txs.filter(function(t){return here(t)&&t.status===st;}).length+e.projs.filter(function(p){return here(p)&&p.status===st;}).length;};
