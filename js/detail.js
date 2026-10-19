@@ -93,8 +93,11 @@ function mdUnitPriceDisplay(m){
     return avg.toLocaleString(undefined,{minimumFractionDigits:avg%1?2:0,maximumFractionDigits:2})+" "+c;
   }).join(" / ");
 }
+/* print heads, cutters and boards: shown in their own rows under the
+   printers, never counted as printers */
+var MD_SPARE_RE=/\bTPH\b|print ?head|cutter|main ?board/i;
 function mdRollup(txs,projs){
-  var models={},revenue={},pipeline={},approx=false;
+  var models={},spares={},revenue={},pipeline={},approx=false;
   txs.forEach(function(tx){
     if(!mdIsCombined(tx)&&!tx.noPrinterTotal){
       var u=mdParseUnits(tx.qty);
@@ -118,7 +121,14 @@ function mdRollup(txs,projs){
     }
   });
   (projs||[]).forEach(function(p){
-    LINE_ITEMS.filter(function(li){return li.projectId===p._id&&li.type==="printer"&&li.qty>0&&!/\bTPH\b/i.test(li.name);}).forEach(function(li){
+    LINE_ITEMS.filter(function(li){return li.projectId===p._id&&li.qty>0&&MD_SPARE_RE.test(li.name);}).forEach(function(li){
+      var m=spares[li.name]||(spares[li.name]={po:0,quote:0,lost:0});
+      if(p.status==="PO")m.po+=li.qty;
+      else if(p.status==="Quotation")m.quote+=li.qty;
+      else m.lost+=li.qty;
+      mdAddPrice(m,p.currency,li.qty,li.unitPrice);
+    });
+    LINE_ITEMS.filter(function(li){return li.projectId===p._id&&li.type==="printer"&&li.qty>0&&!MD_SPARE_RE.test(li.name);}).forEach(function(li){
       var m=models[li.name]||(models[li.name]={po:0,quote:0,lost:0});
       if(p.status==="PO")m.po+=li.qty;
       else if(p.status==="Quotation")m.quote+=li.qty;
@@ -129,7 +139,7 @@ function mdRollup(txs,projs){
     if(p.status==="PO")revenue[p.currency]=(revenue[p.currency]||0)+val;
     else if(p.status==="Quotation")pipeline[p.currency]=(pipeline[p.currency]||0)+val;
   });
-  return{models:models,revenue:revenue,pipeline:pipeline,approx:approx};
+  return{models:models,spares:spares,revenue:revenue,pipeline:pipeline,approx:approx};
 }
 
 function mdMoneyLines(map){
@@ -347,16 +357,24 @@ function buildMdDetail(key){
   var ls=txs.filter(function(t){return t.status==="Lose";}).length+projs.filter(function(p){return p.status==="Lose";}).length;
 
   var modelKeys=Object.keys(r.models).sort();
-  var anyLost=modelKeys.some(function(m){return r.models[m].lost>0;});
+  var spareKeys=Object.keys(r.spares||{}).sort();
+  var anyLost=modelKeys.some(function(m){return r.models[m].lost>0;})||spareKeys.some(function(m){return r.spares[m].lost>0;});
   var totalPo=0,totalQt=0;
   var modelRows=modelKeys.map(function(m){
     var mm=r.models[m];totalPo+=mm.po;totalQt+=mm.quote;
     return "<tr><td>"+m+"</td><td class='num'>"+(mm.po||"—")+"</td><td class='num'>"+(mm.quote||"—")+"</td><td class='num'>"+mdUnitPriceDisplay(mm)+"</td>"+(anyLost?"<td class='num'>"+(mm.lost||"—")+"</td>":"")+"</tr>";
   }).join("");
-  var modelsTable=modelKeys.length?
+  var spareRows=spareKeys.map(function(m){
+    var mm=r.spares[m];
+    return "<tr class='md-spare'><td>"+m+"</td><td class='num'>"+(mm.po||"—")+"</td><td class='num'>"+(mm.quote||"—")+"</td><td class='num'>"+mdUnitPriceDisplay(mm)+"</td>"+(anyLost?"<td class='num'>"+(mm.lost||"—")+"</td>":"")+"</tr>";
+  }).join("");
+  var cols=anyLost?5:4;
+  var modelsTable=(modelKeys.length||spareKeys.length)?
     "<table class='md-models-table'><thead><tr><th>Model</th><th class='num'>PO units</th><th class='num'>Quoted</th><th class='num'>Unit price</th>"+(anyLost?"<th class='num'>Lost</th>":"")+"</tr></thead>"+
-    "<tbody>"+modelRows+"</tbody>"+
-    "<tfoot><tr><td>Total printers</td><td class='num'>"+totalPo+"</td><td class='num'>"+totalQt+"</td><td></td>"+(anyLost?"<td></td>":"")+"</tr></tfoot></table>"
+    (modelKeys.length?"<tbody>"+modelRows+"</tbody>"+
+      "<tbody><tr class='md-total'><td>Total printers</td><td class='num'>"+totalPo+"</td><td class='num'>"+totalQt+"</td><td></td>"+(anyLost?"<td></td>":"")+"</tr></tbody>":"")+
+    (spareKeys.length?"<tbody><tr class='md-spare-head'><td colspan='"+cols+"'>Print heads &amp; spare parts <span>not counted as printers</span></td></tr>"+spareRows+"</tbody>":"")+
+    "</table>"
     :"<div class='md-money-none'>No printer quantities recorded.</div>";
 
   var curs=[];txs.forEach(function(t){if(curs.indexOf(t.currency)===-1)curs.push(t.currency);});

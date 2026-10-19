@@ -2405,3 +2405,9 @@ ul.od-notes li+li{border-top:1px solid var(--divider)}
    flows down the page (a capped inner scroll hid the last countries) */
 .md-list{position:static;max-height:none;overflow:visible}
 .md-list #md-list-items{overflow:visible;flex:none}
+
+/* Printers by model: total row, then print heads & spare parts below */
+.md-models-table tr.md-total td{padding:10px;border-top:1px solid var(--border-strong);border-bottom:none;font-weight:700;color:var(--text-strong);font-size:14.5px}
+.md-models-table tr.md-spare-head td{padding:16px 10px 6px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent-text);border-bottom:1px solid var(--divider)}
+.md-models-table tr.md-spare-head td span{margin-left:8px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--text-muted)}
+.md-models-table tr.md-spare td{color:var(--text)}

@@ -719,7 +719,9 @@ function renderModel(){
       date:p.date,displayDate:p.displayDate,status:p.status,project:p.project,pn:li.pn||"",
       qty:li.qty+" unit"+(li.qty!==1?"s":""),price:li.unitPrice,currency:p.currency,
       terms:p.shippingTerms?[p.shippingTerms]:[],warranty:p.warranty||"",bp:li.buyingPrice||null,
-      notes:p.notes||[]};
+      /* a summary record's PO list ("PO numbers: …" / one "PO <no> · …" line
+         per order) is for search and the customer page, not this strip */
+      notes:(p.notes||[]).filter(function(n){return !/^PO numbers:/.test(n)&&!/^PO \S+ · /.test(n);})};
   }).filter(Boolean);
   const cmpAll=TX.concat(projRows);
   const models=[...new Set(cmpAll.map(t=>cmpFamily(t.displayModel||t.model)))].sort();
