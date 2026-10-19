@@ -81,7 +81,8 @@ function mdUnitPriceDisplay(m){
   if(!curs.length)return "—";
   return curs.map(function(c){
     var pc=m.priceByCur[c],avg=pc.qty>0?pc.cost/pc.qty:0;
-    return avg.toLocaleString(undefined,{maximumFractionDigits:2})+" "+c;
+    avg=Math.round(avg*100)/100; /* cents shown in full: 1,174.40, not 1,174.4 */
+    return avg.toLocaleString(undefined,{minimumFractionDigits:avg%1?2:0,maximumFractionDigits:2})+" "+c;
   }).join(" / ");
 }
 function mdRollup(txs,projs){

@@ -2285,3 +2285,63 @@ html{-webkit-tap-highlight-color:transparent}
 .md-country span{margin-left:auto;font-size:11px;font-weight:600;color:var(--accent-text);background:var(--bg-stat);border-radius:999px;padding:0 8px;line-height:18px}
 .md-item{padding:9px 14px 9px 18px}
 .md-item .md-item-cty{font-style:italic}
+
+/* ===== By Customer: readability pass — larger type, more air, clearer numbers ===== */
+.md-layout{grid-template-columns:330px minmax(0,1fr);gap:18px}
+/* list */
+.md-country{font-size:13px;padding:10px 16px}
+.md-country b{letter-spacing:.04em}
+.md-item{padding:11px 16px 11px 20px;gap:12px}
+.md-item-name{font-size:14.5px;font-weight:600;line-height:1.35;white-space:normal}
+.md-item .md-item-cty{font-size:12px;color:var(--text-muted);margin-top:2px}
+.md-item-meta{margin-top:6px;gap:5px}
+.md-pill{font-size:11.5px;padding:2px 9px}
+.md-item.active{background:var(--accent-soft)}
+.md-item.active .md-item-name{color:var(--accent-text)}
+/* header */
+.md-head-card{padding:18px 22px}
+.md-head-name{font-size:24px;line-height:1.25}
+.md-head-meta{font-size:13.5px;gap:8px}
+/* totals */
+.md-kpis{gap:14px}
+.md-kpi{padding:16px 20px}
+.md-kpi-l{font-size:12px;margin-bottom:6px}
+.md-kpi .md-money-line{font-size:22px;line-height:1.3}
+.md-kpi .fx-usd,.md-kpi .md-money-total{font-size:12.5px}
+.md-kpi-u{font-size:13px}
+.md-kpi-s{font-size:12.5px;margin-top:2px}
+/* sections */
+.md-section{padding:18px 22px}
+.md-section-title,.md-entries>.md-section-title{font-size:16px;margin-bottom:14px}
+.md-models-table{font-size:14px}
+.md-models-table th{font-size:11.5px;padding:8px 10px}
+.md-models-table td{padding:10px;color:var(--text-strong)}
+.md-models-table tfoot td{font-size:14.5px;padding-top:10px}
+.md-fx-notes .fx-note{font-size:12.5px}
+/* order cards */
+.od-year{font-size:13.5px;margin:18px 0 10px}
+.od-card{padding:16px 18px;margin-bottom:12px}
+.od-name-main{font-size:15.5px}
+.od-meta{font-size:13px;gap:8px;margin-top:6px}
+.od-total{font-size:18px}
+.od-total .fx-usd{font-size:12px}
+.od-lines{margin-top:12px;padding-top:8px}
+.od-line{padding:6px 0;font-size:13.5px;gap:12px}
+.od-printer{font-size:14.5px}
+.od-qty{min-width:54px}
+.od-others .od-line{font-size:13px;color:var(--text)}
+.od-others .od-price{color:var(--text-muted)}
+.od-notes{font-size:13px;line-height:1.6;color:var(--text);background:var(--bg-soft);border-radius:8px;padding:8px 12px;margin-top:10px}
+.od-foot{margin-top:12px;padding-top:12px}
+/* documents */
+.md-doc{padding:12px 6px}
+.md-doc-type{font-size:12px;width:90px;padding:4px 0}
+.md-doc-name{font-size:14px}
+.md-doc-sub{font-size:12.5px}
+.md-doc-open{font-size:13px}
+@media (max-width:700px){
+  .md-head-name{font-size:21px}
+  .md-kpi .md-money-line{font-size:20px}
+  .md-section{padding:16px}
+  .od-card{padding:14px}
+}
