@@ -302,9 +302,22 @@ function mdDocsHtml(deals){
   var seen={},rows=[];
   deals.forEach(function(d){
     var e=d.p||d.t;
+    /* a summary record lists its POs in the notes ("PO <no> · <date> · …");
+       a file whose name carries one of those numbers is described by that
+       PO's own date and units instead of the record's date range */
+    var poNotes=(e.notes||[]).map(function(n){
+      var m=/^PO\s+(\S+)\s+·\s+(\d{1,2}\s+\w{3}\s+\d{4})(.*)$/.exec(String(n));
+      if(!m)return null;
+      var units=/([\d,]+)\s+units/.exec(m[3]);
+      return {key:m[1].replace(/[^a-z0-9]/gi,"").toLowerCase(),no:m[1],date:m[2],units:units?units[1]:""};
+    }).filter(Boolean);
     (e.attachments||[]).forEach(function(a){
       if(!a.url||seen[a.url])return;seen[a.url]=1;
-      rows.push({a:a,date:e.displayDate||e.date||"",when:parseDV(e.date),title:e.project||e.model||""});
+      var flat=String(a.name||"").replace(/[^a-z0-9]/gi,"").toLowerCase();
+      var po=poNotes.filter(function(x){return x.key&&flat.indexOf(x.key)>-1;})[0];
+      rows.push(po
+        ?{a:a,date:po.date,when:parseDV(po.date),title:"PO "+po.no+(po.units?" · "+po.units+" units":""),poDate:true}
+        :{a:a,date:e.displayDate||e.date||"",when:parseDV(e.date),title:e.project||e.model||""});
     });
   });
   if(!rows.length)return "<div class='md-money-none'>No documents attached yet.</div>";
@@ -314,7 +327,7 @@ function mdDocsHtml(deals){
     var full=mdEscAttr(r.a.name||"Document");
     return "<a class='md-doc' href='"+mdEscAttr(r.a.url)+"' target='_blank' rel='noopener' data-name=\""+full+"\" onclick='if(event.ctrlKey||event.metaKey||event.shiftKey)return true;return trkViewFile(this)'>"+
       "<span class='md-doc-type doc-"+dt.toLowerCase()+"'>"+mdEscAttr(dt)+"</span>"+
-      "<span class='md-doc-main'><span class='md-doc-name'>"+full+"</span><span class='md-doc-sub'>"+mdEscAttr(r.title)+(r.date?" &middot; "+mdEscAttr(r.date):"")+"</span></span>"+
+      "<span class='md-doc-main'><span class='md-doc-name'>"+full+"</span><span class='md-doc-sub'>"+(r.poDate?"PO date "+mdEscAttr(r.date)+" &middot; "+mdEscAttr(r.title):mdEscAttr(r.title)+(r.date?" &middot; "+mdEscAttr(r.date):""))+"</span></span>"+
       "<span class='md-doc-open'>Open &rsaquo;</span></a>";
   }).join("")+"</div>";
 }
