@@ -220,7 +220,8 @@ function mdOrderCard(d){
     terms=(t.terms||[]).map(bTerm).join("")+bWarranty(t.warranty);
     lines=[{printer:true,name:t.displayModel||t.model,qty:u,price:t.price,type:"printer"}];
   }
-  var num=function(v){return v.toLocaleString(undefined,{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2});};
+  /* round to the cent first: 25 x 1,174.40 is 58720.00000000001 in floating point */
+  var num=function(v){v=Math.round(v*100)/100;return v.toLocaleString(undefined,{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2});};
   var printers=lines.filter(function(l){return l.printer;}),others=lines.filter(function(l){return !l.printer;});
   var lineHtml=function(l){
     return "<div class='od-line"+(l.printer?" od-printer":"")+"'>"+
