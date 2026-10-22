@@ -876,6 +876,8 @@ details.others-sec:not([open]) > summary{border-bottom:none}
 
 /* ===== Line-item quotation editor (By Project) ===== */
 .modal-wide{max-width:860px;width:min(860px,94vw)}
+/* Notes edit dialog: description grows with the text, like the composer */
+#o-desc{min-height:240px;max-height:55vh;field-sizing:content;font-size:14px;line-height:1.6;padding:10px 12px;tab-size:4}
 .pj-items{margin:14px 0 4px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-soft)}
 .pj-items-label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px}
 .pj-head{display:grid;grid-template-columns:118px minmax(120px,1fr) 120px 58px 84px 74px 26px;gap:6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);padding:0 2px 4px}
