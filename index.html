@@ -23,7 +23,7 @@
    while after an edit). Anywhere else it is APP_VERSION, so files cache
    normally and change only when a deploy bumps the constant.
    BUMP APP_VERSION WHEN DEPLOYING, or returning visitors keep the old JS. */
-var APP_VERSION="2026-10-19.10";
+var APP_VERSION="2026-10-22.1";
 var ASSET_V=(location.hostname==="localhost"||location.hostname==="127.0.0.1"||location.protocol==="file:")
   ?Date.now():APP_VERSION;
 document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
@@ -227,7 +227,7 @@ document.write('<link rel="stylesheet" href="styles.css?v='+ASSET_V+'">');
     <div class="form-grid">
       <div class="form-group"><label>Date</label><input id="o-date" placeholder="e.g. 18 Nov 2025"></div>
       <div class="form-group"><label>Value / amount</label><input id="o-value" placeholder="Optional, e.g. $12,000 USD"></div>
-      <div class="form-group form-full"><label>Description *</label><input id="o-desc" placeholder="e.g. Service for Vietnam"></div>
+      <div class="form-group form-full"><label>Description *</label><textarea id="o-desc" rows="6" placeholder="e.g. Service for Vietnam" onkeydown="listKeys(event)" oninput="listInput(event)"></textarea></div>
       <div class="form-group form-full"><label>Sub-note / detail</label><textarea id="o-sub" placeholder="Any additional context or breakdown"></textarea></div>
     </div>
     <div class="modal-actions">

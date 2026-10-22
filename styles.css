@@ -1968,12 +1968,19 @@ table.pr-matrix,table.pr-rules,table.pr-hist{width:100%;border-collapse:collapse
 .nt-card{background:var(--bg-stat);border:1px solid var(--border);border-radius:12px;overflow:hidden}
 .nt-compose{padding:14px 16px}
 .nt-compose textarea{
-  width:100%;resize:vertical;min-height:52px;display:block;
-  font-family:inherit;font-size:14px;line-height:1.55;padding:10px 12px;border-radius:8px;
+  width:100%;resize:vertical;min-height:170px;max-height:65vh;field-sizing:content;display:block;
+  font-family:inherit;font-size:14px;line-height:1.6;padding:12px 14px;border-radius:8px;tab-size:4;
   border:1px solid var(--border);background:var(--bg-input);color:var(--text);outline:none;
 }
 .nt-compose textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .nt-compose-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.nt-tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.nt-tool{
+  font:inherit;font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;
+  border:1px solid var(--border);background:var(--bg-soft);color:var(--text-muted);
+}
+.nt-tool:hover{color:var(--text-strong);border-color:var(--accent)}
+.nt-tools .nt-hint{margin-left:6px}
 .nt-head{display:flex;align-items:baseline;gap:8px;padding:14px 18px 12px;border-bottom:1px solid var(--divider)}
 .nt-h{font-size:15px;font-weight:700;color:var(--text-strong)}
 .nt-n{font-size:11px;font-weight:600;color:var(--text-muted);background:var(--bg-soft);border:1px solid var(--border);border-radius:999px;padding:0 8px;line-height:18px}
@@ -2030,7 +2037,6 @@ table.pr-matrix,table.pr-rules,table.pr-hist{width:100%;border-collapse:collapse
   .nt-rec .nt-amt{flex:1;text-align:left}
   .nt-head{flex-wrap:wrap;padding:12px 14px}
   .nt-compose-foot .nt-hint{display:none}
-  .nt-compose-foot{justify-content:flex-end}
 }
 
 /* ===== Model comparison: toolbar, price summary, customer bands ===== */

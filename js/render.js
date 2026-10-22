@@ -925,8 +925,11 @@ function renderOthers(){
   const head=(title,n,hint)=>`<div class="nt-head"><span class="nt-h">${title}</span><span class="nt-n">${n}</span>${hint?`<span class="nt-hint">${hint}</span>`:""}</div>`;
   document.getElementById("content").innerHTML=`<div class="nt-page">
     <div class="nt-card nt-compose">
-      <textarea id="others-quick" rows="2" placeholder="Write a quick update…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();postOtherQuick();}"></textarea>
-      <div class="nt-compose-foot"><span class="nt-hint">Enter to post · Shift+Enter for a new line</span><button class="btn-save" onclick="postOtherQuick()">Post update</button></div>
+      <textarea id="others-quick" rows="6" placeholder="Write an update… start a line with - or 1. for a list" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();postOtherQuick();}else listKeys(event)" oninput="listInput(event)"></textarea>
+      <div class="nt-compose-foot">
+        <div class="nt-tools"><button type="button" class="nt-tool" title="Bulleted list" onmousedown="event.preventDefault()" onclick="toggleList('others-quick','•')">• List</button><button type="button" class="nt-tool" title="Numbered list" onmousedown="event.preventDefault()" onclick="toggleList('others-quick','1.')">1. List</button>
+        <span class="nt-hint">Enter new line · Tab indent · Ctrl+Enter to post</span></div>
+        <button class="btn-save" onclick="postOtherQuick()">Post update</button></div>
     </div>
     <div class="nt-card">${head("Updates",updates.length,"newest first")}
       ${updates.length?updates.map(update).join(""):`<div class="nt-empty">No updates yet. Anything you post above lands here and can be deleted with one click.</div>`}</div>
@@ -942,6 +945,62 @@ async function postOtherQuick(){
   const r=await sbInsert("others",oToDb(no));if(r&&r[0]){no._id=r[0].id;no.created=r[0].created_at||no.created;}
   OTHERS.push(no);renderContent();
   const again=document.getElementById("others-quick");if(again)again.focus();
+}
+/* Plain-text list editing for note textareas: Enter continues a "•" or
+   "1." line (Enter on an empty item ends the list), Tab / Shift+Tab
+   indent and outdent. listInput turns "- " or "* " at a line start into "• ". */
+const LIST_RE=/^(\s*)(•|\d+[.)])\s(.*)$/;
+function editText(ta,from,to,text){
+  ta.focus();ta.setSelectionRange(from,to);
+  if(from===to&&!text)return;
+  // execCommand keeps Ctrl+Z working; "insertText" with "" is a no-op, so deletes use "delete"
+  if(!document.execCommand(text?"insertText":"delete",false,text))ta.setRangeText(text,from,to,"end");
+}
+function listKeys(e){
+  const ta=e.target,v=ta.value,s=ta.selectionStart,end=ta.selectionEnd;
+  const ls=v.lastIndexOf("\n",s-1)+1;
+  if(e.key==="Enter"&&!e.shiftKey&&s===end){
+    const m=LIST_RE.exec(v.slice(ls,(v.indexOf("\n",s)+1||v.length+1)-1));
+    if(!m)return;
+    e.preventDefault();
+    if(!m[3].trim()){editText(ta,ls,ls+m[0].length,"");return;}
+    const n=/^\d+/.exec(m[2]);
+    editText(ta,s,s,"\n"+m[1]+(n?(+n[0]+1)+m[2].slice(n[0].length):"•")+" ");
+  }else if(e.key==="Tab"){
+    e.preventDefault();
+    const multi=v.slice(s,end).includes("\n");
+    if(!e.shiftKey&&!multi&&!LIST_RE.test(v.slice(ls).split("\n")[0])){editText(ta,s,end,"    ");return;}
+    const le=(v.indexOf("\n",end)+1||v.length+1)-1,lines=v.slice(ls,le).split("\n");
+    const out=lines.map(l=>e.shiftKey?l.replace(/^ {1,4}|^\t/,""):"    "+l).join("\n");
+    editText(ta,ls,le,out);
+    if(s===end){const c=Math.max(ls,s+out.length-(le-ls));ta.setSelectionRange(c,c);}
+    else ta.setSelectionRange(ls,ls+out.length);
+  }
+}
+/* Runs on input rather than keydown so phone keyboards (no key names) get it too */
+function listInput(e){
+  const ta=e.target,s=ta.selectionStart;
+  if(e.data!==" "||s!==ta.selectionEnd)return;
+  const ls=ta.value.lastIndexOf("\n",s-1)+1;
+  if(/^\s*[-*] $/.test(ta.value.slice(ls,s)))editText(ta,s-2,s,"• ");
+}
+/* Toolbar: turn the selected lines into a list, or back to plain lines if
+   they already are one */
+function toggleList(id,kind){
+  const ta=document.getElementById(id);if(!ta)return;
+  const v=ta.value,s=ta.selectionStart,end=ta.selectionEnd;
+  const ls=v.lastIndexOf("\n",s-1)+1,le=(v.indexOf("\n",end)+1||v.length+1)-1;
+  const lines=v.slice(ls,le).split("\n"),same=m=>m&&(m[2]==="•")===(kind==="•");
+  const isList=lines.every(l=>!l.trim()||same(LIST_RE.exec(l)));
+  let k=0;
+  const out=lines.map(l=>{
+    const m=LIST_RE.exec(l);
+    if(isList)return m?m[1]+m[3]:l;
+    if(!l.trim()&&lines.length>1)return l;
+    const ind=m?m[1]:/^\s*/.exec(l)[0];
+    return ind+(kind==="•"?"•":(++k)+".")+" "+(m?m[3]:l.slice(ind.length));
+  }).join("\n");
+  editText(ta,ls,le,out);
 }
 /* One click, no confirm box: the toast's Undo puts it straight back */
 async function deleteOtherQuick(i){
